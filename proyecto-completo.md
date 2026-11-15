@@ -1262,6 +1262,13 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 - **Sandbox de prueba aislada:** Leonardo creará la ruta local `/dev-sandbox` (`DevSandboxView.tsx`) donde Ismael y Abraham pueden renderizar y probar cada uno de sus 8 minijuegos en solitario con `mockLiveMetrics` antes de conectar el Socket.IO real.
 - **`main` siempre compila y arranca:** Nunca hacer `git push` directo con código roto; usar ramas cortas por tarea (`feat/ism-rol2a`, `feat/sch-60s-tree`) y revisar que pase `npm run build` / `pytest` antes de integrar.
 
+### Despliegue web gratuito (2026-11-15)
+
+- **Backend → Render** (plan *free*, web service). Archivo `render.yaml` (Blueprint) o configuración manual: raíz del repo, *build* `pip install -r backend/requirements.txt`, *start* `uvicorn backend.main:socket_app --host 0.0.0.0 --port $PORT`, *health check* `/health`, `PYTHON_VERSION` 3.12.7. Corre desde la raíz porque el backend lee `frontend/src/data/nasa_catalog.json`.
+- **Frontend → Netlify** (`netlify.toml`: base `frontend`, `npm run build`, publica `dist`, redirección SPA) o Vercel (`frontend/vercel.json`). Variable de entorno obligatoria: `VITE_BACKEND_URL` = URL pública del backend en Render.
+- **Plan gratuito:** Render duerme el servidor tras un rato sin uso y tarda ~1 min en despertar. Con `VITE_BACKEND_URL` definido, crear o unirse a una sala espera hasta `BACKEND_WAKE_TIMEOUT_MS` (75 s, solo tiempo de interfaz) antes de mostrar el aviso sin conexión. Las salas viven en memoria: **una sola instancia** y se pierden si el servidor se reinicia. Antes de una demo, abrir `<backend>/health` un minuto antes.
+- En el despliegue la sala muestra la dirección pública (`window.location.host`); la IP LAN solo se usa en `localhost`.
+
 ### Idioma de la interfaz: `frontend/src/i18n/` (2026-11-15)
 
 - **Sin dependencias nuevas.** `t("English text", vars?)` devuelve la cadena en español si el jugador eligió español y existe la traducción en `i18n/es.ts`; si no, devuelve el inglés (la llave es el propio texto en inglés, estilo *gettext*). Los marcadores `{name}` se rellenan con `vars`.

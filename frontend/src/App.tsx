@@ -25,6 +25,8 @@ import { LobbyView } from "./views/LobbyView";
 import { MissionReportDashboard } from "./views/MissionReportDashboard";
 import {
   BACKEND_URL,
+  BACKEND_WAKE_TIMEOUT_MS,
+  IS_REMOTE_BACKEND,
   connectWithTimeout,
   gameClient,
   onConnectionChange,
@@ -742,8 +744,10 @@ export function App() {
   const ensureOnline = async (): Promise<boolean> => {
     if (latest.current.isOnline) return true;
     setIsCreatingRoom(true);
-    const healthy = await probeBackend();
-    const connected = healthy && (await connectWithTimeout());
+    // A hosted free-tier server may be asleep: give it time to wake up instead of failing fast.
+    const waitMs = IS_REMOTE_BACKEND ? BACKEND_WAKE_TIMEOUT_MS : undefined;
+    const healthy = await probeBackend(waitMs);
+    const connected = healthy && (await connectWithTimeout(waitMs));
     setIsCreatingRoom(false);
     setConnectionStatus(connected ? "online" : "offline");
     return connected;

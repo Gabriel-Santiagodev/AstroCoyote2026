@@ -1,0 +1,18 @@
+# Render Blueprint — backend (FastAPI + python-socketio) on Render's free web service plan.
+# Deploy: Render dashboard → New → Blueprint → pick this repo (branch main).
+# The service runs from the repo root because the backend reads frontend/src/data/nasa_catalog.json.
+# Free plan: the server sleeps after a while without traffic and needs ~1 min to wake up;
+# rooms live in memory, so keep ONE instance (do not scale out).
+services:
+  - type: web
+    name: astro-squad-backend
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:socket_app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
