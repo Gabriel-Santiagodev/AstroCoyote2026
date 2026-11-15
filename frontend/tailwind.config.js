@@ -25,7 +25,11 @@ export default {
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
         sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
       },
+      borderWidth: {
+        3: "3px",
+      },
       boxShadow: {
+        "paper-sm": "2px 2px 0px #0F172A",
         paper: "4px 4px 0px #0F172A",
         "paper-lg": "6px 6px 0px #0F172A",
       },
