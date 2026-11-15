@@ -12,7 +12,13 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Lock, Radio, TimerReset, Wrench } from "lucide-react";
-import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "./paper/CrewmateAvatar";
+import {
+  CrewmateAvatar,
+  ROLE_CHARACTER_PROFILE,
+  type ActionEffect,
+  type AvatarState,
+} from "./paper/CrewmateAvatar";
+import { soundEngine } from "./paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
 // ---------------------------------------------------------------------------
@@ -23,11 +29,46 @@ export const STATION_DURATION_SEC = 30;
 /** Timer turns amber at or below this many seconds (UI-only threshold). */
 const TIMER_WARN_SEC = 10;
 /** Timer turns red and pulses at or below this many seconds (UI-only threshold). */
-const TIMER_CRIT_SEC = 5;
+export const TIMER_CRIT_SEC = 5;
 /** How long a live-mutation toast stays on screen (UI-only). */
 const TOAST_LIFETIME_MS = 3500;
 /** Maximum stacked toasts before the oldest is dropped (UI-only). */
 const TOAST_MAX_STACK = 3;
+/** Countdown ticks play on the last N seconds (STATE.md Fase 7: `1..5`). */
+const COUNTDOWN_TICK_FROM_SEC = TIMER_CRIT_SEC;
+/** Ticks at or below this many seconds use the urgent (higher) tone. */
+const COUNTDOWN_URGENT_SEC = 2;
+
+/** Sprite mood for a station specialist (STATE.md Fase 7 animation rules). */
+export interface SpriteMood {
+  state: AvatarState;
+  actionEffect: ActionEffect;
+  statusBadgeText?: string;
+}
+
+/**
+ * Shared mood rules used by MinigameShell and LinearStationTrack:
+ * walking -> thruster; locked -> cheer + complete + "LOCKED";
+ * alert (<= 5 s unlocked or critical metrics) -> panic + error + "ALERT"; otherwise work + scan.
+ */
+export function resolveSpriteMood(opts: {
+  isWalking?: boolean;
+  isLocked: boolean;
+  isAlert: boolean;
+  /** Keep the "complete" sparkle only during the brief post-lock celebration. */
+  celebrating?: boolean;
+}): SpriteMood {
+  if (opts.isWalking) return { state: "walk", actionEffect: "thruster" };
+  if (opts.isLocked) {
+    return {
+      state: "cheer",
+      actionEffect: opts.celebrating === false ? "none" : "complete",
+      statusBadgeText: "LOCKED",
+    };
+  }
+  if (opts.isAlert) return { state: "panic", actionEffect: "error", statusBadgeText: "ALERT" };
+  return { state: "work", actionEffect: "scan" };
+}
 
 /**
  * Role labels used across the station UI. Identity (codename, label, suit colour) comes from
@@ -128,7 +169,8 @@ interface ToastItem {
 
 function LiveMutationToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
-    <div className="pointer-events-none fixed right-3 top-3 z-50 flex w-[min(92vw,22rem)] flex-col gap-2">
+    // Sits below the fixed <SoundControlPill /> (top-right) so toasts never cover the audio controls.
+    <div className="pointer-events-none fixed right-3 top-14 z-50 flex w-[min(92vw,22rem)] flex-col gap-2">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <motion.div
@@ -176,6 +218,8 @@ export interface MinigameShellProps {
   onFallbackSubmit?: () => void;
   /** "stage" = Host / desktop flash panel (default); "handheld" = compact phone console frame. */
   layout?: MinigameShellLayout;
+  /** Shared metrics are in red alert (overweight, no budget, UFE below minimum, missing TPS). */
+  criticalAlert?: boolean;
   children: ReactNode;
 }
 
@@ -190,6 +234,7 @@ export function MinigameShell({
   playerLabel,
   onFallbackSubmit,
   layout = "stage",
+  criticalAlert = false,
   children,
 }: MinigameShellProps) {
   const profile = ROLE_CHARACTER_PROFILE[roleId];
@@ -216,11 +261,47 @@ export function MinigameShell({
     if (!toastAlert) return;
     const id = ++toastSeq.current;
     setToasts((prev) => [...prev, { id, text: toastAlert }].slice(-TOAST_MAX_STACK));
+    soundEngine.playMutationToast();
     const timer = window.setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, TOAST_LIFETIME_MS);
     return () => window.clearTimeout(timer);
   }, [toastAlert]);
+
+  // --- Reactive audio (soundEngine) ------------------------------------------
+  // The clock is only trusted once it has shown a positive value since mount, so a
+  // shell that mounts before App restarts the 30 s timer never fires a bogus time-up.
+  const clockStarted = useRef(secondsLeft > 0);
+  if (secondsLeft > 0) clockStarted.current = true;
+
+  // Countdown ticks on the last 5 s (urgent tone on the last 2 s).
+  const lastTickSec = useRef<number | null>(null);
+  useEffect(() => {
+    if (isLocked || !clockStarted.current || secondsLeft < 1 || secondsLeft > COUNTDOWN_TICK_FROM_SEC) return;
+    if (lastTickSec.current === secondsLeft) return;
+    lastTickSec.current = secondsLeft;
+    soundEngine.playCountdownTick(secondsLeft <= COUNTDOWN_URGENT_SEC);
+  }, [secondsLeft, isLocked]);
+
+  // Completion arpeggio when the single take locks.
+  const wasLocked = useRef(isLocked);
+  useEffect(() => {
+    if (isLocked && !wasLocked.current) soundEngine.playComplete();
+    wasLocked.current = isLocked;
+  }, [isLocked]);
+
+  // Error buzz when the clock expires without a lock (emergency auto-submit / fallback take).
+  const timeUpPlayed = useRef(false);
+  useEffect(() => {
+    if (!isTimeUp || isLocked || !clockStarted.current || timeUpPlayed.current) return;
+    timeUpPlayed.current = true;
+    soundEngine.playError();
+  }, [isTimeUp, isLocked]);
+
+  const mood = resolveSpriteMood({
+    isLocked,
+    isAlert: !isLocked && (isCrit || (isTimeUp && clockStarted.current) || criticalAlert),
+  });
 
   const timerColorClass = isLocked
     ? "bg-blueprint-navy text-slate-300"
@@ -291,12 +372,19 @@ export function MinigameShell({
       >
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div
-            className="visor-glow shrink-0 rounded-xl border-[3px] border-ink-black bg-space-ink p-1"
-            style={{ borderColor: "#0F172A" }}
+            className={`visor-glow flex shrink-0 flex-col items-center rounded-xl border-[3px] p-1 transition-colors ${
+              mood.actionEffect === "error"
+                ? "border-status-crit bg-status-crit/15"
+                : isLocked
+                ? "border-status-ok bg-status-ok/15"
+                : "border-ink-black bg-space-ink"
+            }`}
           >
             <CrewmateAvatar
               role={roleId}
-              state={isLocked ? "cheer" : isCrit ? "panic" : "work"}
+              state={mood.state}
+              actionEffect={mood.actionEffect}
+              statusBadgeText={isHandheld ? undefined : mood.statusBadgeText}
               size={isHandheld ? 36 : 52}
             />
           </div>
@@ -448,6 +536,10 @@ function MinigameFallback({
   onFallbackSubmit?: () => void;
 }) {
   const profile = ROLE_CHARACTER_PROFILE[roleId];
+  // Emergency fallback is an error state: buzz once when the fallback card appears.
+  useEffect(() => {
+    soundEngine.playError();
+  }, []);
   return (
     <div className="paper-card-light space-y-3 p-4" role="alert">
       <div className="flex items-center gap-2">
@@ -462,13 +554,23 @@ function MinigameFallback({
         {error.message || String(error)}
       </pre>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onRetry} className="paper-btn bg-role-spacecraft px-3 py-1.5 text-sm text-ink-black">
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playClick();
+            onRetry();
+          }}
+          className="paper-btn bg-role-spacecraft px-3 py-1.5 text-sm text-ink-black"
+        >
           Retry minigame
         </button>
         {onFallbackSubmit && !isLocked && (
           <button
             type="button"
-            onClick={onFallbackSubmit}
+            onClick={() => {
+              soundEngine.playClick();
+              onFallbackSubmit();
+            }}
             className="paper-btn bg-status-ok px-3 py-1.5 text-sm text-ink-black"
           >
             Lock fallback take

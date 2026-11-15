@@ -9,15 +9,30 @@
 //     controls own the screen inside a `.handheld-console-frame`.
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Cpu, Flag, Home, RefreshCw, Rocket, Smartphone, Tv, Wrench } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Cpu,
+  Flag,
+  Home,
+  RefreshCw,
+  Rocket,
+  Smartphone,
+  Tv,
+  Wrench,
+} from "lucide-react";
 import {
   MinigameShell,
   MISSION_LABELS,
+  resolveSpriteMood,
   STATION_DURATION_SEC,
+  TIMER_CRIT_SEC,
 } from "../components/MinigameShell";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
+import { soundEngine } from "../components/paper/SoundEngine";
+import nasaCatalog from "../data/nasa_catalog.json";
 import { Rol1A_BudgetTable } from "../components/minigames/Rol1A_BudgetTable";
 import { Rol1B_LauncherAuction } from "../components/minigames/Rol1B_LauncherAuction";
 import { Rol2A_TopologicalAssembly } from "../components/minigames/Rol2A_TopologicalAssembly";
@@ -48,6 +63,50 @@ export const LAUNCH_LOADING_MS = 2500;
 export const PHONE_BREAKPOINT_PX = 768;
 /** UI-only refresh rate for loading-screen progress bars. */
 const LOADING_TICK_MS = 100;
+/** UI-only: how long a freshly locked sprite keeps the "complete" sparkle + bay flash. */
+const LOCK_CELEBRATION_MS = 1800;
+
+// ---------------------------------------------------------------------------
+// Critical metric alerts — thresholds come from nasa_catalog.json (same sources as ResourceHUD)
+// ---------------------------------------------------------------------------
+export type CriticalAlertId = "overweight" | "budget_depleted" | "ufe_below_minimum" | "no_thermal_protection";
+
+type MissionAlertSpec = { min_ufe_event_pct?: number; requires_thermal_protection?: boolean };
+
+/** Launch mass cap used by the HUD mass gauge (Falcon 9 Block 5 to Mars). */
+const LAUNCH_MASS_CAP_KG: number | undefined = nasaCatalog.launchers.find(
+  (l) => l.id === "falcon9_block5"
+)?.max_mass_mars_kg;
+
+/** Missions without their own `min_ufe_event_pct` fall back to the lowest one in the catalog. */
+const CATALOG_MIN_UFE_PCT: number | undefined = (() => {
+  const values = Object.values(nasaCatalog.missions)
+    .map((m) => (m as MissionAlertSpec).min_ufe_event_pct)
+    .filter((v): v is number => typeof v === "number");
+  return values.length > 0 ? Math.min(...values) : undefined;
+})();
+
+export function getCriticalAlerts(metrics: LiveMetrics, missionId: MissionIdType): CriticalAlertId[] {
+  const spec = nasaCatalog.missions[missionId] as MissionAlertSpec;
+  const minUfe = spec.min_ufe_event_pct ?? CATALOG_MIN_UFE_PCT;
+  const alerts: CriticalAlertId[] = [];
+  if (LAUNCH_MASS_CAP_KG !== undefined && metrics.estimated_wet_mass_kg > LAUNCH_MASS_CAP_KG) {
+    alerts.push("overweight");
+  }
+  if (metrics.remaining_budget_usd <= 0) alerts.push("budget_depleted");
+  if (minUfe !== undefined && metrics.ufe_reserve_pct < minUfe) alerts.push("ufe_below_minimum");
+  if (spec.requires_thermal_protection && !metrics.has_thermal_protection) {
+    alerts.push("no_thermal_protection");
+  }
+  return alerts;
+}
+
+const CRITICAL_ALERT_LABEL: Record<CriticalAlertId, string> = {
+  overweight: "Wet mass over launcher capacity",
+  budget_depleted: "Budget depleted",
+  ufe_below_minimum: "UFE reserve below mission minimum",
+  no_thermal_protection: "Thermal protection missing",
+};
 
 export const ALL_ROLES: RoleType[] = [
   "finance_launch",
@@ -266,6 +325,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
       const tick = window.setInterval(() => {
         setSyncElapsedMs(performance.now() - start);
       }, LOADING_TICK_MS);
+      // The whole squad cleared Wave 1: celebrate the wave advance.
+      soundEngine.playComplete();
       const done = window.setTimeout(() => {
         window.clearInterval(tick);
         setPhase("station_2");
@@ -321,8 +382,51 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const isRoleLocked = (role: RoleType) =>
     lockedTakes.some((t) => t.role_id === role && t.wave === activeWave) || (role === roleId && isLocked);
 
-  const spriteState = (role: RoleType) =>
-    isWalking ? "walk" : isRoleLocked(role) ? "cheer" : "work";
+  // --- Critical metrics: red alert + error buzz when a new alert appears ----
+  const criticalAlerts = getCriticalAlerts(liveMetrics, missionId);
+  const isCritical = criticalAlerts.length > 0;
+  const alertKey = criticalAlerts.join("|");
+  const prevAlerts = useRef<CriticalAlertId[]>(criticalAlerts);
+  useEffect(() => {
+    const before = prevAlerts.current;
+    prevAlerts.current = criticalAlerts;
+    if (criticalAlerts.some((a) => !before.includes(a))) soundEngine.playError();
+    // alertKey captures the alert set; criticalAlerts is derived from it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertKey]);
+
+  // --- Lock celebration: brief "complete" sparkle + bay flash per newly locked role
+  const lockedKey = ALL_ROLES.filter((r) => isRoleLocked(r)).join("|");
+  const prevLocked = useRef<string[]>([]);
+  const [celebrating, setCelebrating] = useState<RoleType[]>([]);
+  const celebrationTimers = useRef<number[]>([]);
+  useEffect(() => () => celebrationTimers.current.forEach((t) => window.clearTimeout(t)), []);
+  useEffect(() => {
+    const now = lockedKey ? (lockedKey.split("|") as RoleType[]) : [];
+    const fresh = now.filter((r) => !prevLocked.current.includes(r));
+    prevLocked.current = now;
+    if (fresh.length === 0) return;
+    setCelebrating((prev) => [...prev, ...fresh.filter((r) => !prev.includes(r))]);
+    // Each batch ends on its own timer, so overlapping locks never get stuck celebrating.
+    celebrationTimers.current.push(
+      window.setTimeout(() => {
+        setCelebrating((prev) => prev.filter((r) => !fresh.includes(r)));
+      }, LOCK_CELEBRATION_MS)
+    );
+  }, [lockedKey]);
+
+  // My specialist panics on the last 5 s of an open, unlocked station.
+  const myClockAlert = showMinigame && !isLocked && timeLeftSec <= TIMER_CRIT_SEC;
+
+  const spriteMood = (role: RoleType) => {
+    const locked = isRoleLocked(role);
+    return resolveSpriteMood({
+      isWalking,
+      isLocked: locked,
+      celebrating: celebrating.includes(role),
+      isAlert: !locked && (isCritical || (role === roleId && myClockAlert)),
+    });
+  };
 
   const headline =
     phase === "sync"
@@ -356,7 +460,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   return (
     <main
       className={`mx-auto overflow-x-hidden ${
-        isPhoneConsole ? "max-w-xl space-y-3 px-2 py-3" : "max-w-6xl space-y-5 px-4 py-6"
+        // Top padding leaves room for the fixed <SoundControlPill /> in the top-right corner.
+        isPhoneConsole ? "max-w-xl space-y-3 px-2 pb-3 pt-14" : "max-w-6xl space-y-5 px-4 pb-6 pt-16"
       }`}
     >
       {isPhoneConsole ? (
@@ -372,7 +477,12 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
         <section className="handheld-console-frame space-y-2 p-3" aria-label="Station track">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <CrewmateAvatar role={roleId} state={spriteState(roleId)} size={30} />
+              <CrewmateAvatar
+                role={roleId}
+                state={spriteMood(roleId).state}
+                actionEffect={spriteMood(roleId).actionEffect}
+                size={30}
+              />
               <div className="min-w-0">
                 <div
                   className="truncate font-mono text-[10px] font-bold uppercase"
@@ -421,20 +531,39 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             </ol>
           </div>
 
+          {isCritical && (
+            <div
+              className="flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-ink-black bg-status-crit px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink-black"
+              role="alert"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                Red alert · {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
+              </span>
+            </div>
+          )}
+
           {/* squad lock status (4 mini chips) */}
           <ul className="grid grid-cols-4 gap-1.5" aria-label="Squad status">
             {ALL_ROLES.map((role) => {
               const profile = ROLE_CHARACTER_PROFILE[role];
               const locked = isRoleLocked(role);
+              const mood = spriteMood(role);
               return (
                 <li
                   key={role}
-                  className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border-2 border-ink-black px-1 py-0.5 ${
-                    role === roleId ? "bg-blueprint-navy" : "bg-space-ink"
+                  className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border-2 px-1 py-0.5 transition-colors ${
+                    celebrating.includes(role)
+                      ? "border-status-ok bg-status-ok/20"
+                      : mood.actionEffect === "error"
+                      ? "border-status-crit bg-status-crit/15"
+                      : role === roleId
+                      ? "border-ink-black bg-blueprint-navy"
+                      : "border-ink-black bg-space-ink"
                   }`}
-                  title={`${profile.codename}${locked ? " · LOCKED" : ""}`}
+                  title={`${profile.codename}${locked ? " · LOCKED" : mood.statusBadgeText ? ` · ${mood.statusBadgeText}` : ""}`}
                 >
-                  <CrewmateAvatar role={role} state={locked ? "cheer" : "work"} size={20} />
+                  <CrewmateAvatar role={role} state={mood.state} actionEffect={mood.actionEffect} size={20} />
                   {locked ? (
                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-status-ok" aria-label="locked" />
                   ) : (
@@ -468,10 +597,10 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
           </div>
 
           {/* Hangar rail: node columns are w-28, so the rail is inset by half (3.5rem) to line up */}
-          <div className="relative rounded-xl border-[3px] border-ink-black bg-space-ink/80 pb-3 pt-[5.5rem]">
+          <div className="relative rounded-xl border-[3px] border-ink-black bg-space-ink/80 pb-3 pt-[6.75rem]">
             <div className="blueprint-grid pointer-events-none absolute inset-0 rounded-xl opacity-40" aria-hidden="true" />
 
-            <div className="absolute left-14 right-14 top-[6.6rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
+            <div className="absolute left-14 right-14 top-[7.85rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
               <motion.div
                 className="h-full rounded-full bg-status-ok"
                 animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
@@ -480,10 +609,11 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             </div>
 
             {/* marching squad: all 4 ASTRO SPRITES advance node to node together */}
-            <div className="pointer-events-none absolute left-14 right-14 top-3 h-20">
+            <div className="pointer-events-none absolute left-14 right-14 top-2 h-24">
               {ALL_ROLES.map((role, i) => {
                 const profile = ROLE_CHARACTER_PROFILE[role];
                 const locked = isRoleLocked(role);
+                const mood = spriteMood(role);
                 const isMe = role === roleId;
                 const offsetPx = (i - (ALL_ROLES.length - 1) / 2) * SQUAD_SPREAD_PX;
                 return (
@@ -502,28 +632,24 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                       x: { duration: 0.3 },
                       y: { duration: 0.5, repeat: isWalking ? Infinity : 0, delay: i * 0.1 },
                     }}
-                    aria-label={`${profile.codename} ${isWalking ? "walking" : locked ? "locked" : "working"}`}
+                    aria-label={`${profile.codename} ${
+                      isWalking ? "walking" : locked ? "locked" : mood.statusBadgeText === "ALERT" ? "alert" : "working"
+                    }`}
                   >
-                    <div className="h-5">
-                      <AnimatePresence>
-                        {locked && (
-                          <motion.span
-                            initial={{ scale: 0.3, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex items-center rounded-full border-2 border-ink-black bg-status-ok p-0.5 text-ink-black"
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
+                    <div className="flex h-4 items-end">
+                      {isMe && (
+                        <span className="rounded border border-ink-black bg-paper-cream px-1 font-mono text-[8px] font-bold leading-tight text-ink-black">
+                          YOU
+                        </span>
+                      )}
                     </div>
-                    <CrewmateAvatar role={role} state={spriteState(role)} size={isMe ? 50 : 42} />
-                    {isMe && (
-                      <span className="-mt-1 rounded border border-ink-black bg-paper-cream px-1 font-mono text-[8px] font-bold text-ink-black">
-                        YOU
-                      </span>
-                    )}
+                    <CrewmateAvatar
+                      role={role}
+                      state={mood.state}
+                      actionEffect={mood.actionEffect}
+                      statusBadgeText={mood.statusBadgeText}
+                      size={isMe ? 50 : 42}
+                    />
                   </motion.div>
                 );
               })}
@@ -569,14 +695,24 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
               const human = players.find((p) => p.role_id === role);
               const isMe = role === roleId;
               const locked = isRoleLocked(role);
+              const mood = spriteMood(role);
+              const isFlashing = celebrating.includes(role);
               return (
-                <li
+                <motion.li
                   key={role}
-                  className={`flex items-center gap-2 rounded-xl border-[3px] border-ink-black px-2 py-1.5 shadow-paper ${
-                    isMe ? "bg-blueprint-navy" : "bg-space-ink"
+                  animate={isFlashing ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.45 }}
+                  className={`flex items-center gap-2 rounded-xl border-[3px] px-2 py-1.5 shadow-paper transition-colors ${
+                    isFlashing
+                      ? "border-status-ok bg-status-ok/20"
+                      : mood.actionEffect === "error"
+                      ? "border-status-crit bg-status-crit/15"
+                      : isMe
+                      ? "border-ink-black bg-blueprint-navy"
+                      : "border-ink-black bg-space-ink"
                   }`}
                 >
-                  <CrewmateAvatar role={role} state={locked ? "cheer" : "work"} size={36} />
+                  <CrewmateAvatar role={role} state={mood.state} actionEffect={mood.actionEffect} size={36} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-mono text-[10px] font-bold uppercase" style={{ color: profile.suit }}>
                       {profile.codename}
@@ -610,14 +746,27 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                         exit={{ opacity: 0 }}
                         className="font-mono text-[10px] font-bold text-slate-400"
                       >
-                        {!human && !isMe ? "AUTO" : "…"}
+                        {mood.statusBadgeText === "ALERT" ? "ALERT" : !human && !isMe ? "AUTO" : "…"}
                       </motion.span>
                     )}
                   </AnimatePresence>
-                </li>
+                </motion.li>
               );
             })}
           </ul>
+
+          {isCritical && (
+            <div
+              className="flex flex-wrap items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-2 font-mono text-xs font-bold uppercase text-ink-black shadow-paper"
+              role="alert"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Red alert:</span>
+              <span className="font-semibold normal-case">
+                {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
+              </span>
+            </div>
+          )}
         </section>
       )}
 
@@ -696,6 +845,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
               playerLabel={playerName ? `Crew: ${playerName}` : undefined}
               onFallbackSubmit={() => onSubmitTake({})}
               layout={isPhoneConsole ? "handheld" : "stage"}
+              criticalAlert={isCritical}
             >
               <ActiveMinigame
                 key={`${roleId}-${activeWave}`}

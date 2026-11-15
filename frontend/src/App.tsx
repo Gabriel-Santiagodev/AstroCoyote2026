@@ -2,7 +2,7 @@
 // (docs/08-controles.md) and automatic offline/preview fallback when the backend on :8000 is
 // not running, so the full HomeMenu -> Lobby -> Stations -> Flight -> Report loop always works.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SoundControlPill } from "./components/paper/SoundEngine";
+import { SoundControlPill, soundEngine } from "./components/paper/SoundEngine";
 import { Starfield } from "./components/paper/Starfield";
 import { ROLE_META } from "./components/MinigameShell";
 import { DevSandboxView } from "./views/DevSandboxView";
@@ -228,6 +228,8 @@ export function App() {
   const [stationDuration, setStationDuration] = useState(STATION_SEC);
   const [syncDelay, setSyncDelay] = useState(SYNC_DELAY_SEC);
   const [stationTimeLeft, setStationTimeLeft] = useState(STATION_SEC);
+  /** True only while the local station minigame is playable (after the walk / sync). */
+  const [stationOpen, setStationOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockedTakes, setLockedTakes] = useState<JugadorBloqueoTomaPayload[]>([]);
   const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(DEFAULT_METRICS);
@@ -258,11 +260,12 @@ export function App() {
   const pendingFlightTotalSec = useRef<number>(FLIGHT_TOTAL_SEC);
 
   // --- Host Main Stage vs Phone Crew Console --------------------------------
-  const [stageViewOverride] = useState<StageViewOverride>(readStageViewOverride);
+  // Seeded from `?view=` and kept in sync with the lobby's AUTO / STAGE / PHONE PAD selector.
+  const [stageViewOverride, setStageViewOverride] = useState<StageViewOverride>(readStageViewOverride);
   const isSmallViewport = useIsSmallViewport();
   const isPhoneConsole = resolvePhoneConsole({ isSmallViewport, mode, isHost, override: stageViewOverride });
-  const latest = useRef({ role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen });
-  latest.current = { role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen };
+  const latest = useRef({ role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen, stationDuration });
+  latest.current = { role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen, stationDuration };
 
   const clearTimer = (ref: { current: number | null }) => {
     if (ref.current !== null) {
@@ -341,6 +344,7 @@ export function App() {
     setStationDuration(STATION_SEC);
     setSyncDelay(SYNC_DELAY_SEC);
     setStationTimeLeft(STATION_SEC);
+    setStationOpen(false);
     setIsLocked(false);
     setLockedTakes([]);
     setLiveMetrics(DEFAULT_METRICS);
@@ -444,6 +448,10 @@ export function App() {
         setLiveMetrics((prev) => mergeMetrics(prev, payload.consolidated_wave1 || {}));
         setSpectralChallenge(payload.spectral_challenge);
         setIsLocked(false);
+        // Station 2 is not open until the sync ends: reset the clock so a timed-out Station 1
+        // (clock at 0) never triggers the auto-lock safety net during the sync.
+        setStationOpen(false);
+        setStationTimeLeft(payload.duration_sec || STATION_SEC);
         setWave(2);
       },
       iniciar_vuelo_60s: (payload) => {
@@ -508,6 +516,7 @@ export function App() {
       clearTimer(roomCreateTimer);
       setIsCreatingRoom(false);
       setNotice(payload?.message || "Room error");
+      soundEngine.playError();
     };
     socket.on("error_sala", onRoomError);
     return () => {
@@ -657,9 +666,10 @@ export function App() {
   };
 
   const handleStationOpened = useCallback(
-    (openedWave: 1 | 2) => {
+    (_openedWave: 1 | 2) => {
       setIsLocked(false);
-      startStationTimer(openedWave === 1 ? stationDuration : stationDuration);
+      setStationOpen(true);
+      startStationTimer(stationDuration);
     },
     [startStationTimer, stationDuration]
   );
@@ -675,6 +685,7 @@ export function App() {
       const { isOnline: online, pin: p, role: r, wave: w, isLocked: locked } = latest.current;
       if (locked) return;
       setIsLocked(true);
+      setStationOpen(false);
       clearTimer(stationTimer);
       setLockedTakes((prev) =>
         prev.some((t) => t.role_id === r && t.wave === w) ? prev : [...prev, { role_id: r, wave: w }]
@@ -695,6 +706,7 @@ export function App() {
       if (w === 1) {
         schedulePreview(() => {
           setIsLocked(false);
+          setStationTimeLeft(latest.current.stationDuration);
           setWave(2);
         }, afterAi);
       } else {
@@ -706,11 +718,12 @@ export function App() {
   );
 
   // Safety net: if a minigame did not auto-submit at t=0 (or crashed), lock a fallback take.
+  // Only while a station is actually open, never during the walk or the 5 s sync.
   useEffect(() => {
-    if (screen !== "stations" || isLocked || stationTimeLeft > 0 || awaitingLaunch) return;
+    if (screen !== "stations" || !stationOpen || isLocked || stationTimeLeft > 0 || awaitingLaunch) return;
     const t = window.setTimeout(() => handleSubmitTake({}), AUTO_LOCK_GRACE_MS);
     return () => window.clearTimeout(t);
-  }, [screen, isLocked, stationTimeLeft, awaitingLaunch, handleSubmitTake]);
+  }, [screen, stationOpen, isLocked, stationTimeLeft, awaitingLaunch, handleSubmitTake]);
 
   const handleAnswerOption = useCallback(
     (questionId: string, optionId: string) => {
@@ -799,6 +812,7 @@ export function App() {
           isHost={isHost}
           playerName={playerName}
           onBackToHome={handleBackToHome}
+          onChangePerspective={setStageViewOverride}
         />
       )}
 
