@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
+import { ArrowRight, ChevronDown, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { soundEngine } from "../components/paper/SoundEngine";
@@ -39,6 +39,7 @@ interface MissionReportDashboardProps {
 }
 
 const SCORE_MAX = 1_000;
+const SCORE_COUNT_MS = 1_200;
 const SCORE_WEIGHTS = [
   { key: "objective_points", label: "Objective", weight: 50, maximum: 500, color: "bg-role-spacecraft", Icon: Target },
   { key: "science_f1_points", label: "Science F1", weight: 30, maximum: 300, color: "bg-role-science", Icon: FlaskConical },
@@ -51,6 +52,12 @@ const GATE_ROLE: Record<string, RoleType> = {
   NODE_3_EVENT: "spacecraft_mass",
   NODE_4_DOWNLINK: "science_comms",
 };
+const GATE_DETAILS = [
+  { id: "NODE_1_LAUNCH", title: "Launch manifest", focus: "Launcher mass, fairing fit, and UFE budget" },
+  { id: "NODE_2_PROPULSION", title: "Orbital propulsion", focus: "Delta-v margin, propellant, and center of gravity" },
+  { id: "NODE_3_EVENT", title: "Space event", focus: "Thermal shielding, power reserve, and hazard response" },
+  { id: "NODE_4_DOWNLINK", title: "DSN downlink", focus: "Spectral quality, link margin, and science data return" },
+] as const;
 const ATTEMPTS_STORAGE_KEY = "astro-squad.report-attempts.v1";
 
 interface StoredAttempt {
@@ -58,6 +65,20 @@ interface StoredAttempt {
   completionPct: number;
   outcome: MissionOutcomeUI["outcome"];
   missionId?: MissionIdType;
+}
+
+function readGateHistory(report: MissionOutcomeUI, gate: (typeof GATE_DETAILS)[number]["id"]) {
+  if (!("decision_history" in report) || !Array.isArray(report.decision_history)) return null;
+  const entry: unknown = report.decision_history.find((item: unknown) =>
+    typeof item === "object" && item !== null && "gate" in item && item.gate === gate,
+  );
+  if (typeof entry !== "object" || entry === null) return null;
+  const feedback = "immediate_feedback" in entry && typeof entry.immediate_feedback === "string"
+    ? entry.immediate_feedback.trim() : "";
+  const status = "gate_status" in entry &&
+    (entry.gate_status === "PASS" || entry.gate_status === "DEGRADED" || entry.gate_status === "CRITICAL")
+    ? entry.gate_status : null;
+  return feedback || status ? { feedback, status } : null;
 }
 
 function readStoredAttempts(): StoredAttempt[] {
@@ -149,7 +170,7 @@ export function MissionReportDashboard({
     setDisplayScore(0);
     const animateScore = (time: number) => {
       if (startTime === null) startTime = time;
-      const progress = Math.min((time - startTime) / 1_200, 1);
+      const progress = Math.min((time - startTime) / SCORE_COUNT_MS, 1);
       setDisplayScore(Math.round(score * (1 - Math.pow(1 - progress, 3))));
       if (progress < 1) frame = window.requestAnimationFrame(animateScore);
     };
@@ -183,7 +204,7 @@ export function MissionReportDashboard({
   }
 
   return (
-    <main className="handheld-console-frame relative mx-3 max-w-6xl space-y-5 overflow-hidden px-3 py-4 pb-10 text-paper-cream sm:space-y-6 sm:px-6 sm:py-8 md:mx-auto">
+    <main className="handheld-console-frame relative mx-3 max-w-6xl space-y-5 overflow-hidden px-3 pb-10 pt-12 text-paper-cream sm:space-y-6 sm:px-6 sm:pb-8 sm:pt-14 md:mx-auto">
       <header className="flash-panel overflow-hidden">
         <div className="hazard-stripe-bar h-3" />
         <div className="flex flex-wrap items-end justify-between gap-3 p-4 sm:p-5">
@@ -231,12 +252,15 @@ export function MissionReportDashboard({
         <div className="flex flex-col justify-between">
           <div>
             <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-blueprint-navy">Mission score</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-display text-6xl font-black tabular-nums sm:text-7xl" aria-label={`${score} points out of ${SCORE_MAX}`}>
+            <div className="mt-2 flex max-w-full flex-wrap items-baseline gap-2 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-2 text-status-ok shadow-paper sm:px-4">
+              <span className="font-mono text-5xl font-black tabular-nums sm:text-7xl" aria-label={`${score} points out of ${SCORE_MAX}`} aria-live="off">
                 {displayScore.toLocaleString("en-US")}
               </span>
-              <span className="font-mono text-sm font-bold text-blueprint-navy">/ 1,000 PTS</span>
+              <span className="font-mono text-sm font-bold text-paper-cream">/ 1,000 PTS</span>
             </div>
+            <p className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-blueprint-navy">
+              {displayScore < score ? "Arcade tally // counting" : "Arcade tally // final score"}
+            </p>
           </div>
           <div className="mt-5 h-4 overflow-hidden rounded-full border-2 border-ink-black bg-slate-200">
             <motion.div
@@ -319,6 +343,47 @@ export function MissionReportDashboard({
           </p>
         </section>
       </div>
+
+      <section className="flash-panel min-w-0 p-3 sm:p-5" aria-label="Flight node inspector">
+        <div className="mb-3">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">Captain's flight archive</p>
+          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Inspect the four gates</h2>
+          <p className="mt-1 text-xs text-slate-300">Open a chapter to review its engineering focus and any node telemetry returned by Mission Control.</p>
+        </div>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          {GATE_DETAILS.map((gate, index) => {
+            const isFlagged = report.failed_or_degraded_gate?.trim().toUpperCase() === gate.id;
+            const history = readGateHistory(report, gate.id);
+            const status = history?.status ?? (isFlagged ? "REVISIT" : report.outcome === "FULL_SUCCESS" ? "NO FLAG" : "NO NODE DATA");
+            const statusColor = status === "CRITICAL" || status === "REVISIT" ? "bg-status-crit" :
+              status === "DEGRADED" ? "bg-status-warn" : status === "PASS" || status === "NO FLAG" ? "bg-status-ok" : "bg-slate-200";
+            return (
+              <details key={gate.id} className="group min-w-0 overflow-hidden rounded-xl border-[3px] border-ink-black bg-paper-cream text-ink-black shadow-paper-sm">
+                <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 p-3 marker:hidden">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border-2 border-ink-black bg-blueprint-navy font-mono text-sm font-black tabular-nums text-paper-cream">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-all font-mono text-[9px] font-bold text-blueprint-navy">{gate.id}</span>
+                    <span className="block font-display text-sm font-black">{gate.title}</span>
+                  </span>
+                  <ChevronDown size={18} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="space-y-3 border-t-2 border-ink-black px-3 py-3 text-sm">
+                  <span className={"inline-block rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[10px] font-black " + statusColor}>{status}</span>
+                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">Engineering focus</p>
+                  <p className="-mt-2 text-slate-700">{gate.focus}</p>
+                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">Mission telemetry</p>
+                  <p className="-mt-2 whitespace-pre-line break-words text-slate-700">
+                    {history?.feedback || (isFlagged ? report.causal_chain_explanation :
+                      "The final report did not include a separate finding for this gate.")}
+                  </p>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      </section>
 
       {previousAttempt && scoreDelta !== null && (
         <section className="flash-panel overflow-hidden" aria-label="Attempt comparison">

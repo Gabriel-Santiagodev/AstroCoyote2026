@@ -1,5 +1,5 @@
 // Owner: Leonardo (Task LEO-06) — Server-driven, four-chapter cabin survival flight.
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { BatteryCharging, Gauge, Radio, Shield, Wallet } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -48,6 +48,7 @@ interface Flight60sViewProps {
   lastTurnResult?: FlightTurnResultUI | null;
   missionId?: MissionIdType;
   isHostStage?: boolean;
+  stationLoadout?: Partial<Record<RoleType, { wave1?: Record<string, unknown>; wave2?: Record<string, unknown> }>>;
 }
 
 const ROUND_DURATION_SEC = 15;
@@ -87,12 +88,18 @@ const RACK_ITEMS: Array<{
   shortLabel: string;
   gateIndex: number;
   icon: LucideIcon;
+  packedFrom: Array<{ role: RoleType; wave: "wave1" | "wave2" }>;
 }> = [
-  { id: "ufe", label: "UFE Vault", shortLabel: "UFE", gateIndex: 0, icon: Wallet },
-  { id: "tps", label: "Thermal Shield TPS", shortLabel: "TPS", gateIndex: 2, icon: Shield },
-  { id: "cg", label: "CG & Propulsion Tank", shortLabel: "CG/TANK", gateIndex: 1, icon: Gauge },
-  { id: "power", label: "Power Cells", shortLabel: "POWER", gateIndex: 2, icon: BatteryCharging },
-  { id: "dsn", label: "DSN Spectral Array", shortLabel: "DSN", gateIndex: 3, icon: Radio },
+  { id: "ufe", label: "UFE Vault", shortLabel: "UFE", gateIndex: 0, icon: Wallet,
+    packedFrom: [{ role: "finance_launch", wave: "wave1" }] },
+  { id: "tps", label: "Thermal Shield TPS", shortLabel: "TPS", gateIndex: 2, icon: Shield,
+    packedFrom: [{ role: "spacecraft_mass", wave: "wave1" }] },
+  { id: "cg", label: "CG & Propulsion Tank", shortLabel: "CG/TANK", gateIndex: 1, icon: Gauge,
+    packedFrom: [{ role: "spacecraft_mass", wave: "wave2" }, { role: "orbit_power", wave: "wave1" }] },
+  { id: "power", label: "Power Cells", shortLabel: "POWER", gateIndex: 2, icon: BatteryCharging,
+    packedFrom: [{ role: "orbit_power", wave: "wave2" }] },
+  { id: "dsn", label: "DSN Spectral Array", shortLabel: "DSN", gateIndex: 3, icon: Radio,
+    packedFrom: [{ role: "science_comms", wave: "wave2" }] },
 ];
 
 interface SceneJump {
@@ -102,6 +109,20 @@ interface SceneJump {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+}
+
+function wasPackedByCrew(
+  loadout: NonNullable<Flight60sViewProps["stationLoadout"]>,
+  sources: (typeof RACK_ITEMS)[number]["packedFrom"],
+) {
+  return sources.some(({ role, wave }) => {
+    const take = loadout[role]?.[wave];
+    if (!take) return false;
+    if (take.packed_by === "crew") return true;
+    if (take.packed_by === "ai_autopilot") return false;
+    if (typeof take.__crewPacked === "boolean") return take.__crewPacked;
+    return Object.keys(take).length > 0;
+  });
 }
 
 function MissionTarget({ missionId }: { missionId: MissionIdType }) {
@@ -201,6 +222,7 @@ function CabinScene({
   visibleResult,
   reactionRole,
   activeRole,
+  stationLoadout,
   sceneJump,
   onSkipJump,
 }: {
@@ -213,9 +235,12 @@ function CabinScene({
   visibleResult: FlightTurnResultUI | null;
   reactionRole: RoleType | null;
   activeRole: RoleType;
+  stationLoadout?: Flight60sViewProps["stationLoadout"];
   sceneJump: SceneJump | null;
   onSkipJump: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
+  const starDriftSec = Math.max(1.8, 6.5 - flightProgress * 0.045);
   const crewPresentation = (role: RoleType): {
     state: AvatarState;
     actionEffect: ActionEffect;
@@ -245,12 +270,24 @@ function CabinScene({
         <CabinBackdrop />
         <div className={"absolute z-10 overflow-hidden rounded-[35%] border-[5px] border-ink-black bg-space-ink shadow-[inset_0_0_0_5px_#94A3B8] " +
           (isPhoneConsole ? "left-[26%] right-[5%] top-[10%] h-[55%]" : "left-[19%] right-[19%] top-[8%] h-[47%]")}>
-          <motion.div className="absolute inset-0 opacity-70"
-            style={{ backgroundImage: "radial-gradient(#F8FAFC 1.5px, transparent 2px)", backgroundSize: "39px 41px" }}
-            animate={{ backgroundPositionX: [0, -39] }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }} />
-          <div className={"absolute right-[9%] top-[4%] " + (isPhoneConsole ? "h-12 w-12" : "h-28 w-28")}>
+          <motion.div className="absolute inset-0 opacity-65"
+            style={{ backgroundImage: "radial-gradient(#F8FAFC 1px, transparent 2px)", backgroundSize: "43px 47px" }}
+            animate={reduceMotion ? undefined : { backgroundPositionX: [0, -43] }}
+            transition={{ duration: starDriftSec * 1.6, repeat: Infinity, ease: "linear" }} />
+          <motion.div className="absolute inset-0 opacity-75"
+            style={{ backgroundImage: "radial-gradient(#67E8F9 1.8px, transparent 3px)", backgroundSize: "91px 79px", backgroundPositionY: "19px" }}
+            animate={reduceMotion ? undefined : { backgroundPositionX: [0, -91] }}
+            transition={{ duration: starDriftSec, repeat: Infinity, ease: "linear" }} />
+          <motion.div className="absolute inset-0"
+            style={{ backgroundImage: "radial-gradient(ellipse 20px 1.5px at center, #CFFAFE 0%, transparent 100%)",
+              backgroundSize: "151px 61px", backgroundPositionY: "35px", opacity: 0.16 + flightProgress * 0.0028 }}
+            animate={reduceMotion ? undefined : { backgroundPositionX: [0, -151] }}
+            transition={{ duration: starDriftSec * 0.55, repeat: Infinity, ease: "linear" }} />
+          <motion.div className={"absolute right-[9%] top-[4%] " + (isPhoneConsole ? "h-12 w-12" : "h-28 w-28")}
+            animate={reduceMotion ? undefined : { scale: 0.9 + flightProgress * 0.003, x: -flightProgress * 0.08 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}>
             <MissionTarget missionId={missionId} />
-          </div>
+          </motion.div>
           <div className={"absolute left-[6%] top-[8%] font-mono font-bold text-role-spacecraft " +
             (isPhoneConsole ? "text-[8px]" : "text-[11px] tracking-widest")}>
             DESTINATION // {TARGET_NAMES[missionId]}
@@ -371,8 +408,11 @@ function CabinScene({
               visibleResult.gate_status !== "PASS",
             );
             const status = isAlert ? "ALERT" : isRelevant ? "ARMED" : "NOMINAL";
+            const provenance = stationLoadout
+              ? wasPackedByCrew(stationLoadout, item.packedFrom) ? "CREW PACKED" : "AI AUTOPILOT"
+              : null;
             return (
-              <li key={item.id} aria-label={item.label + ": " + status}
+              <li key={item.id} aria-label={item.label + ": " + status + (provenance ? ", " + provenance : "")}
                 className={"min-w-0 rounded-md border-2 border-ink-black px-0.5 text-center " +
                   (isPhoneConsole ? "py-0 " : "py-1 ") +
                   (isAlert ? "bg-status-crit text-ink-black" :
@@ -385,6 +425,8 @@ function CabinScene({
                 <span className={"block font-mono font-black " + (isPhoneConsole ? "text-[6px]" : "text-[9px]")}>
                   {status}
                 </span>
+                {provenance && <span className={"block break-words font-mono font-black leading-tight " +
+                  (isPhoneConsole ? "text-[7px]" : "mt-0.5 text-[8px]")}>{provenance}</span>}
               </li>
             );
           })}
@@ -397,10 +439,11 @@ function CabinScene({
 export function Flight60sView({
   round, timeLeftSec, myRole, question, onAnswerOption,
   activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult,
-  missionId = "artemis_moon", isHostStage,
+  missionId = "artemis_moon", isHostStage, stationLoadout,
 }: Flight60sViewProps) {
   const isNarrow = useNarrowViewport();
   const isPhoneConsole = isNarrow || isHostStage === false;
+  const reduceMotion = useReducedMotion();
   const [submittedAnswer, setSubmittedAnswer] = useState<{ key: string; optionId: string } | null>(null);
   const submittedKeyRef = useRef<string | null>(null);
   const [visibleResult, setVisibleResult] = useState<FlightTurnResultUI | null>(null);
@@ -453,6 +496,8 @@ export function Flight60sView({
   const playerLabel = activePlayerName?.trim() || activeProfile.codename;
   const isMyTurn = question?.assigned_role === myRole;
   const questionKey = question ? round + ":" + question.question_id : "";
+  const activeQuestionKeyRef = useRef(questionKey);
+  activeQuestionKeyRef.current = questionKey;
   const countdownSecond = Math.ceil(roundLeft);
   const hasSubmitted = submittedAnswer?.key === questionKey || submittedKeyRef.current === questionKey;
   const resultIsCurrent = visibleResult?.round === round;
@@ -475,7 +520,8 @@ export function Flight60sView({
   }, [countdownSecond, question, questionKey]);
 
   const answer = useCallback((optionId: string) => {
-    if (!question || !canAnswer || submittedKeyRef.current === questionKey ||
+    if (!question || !canAnswer || activeQuestionKeyRef.current !== questionKey ||
+      submittedKeyRef.current === questionKey ||
       !question.options.some((option) => option.option_id === optionId)) return;
     submittedKeyRef.current = questionKey;
     setSubmittedAnswer({ key: questionKey, optionId });
@@ -507,8 +553,8 @@ export function Flight60sView({
   return (
     <main className={"relative mx-auto flex min-w-0 flex-col text-paper-cream " +
       (isPhoneConsole
-        ? "handheld-console-frame my-2 w-[calc(100%-1rem)] max-w-md gap-3 p-2"
-        : "max-w-7xl gap-5 px-4 py-6 sm:px-6")}>
+        ? "handheld-console-frame my-2 w-[calc(100%-1rem)] max-w-md gap-3 px-2 pb-2 pt-12 sm:pt-14"
+        : "max-w-7xl gap-5 px-4 pb-6 pt-12 sm:px-6 sm:pt-14")}>
       <header className={"flash-panel min-w-0 overflow-hidden " + (isPhoneConsole ? "p-2" : "p-5")}>
         <div className={"hazard-stripe-bar rounded-full " + (isPhoneConsole ? "h-1.5" : "h-2")} aria-hidden="true" />
         <div className="mt-2 flex min-w-0 items-start justify-between gap-2">
@@ -556,10 +602,19 @@ export function Flight60sView({
           activeGateIndex={activeGateIndex} flightProgress={flightProgress}
           healthValue={healthValue} alarm={alarm} visibleResult={visibleResult}
           reactionRole={reactionRole} activeRole={activeRole}
+          stationLoadout={stationLoadout}
           sceneJump={sceneJump} onSkipJump={skipJump} />
 
-        <section aria-label="Captain's survival log" className="flash-panel min-w-0 p-2 sm:p-3">
-          <div className="paper-card-light relative min-w-0 overflow-hidden p-3 sm:p-5">
+        <section aria-label="Captain's survival log" className="flash-panel relative min-w-0 p-2 sm:p-3"
+          style={{ perspective: 1100 }}>
+          <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div key={activeGateIndex} className="paper-card-light relative min-w-0 overflow-hidden p-3 sm:p-5"
+            initial={reduceMotion ? false : { opacity: 0, rotateY: 65, x: 20 }}
+            animate={{ opacity: 1, rotateY: 0, x: 0 }}
+            exit={reduceMotion ? { opacity: 0, pointerEvents: "none" } :
+              { opacity: 0, rotateY: -65, x: -20, pointerEvents: "none" }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.32, ease: "easeInOut" }}
+            style={{ transformOrigin: "left center", backfaceVisibility: "hidden" }}>
             <div className="absolute left-1/2 top-0 h-4 w-24 -translate-x-1/2 rounded-b-lg border-x-[3px] border-b-[3px] border-ink-black bg-slate-300"
               aria-hidden="true" />
             <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
@@ -693,7 +748,8 @@ export function Flight60sView({
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
+          </AnimatePresence>
         </section>
       </div>
     </main>
