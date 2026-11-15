@@ -34,6 +34,9 @@ export const TIMER_CRIT_SEC = 5;
 const TOAST_LIFETIME_MS = 3500;
 /** Maximum stacked toasts before the oldest is dropped (UI-only). */
 const TOAST_MAX_STACK = 3;
+/** EXT-02 stamp timing (UI-only): body stamp slams first, header mini-stamp and shake follow. */
+const STAMP_IMPACT_DELAY_SEC = 0.18;
+const STAMP_HEADER_DELAY_SEC = 0.32;
 /** Countdown ticks play on the last N seconds (STATE.md Fase 7: `1..5`). */
 const COUNTDOWN_TICK_FROM_SEC = TIMER_CRIT_SEC;
 /** Ticks at or below this many seconds use the urgent (higher) tone. */
@@ -332,27 +335,31 @@ export function MinigameShell({
     </motion.div>
   );
 
+  // Mini ink stamp in the header (EXT-02 "STATION LOCKED STAMP").
   const lockedBadge = (
     <AnimatePresence>
       {isLocked && (
         <motion.span
-          initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
-          animate={{ scale: 1, rotate: -3, opacity: 1 }}
+          initial={{ scale: 2.4, rotate: -24, opacity: 0 }}
+          animate={{ scale: 1, rotate: -6, opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ type: "spring", stiffness: 500, damping: 18 }}
-          className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink-black bg-status-ok px-2 py-0.5 font-mono text-xs font-bold text-ink-black shadow-paper"
+          transition={{ type: "spring", stiffness: 520, damping: 17, delay: STAMP_HEADER_DELAY_SEC }}
+          className="inline-flex items-center gap-1 rounded-md border-[3px] border-double border-status-ok bg-space-ink/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-status-ok"
         >
-          <Lock className="h-3.5 w-3.5" aria-hidden="true" /> LOCKED
+          <Lock className="h-3 w-3" aria-hidden="true" /> {isHandheld ? "LOCKED" : "STATION LOCKED"}
         </motion.span>
       )}
     </AnimatePresence>
   );
 
   return (
-    <section
+    <motion.section
       className={`relative min-w-0 overflow-hidden ${
         isHandheld ? "handheld-console-frame space-y-3 p-3" : "flash-panel space-y-4 p-4 sm:p-5"
       }`}
+      // Mechanical "thunk" when the stamp lands.
+      animate={isLocked ? { x: [0, -5, 5, -3, 2, 0] } : { x: 0 }}
+      transition={{ duration: 0.38, delay: isLocked ? STAMP_IMPACT_DELAY_SEC : 0 }}
       aria-live="polite"
     >
       <LiveMutationToasts toasts={toasts} />
@@ -476,22 +483,11 @@ export function MinigameShell({
 
         <AnimatePresence>
           {isLocked && (
-            <motion.div
-              initial={{ opacity: 0, scale: 1.6, rotate: -18 }}
-              animate={{ opacity: 1, scale: 1, rotate: -8 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 16 }}
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            >
-              <div
-                className={`flex items-center gap-2 rounded-2xl border-4 border-ink-black bg-status-ok font-display font-bold text-ink-black shadow-paper-lg ${
-                  isHandheld ? "px-4 py-2 text-xl" : "px-5 py-3 text-2xl sm:text-3xl"
-                }`}
-              >
-                <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
-                TAKE LOCKED
-              </div>
-            </motion.div>
+            <StationLockedStamp
+              compact={isHandheld}
+              stationLabel={`${station.title} · ${stationTask}`}
+              codename={profile.codename}
+            />
           )}
         </AnimatePresence>
 
@@ -513,7 +509,64 @@ export function MinigameShell({
           {missionId && <span className="shrink-0">{MISSION_LABELS[missionId]}</span>}
         </footer>
       )}
-    </section>
+    </motion.section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EXT-02 · STATION LOCKED STAMP — cardstock ink stamp that slams onto the console
+// ---------------------------------------------------------------------------
+function StationLockedStamp({
+  compact,
+  stationLabel,
+  codename,
+}: {
+  compact: boolean;
+  stationLabel: string;
+  codename: string;
+}) {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* ink splash ring on impact */}
+      <motion.span
+        className="absolute rounded-full border-[6px] border-status-ok"
+        style={{ width: compact ? 120 : 180, height: compact ? 120 : 180 }}
+        initial={{ scale: 0.3, opacity: 0 }}
+        animate={{ scale: [0.3, 1.5], opacity: [0, 0.55, 0] }}
+        transition={{ duration: 0.6, delay: STAMP_IMPACT_DELAY_SEC, ease: "easeOut" }}
+        aria-hidden="true"
+      />
+      <motion.div
+        role="img"
+        aria-label={`Station locked: ${stationLabel}`}
+        initial={{ scale: 3, rotate: -28, opacity: 0, y: -30 }}
+        animate={{ scale: 1, rotate: -8, opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 430, damping: 15, mass: 0.9 }}
+        className={`relative rounded-xl border-[5px] border-double border-status-ok bg-space-ink/85 text-center text-status-ok shadow-paper-lg ${
+          compact ? "px-4 py-2" : "px-6 py-3"
+        }`}
+        style={{ textShadow: "1px 1px 0 #0F172A" }}
+      >
+        <div className="pointer-events-none absolute inset-1 rounded-lg border-2 border-dashed border-status-ok/60" aria-hidden="true" />
+        <div className={`flex items-center justify-center gap-2 font-display font-bold tracking-wider ${compact ? "text-xl" : "text-2xl sm:text-3xl"}`}>
+          <CheckCircle2 className={compact ? "h-5 w-5" : "h-7 w-7"} aria-hidden="true" />
+          STATION LOCKED
+        </div>
+        <div className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-status-ok/90">
+          {stationLabel}
+        </div>
+        {!compact && (
+          <div className="font-mono text-[9px] uppercase tracking-[0.25em] text-status-ok/70">
+            {codename} · one take · sealed
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
 

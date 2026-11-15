@@ -8,7 +8,7 @@
 //   • Phone Crew Console (< 768px or a PIN guest): compact track + compact HUD so the minigame
 //     controls own the screen inside a `.handheld-console-frame`.
 import { useEffect, useRef, useState, type ComponentType } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -197,6 +197,115 @@ const NODE_POSITION_PCT: Record<TrackNodeId, number> = {
 
 /** Host stage: horizontal spread (px) of the 4-sprite squad cluster around a node. */
 const SQUAD_SPREAD_PX = 34;
+
+// ---------------------------------------------------------------------------
+// Fase 8 · 2D Flash effects (UI-only timings)
+// ---------------------------------------------------------------------------
+/** Sparks emitted per sprite thruster loop. */
+const THRUSTER_SPARK_COUNT = 5;
+/** Lifetime of one thruster spark. */
+const THRUSTER_SPARK_SEC = 0.55;
+/** Full paper wipe sweep (in, hold, out). */
+const PAPER_WIPE_SEC = 0.75;
+
+/** Glowing exhaust streak + sparks trailing behind a walking ASTRO SPRITE (walks are left→right). */
+function ThrusterTrail({ color, lengthPx, delaySec }: { color: string; lengthPx: number; delaySec: number }) {
+  return (
+    <span
+      className="pointer-events-none absolute bottom-2 right-[64%] h-4"
+      style={{ width: lengthPx }}
+      aria-hidden="true"
+    >
+      <motion.span
+        className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full"
+        style={{ background: `linear-gradient(90deg, transparent, ${color})`, filter: "blur(1px)" }}
+        animate={{ opacity: [0.35, 0.9, 0.35], scaleX: [0.8, 1.1, 0.8] }}
+        transition={{ duration: 0.35, repeat: Infinity, delay: delaySec }}
+      />
+      {Array.from({ length: THRUSTER_SPARK_COUNT }, (_, k) => (
+        <motion.span
+          key={k}
+          className="absolute right-0 top-1/2 h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: k % 2 ? "#FDE68A" : color, boxShadow: `0 0 6px ${color}` }}
+          initial={{ x: 0, y: 0, opacity: 0, scale: 1 }}
+          animate={{
+            x: [0, -lengthPx],
+            y: [0, (k % 2 ? -1 : 1) * (3 + k * 2)],
+            opacity: [1, 0],
+            scale: [1, 0.3],
+          }}
+          transition={{
+            duration: THRUSTER_SPARK_SEC,
+            repeat: Infinity,
+            delay: delaySec + (k * THRUSTER_SPARK_SEC) / THRUSTER_SPARK_COUNT,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Pulsing glow at the leading edge of the rail progress while the squad walks. */
+function RailCometHead({ color, sizePx }: { color: string; sizePx: number }) {
+  return (
+    <motion.span
+      className="pointer-events-none absolute right-0 top-1/2 rounded-full border-2 border-ink-black bg-paper-cream"
+      style={{
+        width: sizePx,
+        height: sizePx,
+        marginTop: -sizePx / 2,
+        marginRight: -sizePx / 2,
+        boxShadow: `0 0 10px 3px ${color}`,
+      }}
+      animate={{ scale: [1, 1.3, 1], opacity: [0.85, 1, 0.85] }}
+      transition={{ duration: 0.4, repeat: Infinity }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/** Zig-zag "torn cardstock" edges for the paper wipe, built once. */
+const TORN_EDGE_CLIP: string = (() => {
+  const teeth = 14;
+  const right: string[] = [];
+  const left: string[] = [];
+  for (let t = 0; t <= teeth; t += 1) {
+    const yPct = (t / teeth) * 100;
+    right.push(`${t % 2 ? 97 : 100}% ${yPct}%`);
+    left.push(`${t % 2 ? 3 : 0}% ${100 - yPct}%`);
+  }
+  return `polygon(${[...right, ...left].join(", ")})`;
+})();
+
+/** EXT-02 brief 2D Flash cardstock wipe across the screen (skipped under reduced motion). */
+function PaperWipe({ label, onDone }: { label: string; onDone: () => void }) {
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-0 z-[60] overflow-hidden"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      aria-hidden="true"
+    >
+      <motion.div
+        className="absolute inset-y-0 -left-[5%] flex w-[110%] flex-col justify-between bg-paper-cream"
+        style={{ clipPath: TORN_EDGE_CLIP }}
+        initial={{ x: "-115%" }}
+        animate={{ x: ["-115%", "0%", "0%", "115%"] }}
+        transition={{ duration: PAPER_WIPE_SEC, times: [0, 0.38, 0.62, 1], ease: "easeInOut" }}
+        onAnimationComplete={onDone}
+      >
+        <div className="hazard-stripe-bar h-4 border-b-[3px] border-ink-black" />
+        <div className="flex flex-1 items-center justify-center px-8">
+          <div className="-rotate-2 rounded-xl border-4 border-ink-black bg-paper-cream px-5 py-3 text-center font-display text-xl font-bold uppercase tracking-wide text-ink-black shadow-paper-lg sm:text-3xl">
+            {label}
+          </div>
+        </div>
+        <div className="hazard-stripe-bar h-4 border-t-[3px] border-ink-black" />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 type TrackPhase =
   | "walk_to_station_1"
@@ -418,6 +527,27 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   // My specialist panics on the last 5 s of an open, unlocked station.
   const myClockAlert = showMinigame && !isLocked && timeLeftSec <= TIMER_CRIT_SEC;
 
+  // --- EXT-02 paper wipe: station opens, or a sealed station hands back to the hangar walk
+  const reduceMotion = useReducedMotion();
+  const [paperWipe, setPaperWipe] = useState<{ key: number; label: string } | null>(null);
+  const prevShowMinigame = useRef(showMinigame);
+  const wipeSeq = useRef(0);
+  useEffect(() => {
+    if (prevShowMinigame.current === showMinigame) return;
+    prevShowMinigame.current = showMinigame;
+    if (reduceMotion) return;
+    wipeSeq.current += 1;
+    setPaperWipe({
+      key: wipeSeq.current,
+      label: showMinigame
+        ? `OPENING STATION ${activeWave} · ${activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}`
+        : "STATION SEALED · ROLLING OUT",
+    });
+    soundEngine.playSceneJump();
+    // activeWave/myProfile are read at transition time only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMinigame, reduceMotion]);
+
   const spriteMood = (role: RoleType) => {
     const locked = isRoleLocked(role);
     return resolveSpriteMood({
@@ -503,10 +633,13 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
           <div className="relative px-3">
             <div className="absolute left-3 right-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full border border-ink-black bg-space-ink">
               <motion.div
-                className="h-full rounded-full bg-status-ok"
+                className="relative h-full rounded-full bg-status-ok"
+                initial={{ width: "0%" }}
                 animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
                 transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
-              />
+              >
+                {isWalking && <RailCometHead color={myProfile.glow} sizePx={10} />}
+              </motion.div>
             </div>
             <ol className="relative flex items-center justify-between">
               {TRACK_NODES.map((node) => {
@@ -602,10 +735,13 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
 
             <div className="absolute left-14 right-14 top-[7.85rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
               <motion.div
-                className="h-full rounded-full bg-status-ok"
+                className="relative h-full rounded-full bg-status-ok"
+                initial={{ width: "0%" }}
                 animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
                 transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
-              />
+              >
+                {isWalking && <RailCometHead color={myProfile.glow} sizePx={16} />}
+              </motion.div>
             </div>
 
             {/* marching squad: all 4 ASTRO SPRITES advance node to node together */}
@@ -643,6 +779,9 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                         </span>
                       )}
                     </div>
+                    {mood.actionEffect === "thruster" && (
+                      <ThrusterTrail color={profile.glow} lengthPx={isMe ? 46 : 38} delaySec={i * 0.06} />
+                    )}
                     <CrewmateAvatar
                       role={role}
                       state={mood.state}
@@ -769,6 +908,13 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
           )}
         </section>
       )}
+
+      {/* EXT-02 paper wipe between a sealed station and the hangar walk */}
+      <AnimatePresence>
+        {paperWipe && (
+          <PaperWipe key={paperWipe.key} label={paperWipe.label} onDone={() => setPaperWipe(null)} />
+        )}
+      </AnimatePresence>
 
       {/* Split loading screens owned by Claude Code (STATE.md Fase 5) */}
       {phase === "sync" && (

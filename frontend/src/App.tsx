@@ -188,6 +188,66 @@ function normalizePlayers(raw: EstadoSalaActualizadoPayload["players"] | undefin
   });
 }
 
+// ---------------------------------------------------------------------------
+// Station loadout for the 60s cabin shelf (STATE.md Fase 8 contract)
+// ---------------------------------------------------------------------------
+/** One wave entry: `packed_by` + metadata, followed by the take payload when this client has it. */
+export type StationLoadoutEntry = Record<string, unknown>;
+
+/** `Flight60sView.stationLoadout` shape agreed in STATE.md. */
+export type StationLoadout = Partial<
+  Record<RoleType, { wave1?: StationLoadoutEntry; wave2?: StationLoadoutEntry }>
+>;
+
+/**
+ * Every role ends both waves packed: humans lock their own takes, AI Autopilot fills empty roles
+ * (docs/03-decisiones.md, randomizer.py). Each entry carries:
+ *   - `packed_by`: "crew" | "ai_autopilot"
+ *   - `packed_by_name`: crew player name (crew only, when known)
+ *   - `locked`: whether a `jugador_bloqueo_toma` / local lock was seen for that wave
+ *   - `payload_known`: false when the take exists but its fields were not shared with this client
+ *   - `fallback_take`: true when the take was an empty emergency fallback
+ *   - ...the take payload fields themselves when known
+ */
+function buildStationLoadout(opts: {
+  lockedTakes: JugadorBloqueoTomaPayload[];
+  knownTakePayloads: StationLoadout;
+  myRole: RoleType;
+  myName: string;
+  players: RoomPlayer[];
+}): StationLoadout {
+  const humanRoles = new Set<RoleType>(
+    opts.players.map((p) => p.role_id).filter((r): r is RoleType => Boolean(r))
+  );
+  humanRoles.add(opts.myRole);
+
+  const loadout: StationLoadout = {};
+  for (const role of ALL_ROLES) {
+    const isCrew = humanRoles.has(role);
+    const crewName =
+      role === opts.myRole ? opts.myName : opts.players.find((p) => p.role_id === role)?.player_name;
+    const entryFor = (waveNum: 1 | 2): StationLoadoutEntry | undefined => {
+      const key = waveNum === 1 ? "wave1" : "wave2";
+      const known = opts.knownTakePayloads[role]?.[key];
+      const locked = opts.lockedTakes.some((t) => t.role_id === role && t.wave === waveNum);
+      // A crew station that never locked was not packed (yet).
+      if (isCrew && !locked && !known) return undefined;
+      return {
+        packed_by: isCrew ? "crew" : "ai_autopilot",
+        ...(isCrew && crewName ? { packed_by_name: crewName } : {}),
+        locked,
+        payload_known: Boolean(known),
+        ...(known && Object.keys(known).length === 0 ? { fallback_take: true } : {}),
+        ...(known ?? {}),
+      };
+    };
+    const wave1 = entryFor(1);
+    const wave2 = entryFor(2);
+    if (wave1 || wave2) loadout[role] = { ...(wave1 ? { wave1 } : {}), ...(wave2 ? { wave2 } : {}) };
+  }
+  return loadout;
+}
+
 function mergeMetrics(prev: LiveMetrics, delta: Partial<LiveMetrics> | Record<string, unknown>): LiveMetrics {
   const next: LiveMetrics = { ...prev };
   for (const key of Object.keys(prev) as Array<keyof LiveMetrics>) {
@@ -232,6 +292,12 @@ export function App() {
   const [stationOpen, setStationOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockedTakes, setLockedTakes] = useState<JugadorBloqueoTomaPayload[]>([]);
+  /**
+   * Station payloads this client actually knows: its own locked takes (`onSubmitTake`) and the
+   * AI Autopilot Wave 1 state from `iniciar_oleada_1.ai_wave1_state`. Other humans' payloads are
+   * not broadcast by the backend, so their loadout entries only say who packed them.
+   */
+  const [knownTakePayloads, setKnownTakePayloads] = useState<StationLoadout>({});
   const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(DEFAULT_METRICS);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
   const [spectralChallenge, setSpectralChallenge] = useState<unknown>(undefined);
@@ -347,6 +413,7 @@ export function App() {
     setStationOpen(false);
     setIsLocked(false);
     setLockedTakes([]);
+    setKnownTakePayloads({});
     setLiveMetrics(DEFAULT_METRICS);
     setToastAlert(null);
     setSpectralChallenge(undefined);
@@ -422,6 +489,16 @@ export function App() {
       },
       iniciar_oleada_1: (payload) => {
         resetMatchState();
+        // AI Autopilot Wave 1 payloads per empty role (backend/randomizer.py via game_manager.py).
+        const aiWave1 = payload.ai_wave1_state || {};
+        const aiLoadout: StationLoadout = {};
+        for (const aiRole of ALL_ROLES) {
+          const take = aiWave1[aiRole];
+          if (take && typeof take === "object") {
+            aiLoadout[aiRole] = { wave1: { ...(take as Record<string, unknown>) } };
+          }
+        }
+        setKnownTakePayloads(aiLoadout);
         setStationDuration(payload.duration_sec || STATION_SEC);
         setLiveMetrics((prev) => mergeMetrics(prev, payload.initial_constraints || {}));
         setSpectralChallenge(payload.spectral_challenge);
@@ -690,6 +767,11 @@ export function App() {
       setLockedTakes((prev) =>
         prev.some((t) => t.role_id === r && t.wave === w) ? prev : [...prev, { role_id: r, wave: w }]
       );
+      // Remember our own take for the 60s cabin shelf (stationLoadout).
+      setKnownTakePayloads((prev) => ({
+        ...prev,
+        [r]: { ...prev[r], [w === 1 ? "wave1" : "wave2"]: { ...payload } },
+      }));
       if (online) {
         gameClient.lockTake({ pin: p, role_id: r, wave: w, payload });
         return;
@@ -770,9 +852,20 @@ export function App() {
       ? { ...flightQuestion, assigned_role: role }
       : flightQuestion;
 
-  // Host Main Stage flag for Flight60sView (Codex adds `isHostStage?` per STATE.md contract).
-  // Passed as a spread so this compiles both before and after that optional prop lands.
-  const flightStageProps: { isHostStage?: boolean } = { isHostStage: !isPhoneConsole };
+  const stationLoadout = buildStationLoadout({
+    lockedTakes,
+    knownTakePayloads,
+    myRole: role,
+    myName: playerName,
+    players,
+  });
+
+  // Optional Flight60sView props (Host stage flag + Fase 8 station loadout for the cabin shelf).
+  // Passed as a typed spread so this compiles before and after Codex declares each prop.
+  const flightStageProps: { isHostStage?: boolean; stationLoadout?: StationLoadout } = {
+    isHostStage: !isPhoneConsole,
+    stationLoadout,
+  };
 
   // ---------------------------------------------------------------------------
   // Render
