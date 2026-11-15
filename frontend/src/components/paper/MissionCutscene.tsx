@@ -154,7 +154,8 @@ export function MissionCutscene({
           </div>
         </motion.div>
       </div>
-      <span className="absolute bottom-2 right-3 font-mono text-[9px] uppercase tracking-widest text-slate-400/80">{t("AI-generated art")}</span>
+      {/* Required AI watermark (AGENTS.md), kept subtle. */}
+      <span className="pointer-events-none absolute bottom-1 right-2 select-none font-mono text-[8px] lowercase text-slate-400/40">{t("AI-generated art")}</span>
     </motion.div>
   );
 }

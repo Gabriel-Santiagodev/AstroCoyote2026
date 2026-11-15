@@ -32,6 +32,16 @@ export const BACKEND_URL: string =
 /** How long we wait for `/health` or the socket handshake before declaring offline/preview mode. */
 export const BACKEND_PROBE_TIMEOUT_MS = 2500;
 
+/** True when the backend is hosted on its own URL (deploy, e.g. a free Render web service). */
+export const IS_REMOTE_BACKEND = Boolean((import.meta as { env?: Record<string, string> }).env?.VITE_BACKEND_URL);
+
+/**
+ * Free hosting tiers put an idle server to sleep and it can take about a minute to wake up.
+ * When a remote backend is configured, creating or joining a room waits this long before
+ * falling back to the offline notice (UI timing only, not a game constant).
+ */
+export const BACKEND_WAKE_TIMEOUT_MS = 75_000;
+
 export const socket: Socket = io(BACKEND_URL, {
   autoConnect: false,
   transports: ["websocket", "polling"],

@@ -48,7 +48,8 @@ export function MenuBackdrop({
           <SafeImg src={s.src} alt={s.alt} className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.6)]" />
         </motion.div>
       ))}
-      <span className="absolute bottom-2 right-3 font-mono text-[9px] uppercase tracking-widest text-slate-400/80">
+      {/* Required AI watermark (AGENTS.md), kept subtle: tiny, faint, lowercase, out of the way. */}
+      <span className="pointer-events-none absolute bottom-1 right-2 select-none font-mono text-[8px] lowercase text-slate-400/40">
         {t("AI-generated art")}
       </span>
     </div>
