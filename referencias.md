@@ -5,6 +5,8 @@
 
 ## 1. Fuentes Oficiales de la NASA y Estándares Científicos
 - **NASA Mars Reconnaissance Orbiter (MRO):** https://science.nasa.gov/mission/mars-reconnaissance-orbiter/
+- **MRO HiRISE & CRISM Instrument Pages:** https://www.uahirise.org/ | https://crism.jhuapl.edu/
+- **NASA Lunar Reconnaissance Orbiter (LRO):** https://science.nasa.gov/mission/lro/
 - **NASA JPL DESCANSO — MRO Telecommunications:** https://descanso.jpl.nasa.gov/DPSummary/MRO_092106.pdf
 - **NASA Artemis Program:** https://www.nasa.gov/humans-in-space/artemis/
 - **NASA OSIRIS-REx Mission:** https://science.nasa.gov/mission/osiris-rex/

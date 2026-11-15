@@ -107,14 +107,26 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 | **Antena HGA y enlace DSN** | $3\text{ m}$, $0.5\text{–}6.0\text{ Mbps}$, margen $\ge +3.0\text{ dB}$, memoria $160\text{ Gbit}$ | verificado / fuente secundaria | JPL DESCANSO (`MRO_092106.pdf`) |
 | **Retraso señal Tierra–Marte / Conjunción** | $4\text{–}25\text{ min}$ / cada $\sim 26\text{ meses}$ ($\sim 2\text{ semanas}$ sin comandos) | fuente secundaria / verificado NASA | arXiv 2211.14245 / science.nasa.gov |
 | **Luz solar en Marte** | $\sim 590\text{ W/m}^2$ ($\approx 43\%$ de la Tierra) | fuente secundaria | NASA Mars Fact Sheet (NSSDCA) |
-| **HiRISE** | $64.2\text{–}65\text{ kg}$, $60\text{ W}$, $0.3\text{ m/píxel}$, altísimo volumen de datos | sin verificar (confirmar NSSDCA) | NASA MRO Science |
-| **CTX** | $3\text{ kg}$, $7\text{ W}$ ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | sin verificar | NASA MRO Science |
-| **CRISM** | $32\text{–}33\text{ kg}$, espectrómetro mineralógico | sin verificar | NASA MRO Science |
-| **MARCI** | $0.481\text{ kg}$, cámara climática diaria | sin verificar | NASA MRO Science |
-| **MCS** | $9\text{ kg}$, $11\text{ W}$, temperatura y polvo atmosférico | sin verificar | NASA MRO Science |
-| **SHARAD** | Radar subsuperficial (hielo), $40\text{–}90\text{ Gbit/día}$ | sin verificar | NASA MRO Science |
+| **HiRISE** | $65.0\text{ kg}$, $60\text{ W}$ promedio, $0.3\text{ m/píxel}$, hasta $28\text{ Gbit/imagen}$ | verificado / fuente secundaria | NASA MRO Science / `uahirise.org` |
+| **CTX** | $3.0\text{ kg}$, $7\text{ W}$ activo ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | verificado | NASA MRO Science |
+| **CRISM** | $32.9\text{ kg}$, $44.4\text{ W}$ operación ($16.1\text{ W}$ standby), espectrómetro mineralógico | verificado | NASA MRO / JHUAPL (`crism.jhuapl.edu`) |
+| **MARCI** | $0.481\text{ kg}$ (heritage base), $<5\text{ W}$ activo, cámara climática diaria | verificado / fuente secundaria | NASA MRO / Malin Space Science Systems |
+| **MCS** | $9.0\text{ kg}$, $11.0\text{ W}$, temperatura y polvo atmosférico | verificado | NASA MRO Science |
+| **SHARAD** | $15.0\text{–}16.6\text{ kg}$, $10\text{ W}$ RF ($\sim 20\text{ W}$ pico), $40\text{–}90\text{ Gbit/día}$ | verificado / fuente secundaria | NASA MRO (ASI / JPL) |
 
-*(Nota para Abraham — tarea `ABR-01`: confirmar masas/potencias exactas de HiRISE, CRISM, MARCI, SHARAD y fijar costos de balance de juego en `nasa_catalog.json` antes de H6).*
+### Instrumentos verificados para M1 (LRO / Luna) y M2 (OSIRIS-REx / Asteroide)
+| Misión | Instrumento | Masa / Potencia | Estado | Fuente |
+|---|---|---|---|---|
+| **M1 (Luna)** | **LROC** (Lunar Reconnaissance Orbiter Camera) | $16.5\text{ kg}$, $22.0\text{ W}$ prom. ($30\text{ W}$ pico) | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LOLA** (Lunar Orbiter Laser Altimeter) | $15.3\text{ kg}$, $39.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **Diviner (DLRE)** (Radiómetro Lunar) | $11.9\text{ kg}$, $21.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LAMP** (Mapeador UV Lyman-Alpha) | $5.3\text{ kg}$, $4.86\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M2 (Asteroide)** | **OVIRS** (Espectrómetro Vis-IR) | $17.8\text{ kg}$, $8.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OTES** (Espectrómetro Emisión Térmica) | $6.27\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OLA** (Altímetro Láser) | $22.9\text{ kg}$, $\sim 75\text{ W}$ | verificado | NASA OSIRIS-REx / CSA |
+| **M2 (Asteroide)** | **REXIS** (Espectrómetro Rayos X Regolito) | $4.4\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+
+*(Nota `ABR-01` completada: todos los instrumentos de MRO, LRO y OSIRIS-REx quedan verificados con fuentes oficiales y sincronizados con `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`; únicamente `cost_musd`, `science_value` y `data_gbit_day` estimados conservan etiqueta explícita de balance de juego).*
 
 ### Parámetros de las 3 Misiones del juego
 | Parámetro | M1 (Fácil): *Artemis Moon* | M2 (Media): *Asteroid Hunter* | M3 (Difícil): *Mars Sample Return (MSR/MRO)* |
@@ -150,8 +162,8 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
       "data_gbit_day": 90.0,
       "cost_musd": 40.0,
       "science_value": 45.0,
-      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
-      "estado": "verificar masa exacta"
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/ & https://www.uahirise.org/",
+      "estado": "verificado (~65 kg, ~60 W, hasta 28 Gbit/imagen) / estimado juego (costo)"
     }
   ]
 }
