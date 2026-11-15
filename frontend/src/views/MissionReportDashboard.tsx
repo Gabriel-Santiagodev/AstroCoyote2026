@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronDown, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
-import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
+import {
+  CrewLeaderboard,
+  type CollaborationSummary,
+  type LeaderboardEntry,
+} from "../components/paper/CrewLeaderboard";
 import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 import type { RandomEventSummary } from "../socket";
@@ -64,6 +68,13 @@ const GATE_DETAILS = [
   { id: "NODE_4_DOWNLINK", title: "Call Earth", focus: "Instrument quality, radio signal and data sent home" },
 ] as const;
 const ATTEMPTS_STORAGE_KEY = "astro-squad.report-attempts.v1";
+/** Seat names when the server sends no leaderboard (offline preview). */
+const ROLE_CHARACTER_PROFILE_FALLBACK: Record<RoleType, string> = {
+  finance_launch: "Engineer",
+  spacecraft_mass: "Medic",
+  orbit_power: "Soldier",
+  science_comms: "Defender",
+};
 
 interface StoredAttempt {
   score: number;
@@ -109,13 +120,6 @@ const VERDICTS = {
   FAILED: { title: "MISSION FAILED", color: "bg-status-crit", note: "Review the engineering chain and redesign." },
 } as const;
 
-/** Podium layout: stepped pedestal heights (visual only), highest in the middle. */
-const PODIUM_ORDER: Array<{ role: RoleType; heightClass: string; place: string }> = [
-  { role: "spacecraft_mass", heightClass: "h-14 sm:h-20", place: "2" },
-  { role: "finance_launch", heightClass: "h-20 sm:h-28", place: "1" },
-  { role: "orbit_power", heightClass: "h-11 sm:h-16", place: "3" },
-  { role: "science_comms", heightClass: "h-8 sm:h-12", place: "4" },
-];
 
 /** Decision-tree gate ids in player words (same names as the station forecast). */
 const GATE_LABEL: Record<string, string> = {
@@ -177,6 +181,22 @@ export function MissionReportDashboard({
   const savedRetryReport = useRef<MissionOutcomeUI | null>(null);
   const verdict = VERDICTS[report.outcome];
   const contributions = roleContributions ?? report.role_contributions ?? [];
+  const leaderboard = useMemo<LeaderboardEntry[]>(() => {
+    const fromServer = (report as unknown as { leaderboard?: LeaderboardEntry[] }).leaderboard;
+    if (Array.isArray(fromServer) && fromServer.length > 0) return fromServer;
+    // Older servers / offline preview: list the four seats in station order without points.
+    return ROLES.map((role, i) => ({
+      role,
+      player_name: ROLE_CHARACTER_PROFILE_FALLBACK[role],
+      is_ai: contributions.find((c) => c.role === role)?.is_ai ?? false,
+      gate: Object.keys(GATE_ROLE).find((g) => GATE_ROLE[g] === role) ?? "",
+      gate_status: "PASS",
+      stations_locked: 0,
+      flight_calls: 0,
+      points: 0,
+      rank: i + 1,
+    }));
+  }, [report, contributions]);
   const score = Number.isFinite(report.total_score)
     ? Math.max(0, Math.min(SCORE_MAX, Math.round(report.total_score)))
     : 0;
@@ -294,111 +314,6 @@ export function MissionReportDashboard({
         </div>
       </motion.section>
 
-      {/* Survival event: what hit the ship and whether the crew's design blocked it */}
-      {(() => {
-        const raw = report as unknown as { random_event?: RandomEventSummary | null; random_events?: RandomEventSummary[] };
-        const list = raw.random_events?.length ? raw.random_events : raw.random_event ? [raw.random_event] : [];
-        if (list.length === 0) return null;
-        return list.map((ev) => (
-          <section key={ev.event_id} className={`rounded-2xl border-[3px] border-ink-black p-4 text-ink-black shadow-paper ${ev.mitigated ? "bg-status-ok" : "bg-status-warn"}`}
-            aria-label="Survival event">
-            <p className="font-mono text-[11px] font-black uppercase tracking-widest">Survival event</p>
-            <h2 className="font-display text-2xl font-black">{ev.title}</h2>
-            <p className="mt-1 text-sm font-semibold">{ev.description}</p>
-            <p className="mt-2 text-sm font-bold">
-              {ev.mitigated
-                ? `Why it didn't hurt: ${ev.mitigation_text}`
-                : `It cost you: ${Object.entries(ev.applied_effects || {})
-                    .map(([k, v]) => `${k.replace(/_pct|_db/, "").replace(/_/g, " ")} ${v > 0 ? "+" : ""}${v}`)
-                    .join(", ")}. A different design choice could have blocked it.`}
-            </p>
-            {ev.fuente && (
-              <a href={ev.fuente} target="_blank" rel="noreferrer" className="mt-1 inline-block font-mono text-[11px] underline">
-                Real-world source
-              </a>
-            )}
-          </section>
-        ));
-      })()}
-
-      {/* Crew collaboration (challenge: reward successful collaboration) */}
-      {(() => {
-        const collab = (report as unknown as {
-          collaboration?: { score: number; humans: number; own_locks_pct: number; answered_pct: number; gates_ready_at_liftoff: number };
-        }).collaboration;
-        if (!collab) return null;
-        const rows: Array<[string, number, string]> = [
-          ["Stations locked by the crew", collab.own_locks_pct, `${collab.own_locks_pct}%`],
-          ["Flight calls answered", collab.answered_pct, `${collab.answered_pct}%`],
-          ["Checkpoints ready at liftoff", (collab.gates_ready_at_liftoff / 4) * 100, `${collab.gates_ready_at_liftoff}/4`],
-        ];
-        return (
-          <section className="flash-panel p-4" aria-label="Crew collaboration">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <p className="font-mono text-[11px] font-black uppercase tracking-widest text-sky-glow">Crew collaboration</p>
-                <h2 className="font-display text-2xl font-black">{collab.score}/100</h2>
-              </div>
-              <p className="font-mono text-[11px] text-slate-300">
-                {collab.humans} human{collab.humans === 1 ? "" : "s"} · AI flew the empty seats
-              </p>
-            </div>
-            <div className="mt-3 space-y-2">
-              {rows.map(([label, pct, value]) => (
-                <div key={label}>
-                  <div className="flex justify-between font-mono text-[11px] font-bold">
-                    <span className="text-slate-300">{label}</span>
-                    <span className="text-paper-cream">{value}</span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink-black bg-space-ink">
-                    <div className={`h-full ${pct >= 75 ? "bg-status-ok" : pct >= 50 ? "bg-status-warn" : "bg-status-crit"}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* Final podium: the 4 Astro Sprites on stepped pedestals under a soft hangar light */}
-      <section className="flash-panel relative overflow-hidden px-3 pb-0 pt-4" aria-label="Crew podium">
-        <div className="hangar-glow pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden="true" />
-        <div className="relative mx-auto grid max-w-3xl grid-cols-4 items-end gap-2 sm:gap-4">
-          {PODIUM_ORDER.map(({ role, heightClass, place }, i) => {
-            const failedRole = report.failed_or_degraded_gate
-              ? GATE_ROLE[report.failed_or_degraded_gate.trim().toUpperCase()]
-              : undefined;
-            const down = report.outcome === "FAILED" || failedRole === role;
-            return (
-              <div key={role} className="flex flex-col items-center">
-                <motion.div
-                  initial={reduceMotion ? false : { y: 24, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.15 + i * 0.12, type: "spring", stiffness: 240, damping: 18 }}
-                >
-                  <CrewmateAvatar
-                    role={role}
-                    state={down ? "panic" : "cheer"}
-                    actionEffect={down ? "error" : "complete"}
-                    size={isMobileClient ? 52 : 78}
-                  />
-                </motion.div>
-                <div
-                  className={`metal-grate mt-1 flex w-full items-start justify-center rounded-t-lg border-[3px] border-b-0 border-ink-black pt-1 ${heightClass}`}
-                >
-                  <span
-                    className="rounded border-2 border-ink-black px-1.5 font-mono text-xs font-black text-ink-black"
-                    style={{ backgroundColor: ROLE_CHARACTER_PROFILE[role].suit }}
-                  >
-                    {place}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       <section className="flash-panel p-2 sm:p-3">
         <div className="paper-card-light grid gap-6 p-4 sm:p-7 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
         <div className="flex flex-col justify-between">
@@ -475,6 +390,44 @@ export function MissionReportDashboard({
         </div>
       </section>
 
+      {/* Crew leaderboard: server-ranked seats (podium + list) with teamwork score */}
+      <CrewLeaderboard
+        entries={leaderboard}
+        collaboration={(report as unknown as { collaboration?: CollaborationSummary }).collaboration}
+        summaries={Object.fromEntries(contributions.map((c) => [c.role, c.summary?.trim() ?? ""]))}
+        myRole={myRole}
+        missionFailed={report.outcome === "FAILED"}
+        compact={isMobileClient}
+        flaggedGate={report.failed_or_degraded_gate}
+      />
+
+      {/* Survival event: what hit the ship and whether the crew's design blocked it */}
+      {(() => {
+        const raw = report as unknown as { random_event?: RandomEventSummary | null; random_events?: RandomEventSummary[] };
+        const list = raw.random_events?.length ? raw.random_events : raw.random_event ? [raw.random_event] : [];
+        if (list.length === 0) return null;
+        return list.map((ev) => (
+          <section key={ev.event_id} className={`rounded-2xl border-[3px] border-ink-black p-4 text-ink-black shadow-paper ${ev.mitigated ? "bg-status-ok" : "bg-status-warn"}`}
+            aria-label="Survival event">
+            <p className="font-mono text-[11px] font-black uppercase tracking-widest">Survival event</p>
+            <h2 className="font-display text-2xl font-black">{ev.title}</h2>
+            <p className="mt-1 text-sm font-semibold">{ev.description}</p>
+            <p className="mt-2 text-sm font-bold">
+              {ev.mitigated
+                ? `Why it didn't hurt: ${ev.mitigation_text}`
+                : `It cost you: ${Object.entries(ev.applied_effects || {})
+                    .map(([k, v]) => `${k.replace(/_pct|_db/, "").replace(/_/g, " ")} ${v > 0 ? "+" : ""}${v}`)
+                    .join(", ")}. A different design choice could have blocked it.`}
+            </p>
+            {ev.fuente && (
+              <a href={ev.fuente} target="_blank" rel="noreferrer" className="mt-1 inline-block font-mono text-[11px] underline">
+                Real-world source
+              </a>
+            )}
+          </section>
+        ));
+      })()}
+
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="flash-panel p-5 sm:p-6">
           <div className="mb-3 flex items-start gap-3">
@@ -488,7 +441,7 @@ export function MissionReportDashboard({
           </div>
           {report.failed_or_degraded_gate && (
             <p className="mb-3 inline-block rounded-md border border-status-warn/60 bg-space-ink px-2 py-1 font-mono text-xs font-semibold text-status-warn">
-              Gate to revisit: {GATE_LABEL[report.failed_or_degraded_gate.trim().toUpperCase()] ?? report.failed_or_degraded_gate}
+              Checkpoint to revisit: {GATE_LABEL[report.failed_or_degraded_gate.trim().toUpperCase()] ?? report.failed_or_degraded_gate}
             </p>
           )}
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
@@ -594,53 +547,6 @@ export function MissionReportDashboard({
           </div>
         </section>
       )}
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Crew Contributions</h2>
-          <p className="font-mono text-xs uppercase text-slate-300">Four roles · one mission</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {ROLES.map((role) => {
-            const profile = ROLE_CHARACTER_PROFILE[role];
-            const contribution = contributions.find((item) => item.role === role);
-            const failedRole = report.failed_or_degraded_gate
-              ? GATE_ROLE[report.failed_or_degraded_gate.trim().toUpperCase()]
-              : undefined;
-            const isFailure = report.outcome === "FAILED" || failedRole === role;
-            const isComplete = !isFailure &&
-              (report.outcome === "FULL_SUCCESS" || (report.outcome === "PARTIAL_SUCCESS" && role === myRole));
-            return (
-              <article key={role} className="flash-panel flex min-h-44 flex-col overflow-hidden">
-                <div className="h-2 border-b-2 border-ink-black" style={{ backgroundColor: profile.suit }} />
-                <div className="flex flex-1 flex-col p-4">
-                <div className="flex items-center gap-3">
-                  <CrewmateAvatar role={role}
-                    state={isFailure ? "panic" : isComplete ? "cheer" : "work"}
-                    actionEffect={isFailure ? "error" : isComplete ? "complete" : "scan"}
-                    statusBadgeText={isFailure ? "FAIL" : isComplete ? "OK" : "CHECK"}
-                    size={66} />
-                  <div className="min-w-0">
-                    <span className="inline-block rounded-md border-2 border-ink-black bg-space-ink px-1.5 py-0.5 font-mono text-[10px] font-black uppercase" style={{ color: profile.suit }}>{profile.codename}</span>
-                    <h3 className="mt-1 font-display text-sm font-black text-paper-cream">{profile.label}</h3>
-                    <p className="font-mono text-[10px] uppercase text-slate-300">{profile.squadClass}</p>
-                  </div>
-                </div>
-                <p className="mt-3 rounded-lg border border-slate-500/50 bg-space-ink/70 px-2 py-1 font-mono text-[10px] leading-snug text-role-spacecraft">GEAR // {profile.gearLabel}</p>
-                <p className="mt-3 flex-1 font-sans text-sm leading-snug text-slate-100">
-                  {contribution?.summary?.trim() || "No contribution data received."}
-                </p>
-                {contribution?.is_ai && (
-                  <span className="mt-3 self-start rounded-md border border-ink-black bg-status-warn px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink-black">
-                    AI Autopilot
-                  </span>
-                )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
 
       <div className="flex justify-center pt-3">
         <button type="button" onClick={handleRetry}
