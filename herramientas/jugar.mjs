@@ -2,6 +2,7 @@
 // Usage (repo root):  npm run play
 // Owner: Rubén. No external dependencies (plain Node child_process).
 import { spawn } from "node:child_process";
+import dgram from "node:dgram";
 import { existsSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { join, dirname } from "node:path";
@@ -18,6 +19,23 @@ function findPython() {
     if (existsSync(candidate)) return candidate;
   }
   return isWin ? "python" : "python3";
+}
+
+/** IPv4 of the interface on the default route (a UDP connect sends no packets). */
+function defaultRouteIp() {
+  return new Promise((resolve) => {
+    const probe = dgram.createSocket("udp4");
+    const done = (ip) => {
+      try { probe.close(); } catch { /* already closed */ }
+      resolve(ip);
+    };
+    probe.on("error", () => done(null));
+    try {
+      probe.connect(1, "10.255.255.255", () => done(probe.address().address));
+    } catch {
+      done(null);
+    }
+  });
 }
 
 function lanIp() {
@@ -71,7 +89,7 @@ if (!existsSync(join(ROOT, "frontend", "node_modules"))) {
   process.exit(1);
 }
 
-const ip = lanIp();
+const ip = (await defaultRouteIp()) || lanIp();
 console.log("\n  SPACE MISSION DESIGN GAME");
 console.log(`  Play on this PC : http://localhost:5173`);
 console.log(`  Phones (same Wi-Fi): http://${ip}:5173`);

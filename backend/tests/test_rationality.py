@@ -168,3 +168,17 @@ def test_dsn_data_hours_come_from_catalog() -> None:
     hours = get_catalog()["constants"]["dsn_data_hours_per_day"]
     assert hours == 10
     assert abs(decision_tree.data_return_ratio(3.6 * hours, 1.0) - 1.0) < 1e-6
+
+
+def test_flight_answers_cannot_break_a_launch_that_already_happened() -> None:
+    launch = {**BASE_STATE, "selected_launcher": "falcon9_block5"}
+    gm = GameManager(FakeSio())  # type: ignore[arg-type]
+    gm._normalize_state_aliases(launch, "artemis_moon")
+    cap = float(launch["launcher_max_mass_kg"])
+    dry = float(launch.get("dry_mass_kg", 0)) + float(launch.get("instruments_mass_kg", 0))
+    launch["propellant_mass_kg"] = max(0.0, cap - dry - 5.0)  # liftoff 5 kg under the limit
+    flight = {**launch, "propellant_mass_kg": launch["propellant_mass_kg"] + 30.0}  # "+30 kg fuel"
+    after = decision_tree.evaluate_mission_deployment("artemis_moon", flight, launch)
+    assert after["failed_or_degraded_gate"] != "NODE_1_LAUNCH" or after["outcome"] != "FAILED"
+    legacy = decision_tree.evaluate_mission_deployment("artemis_moon", flight)
+    assert legacy["outcome"] == "FAILED" and legacy["failed_or_degraded_gate"] == "NODE_1_LAUNCH"

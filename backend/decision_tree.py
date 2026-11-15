@@ -32,8 +32,8 @@ _STORY_PATH = Path(__file__).resolve().with_name("story_tree.json")
 
 _DEFAULT_FACTS = {
     "artemis_moon": (
-        "NASA Artemis I used a Free-Return Trajectory around the Moon to save hundreds of "
-        "kilograms of propellant and tested Orion's heat shield during 40,000 km/h Earth reentry."
+        "NASA's Artemis I (2022) flew Orion to a distant retrograde orbit around the Moon and "
+        "tested its heat shield on a reentry at nearly 40,000 km/h."
     ),
     "asteroid_hunter": (
         "NASA OSIRIS-REx used autonomous Natural Feature Tracking at asteroid Bennu "
@@ -128,66 +128,122 @@ def evaluate_preliminary_gates(
     }
 
 
-def evaluate_mission_deployment(
-    mission_id: str, state: ConsolidatedMissionState | dict[str, Any]
+def _score_breakdown(
+    obj: float,
+    sci: float,
+    eff: float,
+    completion: float,
+    s: ConsolidatedMissionState,
+    mass_eff: float,
+    budget_eff: float,
+    time_eff: float,
 ) -> dict[str, Any]:
-    """Evaluate all 4 deterministic gates and return MissionResolutionOutcome dict."""
+    """Points per scoring part (50 % objective, 30 % science, 20 % efficiency) plus plain tips
+    on where the missing points went, so players see what separates them from 1,000."""
+    tips: list[str] = []
+    if completion < 0.999:
+        tips.append(
+            f"Objective: mission quality reached {completion * 100:.0f}%. Hazards, the radio link and "
+            f"instrument quality all count; strengthen the weakest one."
+        )
+    if s.science_value < 100.0:
+        tips.append(f"Science: carry more or better instruments (science value {s.science_value:.0f} of 100).")
+    if s.science_calibration_f1 < 0.999:
+        tips.append(f"Science: calibrate the instruments more precisely (quality {s.science_calibration_f1:.2f} of 1.00).")
+    if mass_eff < 0.5:
+        tips.append("Efficiency: the ship used most of the rocket's capacity; a lighter ship or a bigger rocket scores higher.")
+    if budget_eff < 0.3:
+        tips.append("Efficiency: most of the budget was spent; cheaper choices leave more money unspent.")
+    if time_eff < 0.999:
+        tips.append("Efficiency: a faster route to the target saves time.")
+    return {
+        "objective_points": round(obj),
+        "science_f1_points": round(sci),
+        "efficiency_points": round(eff),
+        "tips": tips[:4],
+    }
+
+
+def _with_breakdown(outcome: dict[str, Any], breakdown: dict[str, Any]) -> dict[str, Any]:
+    """Attach the score breakdown; a success floor (min 400 / 800 pts) shows as its own line."""
+    floor = int(outcome["total_score"]) - (
+        breakdown["objective_points"] + breakdown["science_f1_points"] + breakdown["efficiency_points"]
+    )
+    outcome["score_breakdown"] = {**breakdown, "success_floor_points": max(0, floor)}
+    return outcome
+
+
+def evaluate_mission_deployment(
+    mission_id: str,
+    state: ConsolidatedMissionState | dict[str, Any],
+    launch_state: ConsolidatedMissionState | dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Evaluate all 4 deterministic gates and return MissionResolutionOutcome dict.
+
+    `launch_state` is the design frozen at liftoff: Node 1 (launch mass, fairing, budget) and the
+    mass/budget efficiency are judged on it, so flight answers (e.g. "+30 kg fuel" saved in space)
+    cannot retroactively break a launch that already happened. Defaults to `state`.
+    """
     s = _as_state(state, mission_id)
+    ls = _as_state(launch_state, mission_id) if launch_state else s
     mission = get_mission(mission_id)
     fact = mission.get("nasa_real_world_fact") or _DEFAULT_FACTS.get(
         mission_id, _DEFAULT_FACTS["artemis_moon"]
     )
 
-    wet_mass_kg = s.dry_mass_kg + s.instruments_mass_kg + s.propellant_mass_kg
-    total_cost_usd = s.launch_cost_usd + s.subsystems_cost_usd
+    wet_mass_kg = ls.dry_mass_kg + ls.instruments_mass_kg + ls.propellant_mass_kg
+    total_cost_usd = ls.launch_cost_usd + ls.subsystems_cost_usd
 
-    # NODE 1: Launch Capacity, Fairing & Budget Hard Gate
-    if not s.fairing_ok:
+    # NODE 1: Launch Capacity, Fairing & Budget Hard Gate (judged on the liftoff snapshot)
+    if not ls.fairing_ok:
         return MissionResolutionOutcome(
             outcome="FAILED",
             completion_pct=0.0,
             total_score=90,
             failed_or_degraded_gate="NODE_1_LAUNCH",
             causal_chain_explanation=(
-                f"LAUNCH MANIFEST VETO (Fairing Geometry Conflict): Spacecraft envelope exceeded "
-                f"the payload fairing clearance of {s.selected_launcher} in Rol 1B."
+                f"LAUNCH SCRUBBED: the spacecraft does not fit inside the nose cone (fairing) of "
+                f"{ls.selected_launcher}. Seal the fairing or pick a bigger rocket in station 1B."
             ),
             nasa_real_world_fact=fact,
         ).model_dump()
 
-    if wet_mass_kg > s.launcher_max_mass_kg:
-        excess = round(wet_mass_kg - s.launcher_max_mass_kg, 1)
+    if wet_mass_kg > ls.launcher_max_mass_kg:
+        excess = round(wet_mass_kg - ls.launcher_max_mass_kg, 1)
         return MissionResolutionOutcome(
             outcome="FAILED",
             completion_pct=0.0,
             total_score=100,
             failed_or_degraded_gate="NODE_1_LAUNCH",
             causal_chain_explanation=(
-                f"LAUNCH MANIFEST VETO: Total wet mass ({wet_mass_kg:.1f} kg: {s.dry_mass_kg:.0f} kg bus + "
-                f"{s.instruments_mass_kg:.0f} kg instruments + {s.propellant_mass_kg:.0f} kg propellant) "
-                f"exceeded {s.selected_launcher} capacity ({s.launcher_max_mass_kg:.1f} kg) by {excess} kg."
+                f"TOO HEAVY TO LAUNCH: the loaded ship weighed {wet_mass_kg:.0f} kg ({ls.dry_mass_kg:.0f} kg body + "
+                f"{ls.instruments_mass_kg:.0f} kg instruments + {ls.propellant_mass_kg:.0f} kg fuel), but "
+                f"{ls.selected_launcher} can only send {ls.launcher_max_mass_kg:.0f} kg to this destination: "
+                f"{excess:.0f} kg over."
             ),
             nasa_real_world_fact=fact,
         ).model_dump()
 
-    if total_cost_usd > s.budget_limit_usd:
-        overrun = round((total_cost_usd - s.budget_limit_usd) / 1e6, 1)
+    if total_cost_usd > ls.budget_limit_usd:
+        overrun = round((total_cost_usd - ls.budget_limit_usd) / 1e6, 1)
         return MissionResolutionOutcome(
             outcome="FAILED",
             completion_pct=0.0,
             total_score=120,
             failed_or_degraded_gate="NODE_1_LAUNCH",
             causal_chain_explanation=(
-                f"NUNN-MCCURDY BUDGET BREACH: Total mission cost (${total_cost_usd / 1e6:.1f}M USD) "
-                f"exceeded the ${s.budget_limit_usd / 1e6:.0f}M USD budget cap by ${overrun}M USD "
-                f"(UFE reserve was {s.ufe_reserve_pct:.0f}%)."
+                f"OVER BUDGET: the mission cost ${total_cost_usd / 1e6:.1f}M, ${overrun}M over the "
+                f"${ls.budget_limit_usd / 1e6:.0f}M limit (the reserve fund was {ls.ufe_reserve_pct:.0f}%). "
+                f"Real NASA missions that overrun this much face cancellation reviews."
             ),
             nasa_real_world_fact=fact,
         ).model_dump()
 
     # NODE 2: Tsiolkovsky Propulsion & CG Multiplier Gate
     g0 = 9.80665
-    mass_ratio = wet_mass_kg / max(wet_mass_kg - s.propellant_mass_kg, 1.0)
+    # Node 2+ fly the in-flight ship: fuel saved or spent during the flight counts here.
+    flight_wet_kg = s.dry_mass_kg + s.instruments_mass_kg + s.propellant_mass_kg
+    mass_ratio = flight_wet_kg / max(flight_wet_kg - s.propellant_mass_kg, 1.0)
     available_dv = s.isp_seconds * g0 * math.log(max(1.0001, mass_ratio))
     effective_dv = available_dv / max(1.0, s.fuel_burn_multiplier)
 
@@ -195,15 +251,16 @@ def evaluate_mission_deployment(
         cause_details: list[str] = []
         if not s.cg_balanced or s.fuel_burn_multiplier > 1.0:
             cause_details.append(
-                f"off-center CG in Rol 2B triggered a {s.fuel_burn_multiplier:.1f}x fuel burn penalty "
-                f"(dropping raw {available_dv:.0f} m/s to {effective_dv:.0f} m/s)"
+                f"an unbalanced ship (station 2B) burned {s.fuel_burn_multiplier:.1f}x the fuel "
+                f"(from {available_dv:.0f} down to {effective_dv:.0f} m/s)"
             )
         if s.isp_seconds <= 230.0:
             cause_details.append(
-                f"low-Isp Hydrazine monopropellant ({s.isp_seconds:.0f} s in Rol 3A) limited exhaust velocity"
+                f"the simple hydrazine engine (efficiency {s.isp_seconds:.0f} s, station 3A) gets less push "
+                f"from each kilogram of fuel"
             )
         if not cause_details:
-            cause_details.append("propellant tank load was insufficient for the selected trajectory")
+            cause_details.append("the fuel load was too small for the chosen route")
         reason_str = " and ".join(cause_details)
         return MissionResolutionOutcome(
             outcome="FAILED",
@@ -211,8 +268,8 @@ def evaluate_mission_deployment(
             total_score=250,
             failed_or_degraded_gate="NODE_2_PROPULSION",
             causal_chain_explanation=(
-                f"ORBITAL DRIFT: Effective Delta-v ({effective_dv:.0f} m/s) fell short of "
-                f"required {s.required_dv_ms:.0f} m/s because {reason_str}."
+                f"OUT OF FUEL BEFORE ARRIVAL: the ship could change its speed by only {effective_dv:.0f} m/s "
+                f"(delta-v) but the route needs {s.required_dv_ms:.0f} m/s, because {reason_str}."
             ),
             nasa_real_world_fact=fact,
         ).model_dump()
@@ -225,8 +282,8 @@ def evaluate_mission_deployment(
             total_score=300,
             failed_or_degraded_gate="NODE_3_EVENT",
             causal_chain_explanation=(
-                "REENTRY LOSS: The spacecraft completed its transit trajectory but disintegrated during "
-                "atmospheric reentry because the Heat Shield / Sample Containment Capsule was omitted in Rol 2A."
+                "LOST ON RE-ENTRY: the ship made the whole trip but burned up when it hit Earth's "
+                "atmosphere, because the heat shield / sample capsule was left out in station 2A."
             ),
             nasa_real_world_fact=fact,
         ).model_dump()
@@ -236,21 +293,22 @@ def evaluate_mission_deployment(
     if mission_id == "artemis_moon" and s.battery_reserve_pct < 15.0:
         event_survival = 0.65
         notes.append(
-            f"Cislunar solar storm forced Safe Mode due to low battery reserve ({s.battery_reserve_pct:.0f}% < 15%)."
+            f"A solar storm forced the ship into safe mode: its battery reserve was "
+            f"{s.battery_reserve_pct:.0f}%, below the 15% it needs."
         )
     elif mission_id == "asteroid_hunter" and (not s.has_visual_autonomy or s.ufe_reserve_pct < 15.0):
         event_survival = 0.70
         notes.append(
-            f"Asteroid dust cloud and micro-rocks disrupted close-proximity navigation "
-            f"(Visual Autonomy={'ON' if s.has_visual_autonomy else 'OFF'}, UFE={s.ufe_reserve_pct:.0f}%)."
+            f"Dust and small rocks near the asteroid confused navigation "
+            f"(self-driving camera {'on' if s.has_visual_autonomy else 'off'}, reserve fund {s.ufe_reserve_pct:.0f}%)."
         )
     elif mission_id == "mars_sample_return" and (
         s.ufe_reserve_pct < 20.0 or (s.power_source != "rtg_nuclear" and s.battery_reserve_pct < 25.0)
     ):
         event_survival = 0.60
         notes.append(
-            f"Seasonal Mars dust storm and sample arm jam halved collected tubes "
-            f"(Power={s.power_source}, Battery={s.battery_reserve_pct:.0f}%, UFE={s.ufe_reserve_pct:.0f}%)."
+            f"A Mars dust storm and a jammed sample arm cut the samples collected "
+            f"(power: {s.power_source}, battery {s.battery_reserve_pct:.0f}%, reserve fund {s.ufe_reserve_pct:.0f}%)."
         )
 
     # NODE 4: Science Calibration & DSN Downlink Gate
@@ -266,16 +324,17 @@ def evaluate_mission_deployment(
     if data_ratio < 1.0:
         comms_factor *= data_ratio
         notes.append(
-            f"Data bottleneck: instruments make {s.data_generated_gbit:.0f} Gbit/day but a "
+            f"Too much data for the radio: the instruments make {s.data_generated_gbit:.0f} Gbit a day, but a "
             f"{s.downlink_rate_mbps:.1f} Mbps link sends at most "
             f"{s.downlink_rate_mbps * float(get_catalog().get('constants', {}).get('dsn_data_hours_per_day', 24.0)) * 3.6:.0f} "
-            f"Gbit/day in a typical DSN day."
+            f"Gbit in the ~{get_catalog().get('constants', {}).get('dsn_data_hours_per_day', 24)} h a day "
+            f"a mission really gets on NASA's big antennas."
         )
     effective_completion = min(1.0, event_survival * comms_factor * spectral_quality)
 
     obj_score = 500.0 * effective_completion
     sci_score = 300.0 * min(1.0, s.science_value / 100.0) * s.science_calibration_f1
-    mass_eff = max(0.0, 1.0 - (wet_mass_kg / max(1.0, s.launcher_max_mass_kg)))
+    mass_eff = max(0.0, 1.0 - (wet_mass_kg / max(1.0, ls.launcher_max_mass_kg)))
     budget_eff = max(0.0, 1.0 - (total_cost_usd / max(1.0, s.budget_limit_usd)))
     # Challenge resource "Time": a slower route keeps the mission (and its costs and risks) going
     # longer. time_eff = fastest catalog route / chosen route (1.0 when the route is unknown).
@@ -287,39 +346,43 @@ def evaluate_mission_deployment(
             f"lowering mission efficiency."
         )
     final_score = int(round(obj_score + sci_score + eff_score))
+    breakdown = _score_breakdown(
+        obj_score, sci_score, eff_score, effective_completion, s, mass_eff, budget_eff, time_eff
+    )
 
     if effective_completion < 0.85:
         if comms_factor < 1.0:
             notes.append(
-                f"DSN link bottleneck (margin {s.link_margin_db:.1f} dB vs +3.0 dB threshold, "
-                f"efficiency {comms_factor:.2f}) left science packets queued in the 160 Gbit recorder."
+                f"Weak radio link: the signal margin was {s.link_margin_db:.1f} dB (3 dB needed), so only "
+                f"{comms_factor * 100:.0f}% of the science made it home; the rest stayed on the recorder."
             )
         if spectral_quality < 0.75:
             notes.append(
-                f"Spectral calibration F1 ({s.science_calibration_f1:.2f} in Rol 4A) degraded chemical signature fidelity."
+                f"The instruments were roughly calibrated (quality {s.science_calibration_f1:.2f} of 1.00 in "
+                f"station 4A), so the chemical readings were less reliable."
             )
-        return MissionResolutionOutcome(
+        return _with_breakdown(MissionResolutionOutcome(
             outcome="PARTIAL_SUCCESS",
             completion_pct=round(effective_completion * 100.0, 1),
             total_score=min(1000, max(400, final_score)),
             failed_or_degraded_gate="NODE_4_DOWNLINK" if comms_factor < 1.0 or spectral_quality < 0.75 else "NODE_3_EVENT",
-            causal_chain_explanation="PARTIAL MISSION SUCCESS: " + " ".join(notes),
+            causal_chain_explanation="PARTIAL SUCCESS: " + " ".join(notes),
             nasa_real_world_fact=fact,
-        ).model_dump()
+        ).model_dump(), breakdown)
 
-    return MissionResolutionOutcome(
+    return _with_breakdown(MissionResolutionOutcome(
         outcome="FULL_SUCCESS",
         completion_pct=100.0,
         total_score=min(1000, max(800, final_score)),
         failed_or_degraded_gate=None,
         causal_chain_explanation=(
-            f"FULL MISSION SUCCESS! The engineering team balanced spacecraft wet mass "
-            f"({wet_mass_kg:.0f}/{s.launcher_max_mass_kg:.0f} kg on {s.selected_launcher}), maintained stable CG, "
-            f"survived deep-space contingencies with {s.ufe_reserve_pct:.0f}% UFE reserve, calibrated payload spectra "
-            f"(F1={s.science_calibration_f1:.2f}), and locked DSN downlink at +{s.link_margin_db:.1f} dB."
+            f"FULL SUCCESS! Your team launched a {wet_mass_kg:.0f} kg ship on {ls.selected_launcher} "
+            f"(limit {ls.launcher_max_mass_kg:.0f} kg), kept it balanced, saved a {s.ufe_reserve_pct:.0f}% reserve fund "
+            f"for surprises, calibrated the instruments (quality {s.science_calibration_f1:.2f} of 1.00) and kept a "
+            f"strong {s.link_margin_db:.1f} dB radio link home." + (" " + " ".join(notes) if notes else "")
         ),
         nasa_real_world_fact=fact,
-    ).model_dump()
+    ).model_dump(), breakdown)
 
 
 

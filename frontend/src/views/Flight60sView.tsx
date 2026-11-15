@@ -69,9 +69,9 @@ const GATES: Array<{
   chapter: string;
 }> = [
   { id: "NODE_1_LAUNCH", label: "LAUNCH", chapter: "LAUNCH PAD" },
-  { id: "NODE_2_PROPULSION", label: "PROPULSION", chapter: "ORBITAL PROPULSION" },
+  { id: "NODE_2_PROPULSION", label: "ENGINE BURN", chapter: "ENGINE BURN" },
   { id: "NODE_3_EVENT", label: "SPACE EVENT", chapter: "DEEP SPACE HAZARD" },
-  { id: "NODE_4_DOWNLINK", label: "DSN DOWNLINK", chapter: "DSN DOWNLINK" },
+  { id: "NODE_4_DOWNLINK", label: "CALL EARTH", chapter: "CALL EARTH" },
 ];
 
 const CREW_ROLES: RoleType[] = [
@@ -95,15 +95,15 @@ const RACK_ITEMS: Array<{
   icon: LucideIcon;
   packedFrom: Array<{ role: RoleType; wave: "wave1" | "wave2" }>;
 }> = [
-  { id: "ufe", label: "UFE Vault", shortLabel: "UFE", gateIndex: 0, icon: Wallet,
+  { id: "ufe", label: "Reserve fund", shortLabel: "RESERVE", gateIndex: 0, icon: Wallet,
     packedFrom: [{ role: "finance_launch", wave: "wave1" }] },
-  { id: "tps", label: "Thermal Shield TPS", shortLabel: "TPS", gateIndex: 2, icon: Shield,
+  { id: "tps", label: "Heat shield", shortLabel: "SHIELD", gateIndex: 2, icon: Shield,
     packedFrom: [{ role: "spacecraft_mass", wave: "wave1" }] },
-  { id: "cg", label: "CG & Propulsion Tank", shortLabel: "CG/TANK", gateIndex: 1, icon: Gauge,
+  { id: "cg", label: "Balance & fuel tank", shortLabel: "BALANCE", gateIndex: 1, icon: Gauge,
     packedFrom: [{ role: "spacecraft_mass", wave: "wave2" }, { role: "orbit_power", wave: "wave1" }] },
   { id: "power", label: "Power Cells", shortLabel: "POWER", gateIndex: 2, icon: BatteryCharging,
     packedFrom: [{ role: "orbit_power", wave: "wave2" }] },
-  { id: "dsn", label: "DSN Spectral Array", shortLabel: "DSN", gateIndex: 3, icon: Radio,
+  { id: "dsn", label: "Radio & instruments", shortLabel: "RADIO", gateIndex: 3, icon: Radio,
     packedFrom: [{ role: "science_comms", wave: "wave2" }] },
 ];
 

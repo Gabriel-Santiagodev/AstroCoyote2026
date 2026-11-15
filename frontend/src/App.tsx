@@ -511,11 +511,13 @@ export function App() {
         if (payload.mission_id) setMission(payload.mission_id);
         if (payload.difficulty) setDifficulty(payload.difficulty);
         if (payload.pin) setPin(payload.pin);
-        // Guests (`unirse_sala`) get no `sala_creada`; resolve our player_id by name and enter the lobby.
+        // Guests (`unirse_sala`) get no `sala_creada`: the server keys players by our socket id,
+        // so resolve our player_id by it (two guests may share a nickname); name is a fallback.
         const { playerId: myId, playerName: myName, screen: current, role: myRole } = latest.current;
         const mine = myId
           ? roster.find((p) => p.player_id === myId)
-          : [...roster].reverse().find((p) => p.player_name === myName);
+          : roster.find((p) => p.player_id === socket.id) ??
+            [...roster].reverse().find((p) => p.player_name === myName);
         if (!myId && mine) setPlayerId(mine.player_id);
         // Server authority (1-4 players): the backend hands each joiner a free seat, so the local
         // role follows the roster and two humans never end up playing the same station.

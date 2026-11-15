@@ -303,6 +303,7 @@ def compute_live_metrics(
         fuel_burn_multiplier=burn_mult,
         available_power_w=available_power_w,
         instruments_mass_kg=inst_mass,
+        dry_mass_kg=round(dry_mass, 1),
         selected_instruments=raw_instruments if isinstance(raw_instruments, list) else [],
         required_dv_ms=required_dv,
         has_thermal_protection=bool(partial_state.get("has_thermal_protection", True)),

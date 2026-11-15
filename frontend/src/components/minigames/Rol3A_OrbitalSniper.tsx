@@ -42,7 +42,8 @@ const ORBITS = nasaCatalog.orbits as OrbitOption[];
 const ENGINES = nasaCatalog.engines as EngineOption[];
 const ROUTES_BY_MISSION = nasaCatalog.mission_routes as Record<string, RouteOption[]>;
 
-const BASE_DRY_MASS_ESTIMATE_KG = 620;
+/** Fallback bus dry mass while the server has not sent the real one (MRO-class bus, session.py default). */
+const FALLBACK_BUS_DRY_MASS_KG = 373;
 /**
  * Same 5 % delta-v margin the backend Node 2 gate checks (decision_tree.evaluate_preliminary_gates).
  * The route's lower delta-v already includes its fuel saving, so propellant is sized from it alone.
@@ -100,10 +101,8 @@ export function Rol3A_OrbitalSniper({
     const exponent = -(effectiveDv / (engine.isp_seconds * G0_M_S2));
     const propFraction = Math.max(0.02, Math.min(0.88, 1 - Math.exp(exponent)));
 
-    const dryEstimate = Math.max(
-      BASE_DRY_MASS_ESTIMATE_KG,
-      BASE_DRY_MASS_ESTIMATE_KG + liveMetrics.instruments_mass_kg
-    );
+    // Size fuel on the real ship (bus after Rol 2A/2B + instruments), exactly what Node 2 flies.
+    const dryEstimate = (liveMetrics.dry_mass_kg || FALLBACK_BUS_DRY_MASS_KG) + liveMetrics.instruments_mass_kg;
     const rawPropMass = dryEstimate * (propFraction / (1 - propFraction));
     const propellantMassKg = Math.max(85, Math.round(rawPropMass));
     const powerOverBudget = engine.power_demand_w > liveMetrics.available_power_w;
@@ -114,7 +113,7 @@ export function Rol3A_OrbitalSniper({
       powerOverBudget,
       burnMult,
     };
-  }, [route, engine, liveMetrics.fuel_burn_multiplier, liveMetrics.instruments_mass_kg, liveMetrics.available_power_w]);
+  }, [route, engine, liveMetrics.fuel_burn_multiplier, liveMetrics.instruments_mass_kg, liveMetrics.dry_mass_kg, liveMetrics.available_power_w]);
 
   const buildPayload = useCallback(
     () => ({
@@ -137,7 +136,7 @@ export function Rol3A_OrbitalSniper({
         0.02,
         Math.min(0.88, 1 - Math.exp(-(nextRoute.required_dv_ms * burnMult * DV_MARGIN) / (nextEngine.isp_seconds * G0_M_S2)))
       );
-      const dryEst = Math.max(BASE_DRY_MASS_ESTIMATE_KG, BASE_DRY_MASS_ESTIMATE_KG + liveMetrics.instruments_mass_kg);
+      const dryEst = (liveMetrics.dry_mass_kg || FALLBACK_BUS_DRY_MASS_KG) + liveMetrics.instruments_mass_kg;
       const propMass = Math.max(85, Math.round(dryEst * (propFrac / (1 - propFrac))));
 
       onLiveMutation({

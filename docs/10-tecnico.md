@@ -181,5 +181,6 @@ Campos **opcionales** añadidos (no se renombró ninguno) para los recursos del 
 | `downlink_rate_mbps?` | Velocidad del enlace | Rol 4B |
 | `downlink_hours_needed?` | Horas de contacto por día necesarias = datos ÷ (Mbps × 3.6) | Conversión de unidades |
 | `mission_duration_days?` | Días de viaje de la ruta elegida | `mission_routes[].transit_days` del catálogo |
+| `dry_mass_kg?` | Masa seca del cuerpo de la nave tras Rol 2A/2B (2026-11-15) | `physics_engine.compute_live_metrics`; Rol 3A dimensiona el combustible con ella + instrumentos |
 
 Si las horas necesarias superan 24 h/día, la compuerta `NODE_4_DOWNLINK` se degrada y el reporte explica el cuello de botella (`decision_tree.data_return_ratio`).

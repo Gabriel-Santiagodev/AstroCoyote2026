@@ -174,7 +174,7 @@ def test_unbalanced_cg_penalizes_propulsion_gate() -> None:
     )
     assert outcome["outcome"] == "FAILED"
     assert outcome["failed_or_degraded_gate"] == "NODE_2_PROPULSION"
-    assert "Hydrazine" in outcome["causal_chain_explanation"]
+    assert "hydrazine" in outcome["causal_chain_explanation"]
     assert "1.5x" in outcome["causal_chain_explanation"]
     assert outcome["nasa_real_world_fact"]
 
@@ -193,7 +193,7 @@ def test_sch04_all_four_nodes_failed_partial_and_full_success() -> None:
     )
     assert out_mass["outcome"] == "FAILED"
     assert out_mass["failed_or_degraded_gate"] == "NODE_1_LAUNCH"
-    assert "exceeded electron capacity" in out_mass["causal_chain_explanation"]
+    assert "electron can only send" in out_mass["causal_chain_explanation"]
 
     # 2. NODE_1_LAUNCH: Nunn-McCurdy Budget Breach
     out_budget = decision_tree.evaluate_mission_deployment(
@@ -206,7 +206,7 @@ def test_sch04_all_four_nodes_failed_partial_and_full_success() -> None:
     )
     assert out_budget["outcome"] == "FAILED"
     assert out_budget["failed_or_degraded_gate"] == "NODE_1_LAUNCH"
-    assert "NUNN-MCCURDY" in out_budget["causal_chain_explanation"]
+    assert "OVER BUDGET" in out_budget["causal_chain_explanation"]
 
     # 3. NODE_3_EVENT: Missing Thermal Protection on reentry mission
     out_reentry = decision_tree.evaluate_mission_deployment(
@@ -217,7 +217,7 @@ def test_sch04_all_four_nodes_failed_partial_and_full_success() -> None:
     )
     assert out_reentry["outcome"] == "FAILED"
     assert out_reentry["failed_or_degraded_gate"] == "NODE_3_EVENT"
-    assert "REENTRY LOSS" in out_reentry["causal_chain_explanation"]
+    assert "LOST ON RE-ENTRY" in out_reentry["causal_chain_explanation"]
 
     # 4. PARTIAL_SUCCESS: Low DSN margin (< 3.0 dB)
     out_partial = decision_tree.evaluate_mission_deployment(

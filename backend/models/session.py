@@ -70,6 +70,8 @@ class LiveMetrics(BaseModel):
     downlink_rate_mbps: float = 0.0
     downlink_hours_needed: float = 0.0
     mission_duration_days: float = 0.0
+    # Bus dry mass after Rol 2A/2B (2026-11-15): lets Rol 3A size fuel on the real ship.
+    dry_mass_kg: float = 0.0
 
 
 class MissionSessionConfig(BaseModel):
