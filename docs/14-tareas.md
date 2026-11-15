@@ -61,11 +61,11 @@
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | SCH-01 | Definir esquemas Pydantic en `backend/models/session.py` (`MissionSessionConfig`, `ConsolidatedMissionState`, `FlightQuestionNode`, `MissionResolutionOutcome`) | — | H2 | Importa limpio y valida payloads de las 3 misiones | MVP |
-| [ ] | SCH-02 | Implementar `backend/physics_engine.py`: WGS84, Tsiolkovsky, FSPL, CG y función `compute_live_metrics(partial_state)` para concurrencia en vivo entre estaciones | SCH-01 | H4 | Pasa tests `pytest` en `backend/tests/test_engine.py` contra `06-datos-nasa.md` | MVP |
-| [ ] | SCH-03 | Implementar `backend/randomizer.py` (Oleada 1 por arquetipos y Oleada 2 con *Constraint-Aware Clamping* acoplado al estado humano) | SCH-01, SCH-02 | H6 | Partidas simuladas de 1, 2 y 3 jugadores generan configuraciones consistentes sin fallos absurdos | MVP |
-| [ ] | SCH-04 | Implementar `backend/decision_tree.py`: compuertas deterministas de 4 Nodos (`NODE_1_LAUNCH` a `NODE_4_DOWNLINK`), puntaje 0–1,000 y explicaciones causales NASA | SCH-02, ABR-01 | H6 | Tests unitarios validan casos `FAILED`, `PARTIAL_SUCCESS` y `FULL_SUCCESS` con explicación exacta | MVP |
-| [ ] | SCH-05 | Diseñar e implementar `backend/story_tree.json` + evaluador de turnos del **Vuelo 60s**: 4 rondas por partida con ramificación por estado real (masa al límite, CG 1.5x, sin escudo, baja batería, poca UFE, conjunción solar) | SCH-04, ABR-01 | H9 | Cada misión (M1/M2/M3) tiene múltiples casos condicionales que reaccionan a las decisiones de las estaciones | MVP |
+| [x] | SCH-01 | Definir esquemas Pydantic en `backend/models/session.py` (`MissionSessionConfig`, `ConsolidatedMissionState`, `FlightQuestionNode`, `MissionResolutionOutcome`) | — | H2 | Importa limpio y valida payloads de las 3 misiones | MVP |
+| [x] | SCH-02 | Implementar `backend/physics_engine.py`: WGS84, Tsiolkovsky, FSPL, CG y función `compute_live_metrics(partial_state)` para concurrencia en vivo entre estaciones | SCH-01 | H4 | Pasa tests `pytest` en `backend/tests/test_engine.py` contra `06-datos-nasa.md` | MVP |
+| [x] | SCH-03 | Implementar `backend/randomizer.py` (Oleada 1 por arquetipos y Oleada 2 con *Constraint-Aware Clamping* acoplado al estado humano) | SCH-01, SCH-02 | H6 | Partidas simuladas de 1, 2 y 3 jugadores generan configuraciones consistentes sin fallos absurdos | MVP |
+| [x] | SCH-04 | Implementar `backend/decision_tree.py`: compuertas deterministas de 4 Nodos (`NODE_1_LAUNCH` a `NODE_4_DOWNLINK`), puntaje 0–1,000 y explicaciones causales NASA | SCH-02, ABR-01 | H6 | Tests unitarios validan casos `FAILED`, `PARTIAL_SUCCESS` y `FULL_SUCCESS` con explicación exacta | MVP |
+| [x] | SCH-05 | Diseñar e implementar `backend/story_tree.json` + evaluador de turnos del **Vuelo 60s**: 4 rondas por partida con ramificación por estado real (masa al límite, CG 1.5x, sin escudo, baja batería, poca UFE, conjunción solar) | SCH-04, ABR-01 | H9 | Cada misión (M1/M2/M3) tiene múltiples casos condicionales que reaccionan a las decisiones de las estaciones | MVP |
 
 ---
 
