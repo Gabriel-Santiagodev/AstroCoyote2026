@@ -1268,6 +1268,8 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 - **Frontend → Netlify** (`netlify.toml`: base `frontend`, `npm run build`, publica `dist`, redirección SPA) o Vercel (`frontend/vercel.json`). Variable de entorno obligatoria: `VITE_BACKEND_URL` = URL pública del backend en Render.
 - **Plan gratuito:** Render duerme el servidor tras un rato sin uso y tarda ~1 min en despertar. Con `VITE_BACKEND_URL` definido, crear o unirse a una sala espera hasta `BACKEND_WAKE_TIMEOUT_MS` (75 s, solo tiempo de interfaz) antes de mostrar el aviso sin conexión. Las salas viven en memoria: **una sola instancia** y se pierden si el servidor se reinicia. Antes de una demo, abrir `<backend>/health` un minuto antes.
 - En el despliegue la sala muestra la dirección pública (`window.location.host`); la IP LAN solo se usa en `localhost`.
+- **En línea (2026-11-15):** frontend https://cerulean-crostata-60ffc8.netlify.app · backend https://astro-squad-backend.onrender.com (cuenta de Leonardo). Verificado: sala creada desde Netlify y un invitado remoto unido por el backend de Render (2/4).
+- **Cómo actualizar:** el repo es de Gabriel-Santiagodev, así que ni Render ni Netlify lo ven por GitHub desde la cuenta de Leonardo. Backend: en Render, *Manual Deploy → Deploy latest commit* (repo público, rama `main`). Frontend: en `frontend/`, compilar con `VITE_BACKEND_URL=https://astro-squad-backend.onrender.com npm run build`, agregar `dist/_redirects` con `/*  /index.html  200` y arrastrar `dist` al sitio en Netlify (*Deploys → drag and drop*). Para despliegue automático, el dueño del repo debe conectarlo a Netlify/Render.
 
 ### Idioma de la interfaz: `frontend/src/i18n/` (2026-11-15)
 
