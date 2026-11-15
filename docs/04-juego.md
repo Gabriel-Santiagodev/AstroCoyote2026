@@ -1,12 +1,12 @@
 # 04 · El juego
 
-**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo *Among Us*, pista lineal de estaciones en cadena, vuelo de 60 segundos con preguntas por turnos y reporte educativo NASA.  
+**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo Kahoot/PIN, pista lineal de preparación en cadena (donde empacas/diseñas tus subsistemas), fase de travesía y supervivencia inspirada en el videojuego ***60 Seconds! / 60 Parsecs!*** (cabina 2D + bitácora de crisis + saltos de escena con pantallas de carga) y reporte educativo NASA.  
 **Dueños:** Schoenstadt, Rubén  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (22:20 h)
 
 ## En una frase
 
-Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estilo **Paper Mario × Among Us**, donde cada ingeniero recorre una **pista lineal automática de estaciones** resolviendo minijuegos en paralelo cuyas decisiones se afectan en cadena en tiempo real, para luego enfrentar un **vuelo espacial de 60 segundos con crisis por turnos** y recibir retroalimentación científica real de la NASA.
+Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estética **2D Flash Arcade (`ASTRO SPRITES`) + supervivencia en cabina estilo *60 Seconds! / 60 Parsecs!***, donde cada ingeniero diseña y equipa los subsistemas en dos estaciones cronometradas de 30 s, para después encerrarse en la **cabina de la nave espacial**, enfrentar las 4 compuertas de crisis consultando la **Bitácora del Capitán** con **saltos entre escenas y pantallas de carga**, y recibir retroalimentación científica real de la NASA.
 
 ---
 
@@ -14,11 +14,11 @@ Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con
 
 | Fase | Pantalla principal | Qué ocurre | Duración |
 |---|---|---|---|
-| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Si es multi, entrar por PIN tipo *Among Us*, elegir rol (1–4) y seleccionar 1 de 3 misiones + dificultad. | ~0:30 |
-| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | El personaje camina automáticamente a la Estación 1. Los roles ejecutan su primer minijuego de 30 s en paralelo; las decisiones mutan restricciones en vivo. | ~1:00 |
-| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | El personaje avanza automáticamente a la Estación 2. Cada rol juega su segundo minijuego (30 s) adaptado a lo que acaban de decidir sus compañeros. | ~1:00 |
-| **3 · Vuelo de 60 Segundos** | `Flight60sView` | Vemos el cohete/nave viajar por el espacio. Se atraviesan los 4 Nodos del Árbol de Decisiones con **4 rondas de preguntas/crisis por turnos** (15 s c/u). | 1:00 |
-| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Se revela éxito total, parcial o fallo con cadena causal numérica exacta, dato real NASA y botón de Reintentar / Rediseñar. | ~1:30 |
+| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Pantalla Principal en Host (PC/TV) y entrada por PIN en celulares; elegir especialista `ASTRO SPRITES` (1–4) y 1 de 3 misiones + dificultad. | ~0:30 |
+| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | Los especialistas avanzan automáticamente a la Estación 1 y equipan presupuesto, chasis/escudo térmico, órbita e instrumentos (30 s, mutación en vivo). *(Equivalente a la fase de recolección rápida de 60 Seconds!)*. | ~1:00 |
+| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | Tras la pantalla de carga `wave1_to_wave2` (5 s), cada rol equipa lanzador, balanceo CG, energía 3D y enlace DSN (30 s) antes del salto al lanzamiento. | ~1:00 |
+| **3 · Travesía en Cabina estilo *60 Seconds!*** | `Flight60sView` | **Cabina 2D estilo *60 Seconds! / 60 Parsecs!*:** vemos a los 4 Astro Sprites dentro de la nave rodeados de los subsistemas que sí diseñaron, abriendo la **Bitácora de Crisis** en 4 rondas por turnos (15 s c/u) con **saltos de escena y pantallas de carga** entre cada compuerta. | 1:00 |
+| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Tras la pantalla de carga de decodificación (`flight_to_report`), se revela éxito total, parcial o fallo con cadena causal numérica, dato real NASA e historial comparativo. | ~1:30 |
 
 ---
 
@@ -80,19 +80,25 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 
 ---
 
-## Paso 3 · Dinámica de 60 Segundos de Vuelo Espacial (Por Turnos)
+## Paso 3 · Fase de Supervivencia en Cabina estilo *60 Seconds!* (`Flight60sView`)
 
-Al terminar la Estación 2, el estado consolidado se vuelve inmutable y comienza el **Vuelo Espacial de 60 Segundos (`Flight60sView`)**:
+Al terminar la Estación 2 (como cuando termina la recolección y se cierra la escotilla en *60 Seconds! / 60 Parsecs!*), el estado consolidado se vuelve inmutable y la tripulación salta a la **Fase de Travesía y Supervivencia en Cabina (`Flight60sView`)** dividida en **4 escenas / capítulos de 15 segundos por turnos** (60 s en total):
 
-1. **Visualización en vivo:** Vemos el cohete despegar desde la plataforma, cruzar la órbita y viajar hacia la Luna / Asteroide / Marte mientras un reloj de `60s` desciende y una línea temporal muestra los **4 Nodos de Decisión**.
-2. **Evaluación + 4 Preguntas / Crisis por Turnos (15 s por ronda):**
-   - El servidor recorre el árbol causal (`decision_tree.py` + `story_tree.json`) adaptado a lo que el equipo **sí construyó** en las estaciones.
-   - **Ronda 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Pregunta/decisión de crisis en lanzamiento (ej. si la masa o costo quedaron al límite, el **Turno de Rol 1** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *abortar carga no crítica*). Si el veto físico es imposible ($m_{\text{wet}} > m_{\max}$ por mucho), igual se dispara la secuencia de análisis para que el jugador vea exactamente dónde reventó la estructura.
-   - **Ronda 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de Rol 3 / Rol 2** enfrenta la maniobra crítica de frenado o corrección de $\Delta v$ (ej. si el CG quedó desbalanceado a `1.5x`, aparece una alerta de vibración en el motor y el jugador en turno decide maniobra de compensación o aerofrenado de emergencia).
-   - **Ronda 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Se dispara la contingencia real de la misión (*Tormenta Solar Cislunar*, *Nube de Polvo y Micro-rocas* o *Tormenta de Polvo Marciana + Atasque del Brazo*) junto con el chequeo de Escudo Térmico. El **Turno de Rol 2 / Rol 3** elige la respuesta táctica según la batería, RTG, Autonomía Visual o reserva UFE disponible.
-   - **Ronda 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de Rol 4** decide cómo priorizar el enlace de $160\text{ Gbit}$ antes de la Conjunción Solar o pérdida de ventana (comprimir espectroscopía, sacrificar fotos de contexto o forzar potencia de antena).
-   - **En Singleplayer:** El jugador responde las 4 rondas consecutivas (una cada 15 s) mientras el cohete vuela.
-   - **En Multiplayer:** Cada pregunta se asigna por turno rotativo a un jugador conectado (`¡TURNO DE [NOMBRE]!`), mientras los demás observan la alerta en pantalla y animan al compañero.
+1. **Escenario Diorama 2D estilo *60 Seconds!* (Cabina de Mando + Estantes de Subsistemas):**
+   - La pantalla principal muestra el **interior ilustrado 2D de la cabina/módulo de mando** (panel metálico, ventana espacial hacia Luna/Asteroide/Marte, indicadores de salud de la nave y estantería con los objetos/subsistemas que el equipo realmente logró configurar en Estación 1 y 2: caja de Reserva UFE, Escudo Térmico TPS, Tanque/Giroscopio de CG, Banco de Energía y Rack Espectral/Antena DSN).
+   - Los **4 `ASTRO SPRITES`** (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) aparecen dentro de la cabina reaccionando en vivo (`idle`, `work`, `panic` si `rocket_health_pct` baja o hay alerta crítica, `cheer` al superar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Decisiones + 4 Compuertas por Turnos (15 s por ronda):**
+   - En cada ronda el jugador activo abre la **Bitácora / Portapapeles de Crisis** (inspirado en el diario ilustrado de *60 Seconds!*) adaptado a lo que el equipo **sí construyó** en las estaciones.
+   - **Escena 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Crisis en plataforma; el **Turno de `ASTRO_ENGINEER` (Rol 1)** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *arriesgar carga*.
+   - **Escena 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de `ASTRO_SOLDIER` (Rol 3 / Rol 2)** enfrenta la maniobra de $\Delta v$ o vibración de CG desbalanceado (`1.5x`).
+   - **Escena 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Contingencia espacial real (*Tormenta Solar Cislunar*, *Nube de Polvo*, *Tormenta Marciana*) + chequeo de Escudo Térmico. El **Turno de `ASTRO_MEDIC` (Rol 2 / Rol 3)** elige la respuesta táctica según batería/RTG/escudo disponible.
+   - **Escena 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de `ASTRO_DEFENDER` (Rol 4)** prioriza el enlace de $160\text{ Gbit}$ antes de perder la ventana con la Tierra.
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al responder cada compuerta, aparece la consecuencia inmediata en la Bitácora (`resultado_turno_vuelo`: `PASS`, `DEGRADED`, `CRITICAL` + animación de daños/chispas o estabilización en la cabina) y acto seguido se ejecuta un **Salto de Escena con cortina / pantalla de carga de transición** (ej. `"DAY / STAGE 02 — ENTERING DEEP SPACE TRANSIT..."`) antes de pasar al siguiente capítulo o al desenlace `flight_to_report`.
+4. **Host Main Stage vs. Celular por PIN:**
+   - **En pantalla Principal (Host):** diorama completo de cabina, los 4 Astro Sprites reaccionando, barra de los 4 Nodos y alerta gigante de quién tiene la Bitácora en su mano.
+   - **En el Celular (Jugador en turno):** tarjeta portátil estilo Bitácora de *60 Seconds!* con botones táctiles grandes (`1–4`) y reloj de 15 s; si es turno de otro compañero, muestra un visor compacto de espera con el personaje activo.
+   - **En Singleplayer:** el jugador humano resuelve las 4 páginas consecutivas de la Bitácora (una cada 15 s).
 
 ---
 

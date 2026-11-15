@@ -1,6 +1,6 @@
-# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte *Paper Mario × Among Us*, Pista Lineal, Vuelo 60s y Dashboard)
+# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte 2D Flash `ASTRO SPRITES`, Cabina estilo *60 Seconds!*, Host/Móvil y Dashboard)
 
-**Tu misión en estas 24 horas:** Darle al juego su alma, estética y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **Paper Mario × Among Us**, los menús, el Lobby PIN, la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox` (para enchufar sin dolor el trabajo de Ismael y Abraham), la escena del **Vuelo de 60 Segundos** y el **Dashboard Final de Retroalimentación NASA**.
+**Tu misión en estas 24 horas:** Darle al juego su alma, estética de **videojuego Flash 2D profesional** y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **`ASTRO SPRITES` (cero Among Us por derechos de autor)**, las pantallas de carga divididas (`LoadingScreen.tsx`), los menús, el Lobby PIN (**Host Main Stage vs. Phone Crew Pad**), la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox`, la **Cabina de Supervivencia y Bitácora estilo *60 Seconds! / 60 Parsecs!*** (`Flight60sView.tsx`) con **saltos entre escenas y pantallas de carga**, y el **Dashboard Final de Retroalimentación NASA**.
 
 ---
 
@@ -17,23 +17,24 @@ space-apps-juego/
     ├── vite.config.ts
     └── src/
         ├── main.tsx                     # Montaje React
-        ├── App.tsx                      # Router de vistas y ruta /dev-sandbox (LEO-01)
-        ├── index.css                    # Clases compartidas .paper-card / .paper-btn (LEO-02)
+        ├── App.tsx                      # Router de vistas (Host Stage / Phone Console) y /dev-sandbox (LEO-01)
+        ├── index.css                    # .paper-card, .flash-panel, .handheld-console-frame, .hazard-stripe-bar (LEO-02)
         ├── socket.ts                    # Cliente Socket.IO hacia backend
         ├── types/game.ts                # CONTRATO SAGRADO: RoleType, LiveMetrics, MinigameProps
         └── components/
             ├── MinigameShell.tsx        # Reloj 30s, 1-toma, toast mutacion_en_vivo, fallback (LEO-03)
-            └── paper/                   # Sistema visual Paper Mario x Among Us (LEO-02)
-                ├── CrewmateAvatar.tsx
+            └── paper/                   # Sistema visual 2D Flash ASTRO SPRITES (LEO-02)
+                ├── CrewmateAvatar.tsx   # 4 Astro Sprites + ROLE_CHARACTER_PROFILE
+                ├── LoadingScreen.tsx    # Pantallas de carga por transición (boot, wave1→2, launch, report)
                 ├── PaperCard.tsx
                 ├── Starfield.tsx
-                └── ResourceHUD.tsx      # Barras en vivo compartidas (LEO-05)
+                └── ResourceHUD.tsx      # Barras en vivo (Host completo / móvil compacto) (LEO-05)
         └── views/
-            ├── HomeMenu.tsx             # Singleplayer / Multiplayer (LEO-04)
-            ├── LobbyView.tsx            # PIN estilo Among Us + Rol + 3 Misiones/Dificultad (LEO-04)
+            ├── HomeMenu.tsx             # Singleplayer / Host Multi / Join PIN móvil + Showcase Astro Squad (LEO-04)
+            ├── LobbyView.tsx            # PIN Host Main Stage vs Phone Crew Pad + 3 Misiones NASA (LEO-04)
             ├── LinearStationTrack.tsx   # Pista lineal automática Estación 1 -> Sync -> Estación 2 (LEO-05)
-            ├── Flight60sView.tsx        # Cohete viajando 60s + 4 rondas por turnos de 15s (LEO-06)
-            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA siempre presente (LEO-07)
+            ├── Flight60sView.tsx        # Cabina 2D + Bitácora estilo 60 Seconds! + saltos de escena (LEO-06)
+            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA + historial EXT-03 (LEO-07)
             └── DevSandboxView.tsx       # Probador aislado /dev-sandbox para Ismael y Abraham (LEO-03)
 ```
 
@@ -52,14 +53,12 @@ space-apps-juego/
 
 ---
 
-## Paso 2 · Sistema Visual *Paper Mario × Among Us* (`LEO-02` | Meta: H3)
+## Paso 2 · Sistema Visual *2D Flash Arcade (`ASTRO SPRITES`)* (`LEO-02` | Meta: H3)
 
 1. Configura Google Fonts en `frontend/index.html`: `Space Grotesk` + `IBM Plex Mono` + `IBM Plex Sans`.
-2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham:
-   - `.paper-card`: fondo `#162347` (o `#F8FAFC` claro), `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
-   - `.paper-btn`: botón táctil de cartulina con hundimiento al presionar (`active:translate-x-[3px] active:translate-y-[3px] active:shadow-none`).
+2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham (`.paper-card`, `.paper-btn`) más las utilidades 2D Flash (`.flash-panel`, `.handheld-console-frame`, `.hazard-stripe-bar`).
 3. Crea **`Starfield.tsx`** con `tsParticles` (estrellas sutiles + planetas de cartulina en capas parallax).
-4. Crea **`CrewmateAvatar.tsx`**: componente SVG original (cero logos NASA ni assets con copyright) con estética de tripulante espacial estilo *Among Us* envuelto en doble borde tipo sticker de *Paper Mario* (borde blanco interno + borde negro `#0F172A` + sombra dura), visor brillante y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`. Al caminar hace rebote e inclinación de recorte de papel con Framer Motion.
+4. Crea **`CrewmateAvatar.tsx`** (cero Among Us ni copyright externo): 4 astronautas SVG 2D de cuerpo completo (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) + `ROLE_CHARACTER_PROFILE` y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`, más **`LoadingScreen.tsx`** para pantallas de carga por fase.
 
 ---
 
@@ -73,15 +72,12 @@ space-apps-juego/
 
 ---
 
-## Paso 4 · Menú Principal y Lobby estilo *Among Us / Kahoot* (`LEO-04` | Meta: H4)
+## Paso 4 · Menú Principal y Lobby Host vs. Celular por PIN (`LEO-04` | Meta: H4)
 
 1. **`HomeMenu.tsx`:**
-   - Título del juego, 4 avatares *Paper Mario × Among Us* flotando suavemente, y dos botones gigantes: **`SINGLEPLAYER`** y **`MULTIPLAYER`**.
-   - Un botón secundario **`Join with PIN`** para entrar directo desde el celular.
+   - Showcase interactivo de los 4 `ASTRO SPRITES`, inspector de rol en frontend (`ROLE_CHARACTER_PROFILE`), entrada Host (`SINGLEPLAYER` / `HOST MULTIPLAYER`) y consola portátil **`PHONE CREW CONSOLE` (Join with PIN)** + pantalla de carga `boot`.
 2. **`LobbyView.tsx`:**
-   - Muestra el código PIN en grande (ej. `MARS26`), lista en vivo de los 1 a 4 tripulantes conectados con sus avatares *Paper Mario*, selector de **Rol** (los ocupados aparecen con el nombre del compañero; los vacíos muestran etiqueta `AI Autopilot Ready`).
-   - Selector visual de las **3 Misiones NASA** (*Artemis Moon · Easy*, *Asteroid Hunter · Medium*, *Mars Sample Return · Hard*) + Dificultad (`Easy` / `Medium` / `Hard`).
-   - Botón `LAUNCH MISSION SEQUENCE`.
+   - Código PIN grande + vista diferenciada **Host Main Stage** (hangar 4 bahías) vs. **Phone Handheld Terminal** (selector táctil para cada jugador por PIN), 3 Misiones NASA + Dificultad, y pantalla de carga `lobby_to_wave1`.
 
 ---
 
@@ -99,21 +95,22 @@ space-apps-juego/
 
 ---
 
-## Paso 6 · `Flight60sView.tsx` (Vuelo 60s por Turnos) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
+## Paso 6 · `Flight60sView.tsx` (Cabina estilo *60 Seconds!* + Saltos de Escena) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
 
-### `Flight60sView.tsx`
-1. Muestra el espacio profundo desplazándose rápido mientras un **cohete/nave estilo recorte de papel** avanza por una ruta hacia la Luna / Asteroide / Marte con barra superior de **4 Nodos (`Launch` $\rightarrow$ `Orbit` $\rightarrow$ `Event` $\rightarrow$ `DSN Downlink`)** y reloj global de `60s`.
-2. Al recibir `pregunta_vuelo_60s`:
-   - Resalta con un foco quién tiene el turno (`YOUR TURN!` en grande si `active_role === myRole`, o `WAITING FOR [NOMBRE]...` si es turno de otro compañero).
-   - Despliega de 2 a 4 botones `.paper-btn` de decisión con barra de `15s` y el hint de ingeniería (`engineering_tradeoff_hint`).
-3. Al recibir `resultado_turno_vuelo`: anima la nave reaccionando (chispas/escudo/propulsor/rayo DSN) y muestra el feedback de 2 segundos antes de la siguiente ronda.
+### `Flight60sView.tsx` (Inspirado en la jugabilidad del videojuego *60 Seconds! / 60 Parsecs!*)
+1. **Diorama de Cabina 2D + Inventario Físico de Subsistemas:**
+   - Reemplaza un simple cohete genérico por el **interior 2D estilo *60 Seconds!* de la cabina espacial** (con ventana al espacio/destino, consola central de salud `rocket_health_pct`, estantes con los subsistemas que el equipo equipó en las estaciones y los **4 `ASTRO SPRITES`** dentro de la cabina reaccionando en tiempo real según su estado: `idle`, `work`, `panic` si hay alerta/daño o `cheer` al pasar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Crisis por Turnos (`pregunta_vuelo_60s`):**
+   - Muestra el evento como una página de **Bitácora de Supervivencia** (*"DAY / LOG 01–04"*) con la insignia del concepto NASA, quién tiene el turno (`YOUR TURN!` gigante con botones `.paper-btn` de 15 s y teclas `1–4` en el celular activo, o visor de cabina/espera con el Astro Sprite del compañero en turno en Host y otros celulares).
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al recibir `resultado_turno_vuelo` muestra la consecuencia visual en cabina durante ~2 s (`PASS` / `DEGRADED` / `CRITICAL`), y ejecuta un **Salto de Escena con pantalla de carga temática** (capítulo siguiente: `NODE_1_LAUNCH` $\rightarrow$ `NODE_2_PROPULSION` $\rightarrow$ `NODE_3_EVENT` $\rightarrow$ `NODE_4_DOWNLINK` $\rightarrow$ Reporte) para dar sensación real de campaña por episodios estilo *60 Seconds!*.
 
 ### `MissionReportDashboard.tsx`
-1. Se muestra **SIEMPRE** tras el vuelo (gane o pierda).
-2. Banner gigante estilo sello de cartulina: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
+1. Muestra pantalla de carga de decodificación (`flight_to_report`) y se presenta **SIEMPRE** tras la travesía (gane o pierda).
+2. Banner gigante estilo sello arcade: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
 3. Contador animado de **Score (0 – 1,000 pts)** con desglose `Objective 50%` + `Science F1 30%` + `Efficiency 20%`.
-4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`).
-5. Aporte por cada uno de los 4 roles y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
+4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`) + historial comparativo de intentos en sesión (`EXT-03`).
+5. Aporte por cada uno de los 4 `ASTRO SPRITES` y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
 
 ---
 
@@ -131,9 +128,9 @@ Paso 0 (Automático): Antes de empezar, verifica e instala las dependencias de f
 Lee AGENTS.md, docs/04-juego.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/22-como-trabajar-y-hacer-merge.md y docs/21-roadmap-leonardo.md.
 Trabaja únicamente en tus archivos asignados de frontend/src/ (no edites backend/ ni frontend/src/components/minigames/).
 Vamos a construir el frontend en React 18 + TypeScript + Vite + Tailwind + Framer Motion + Lucide + socket.io-client + @tsparticles/react:
-1. Estética híbrida Paper Mario x Among Us + HUD aeroespacial NASA: bordes gruesos #0F172A, doble contorno tipo sticker, sombras sólidas 4px 4px 0 #0F172A, avatares SVG originales (<CrewmateAvatar />) y cero logos de NASA.
+1. Estética 2D Flash Arcade (`ASTRO SPRITES`: `ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER` — cero Among Us) + Cabina y Bitácora estilo *60 Seconds! / 60 Parsecs!* + HUD aeroespacial NASA: bordes gruesos #0F172A, `.flash-panel`, `.handheld-console-frame`, sombras sólidas 5px 5px 0 #0F172A, y cero logos de NASA.
 2. Todo en inglés en la UI visible.
 3. Usa exactamente frontend/src/types/game.ts (MinigameProps y LiveMetrics) y construye DevSandboxView.tsx (/dev-sandbox) primero para que Ismael y Abraham desarrollen sus minijuegos en paralelo.
-4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo.
-5. En Flight60sView.tsx anima el cohete viajando durante 60 segundos con 4 rondas de 15s por turnos (pregunta_vuelo_60s -> respuesta_turno_vuelo) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
+4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo y pantallas de carga entre fases.
+5. En Flight60sView.tsx implementa la jugabilidad estilo el videojuego 60 Seconds! (cabina 2D con los 4 Astro Sprites + objetos/subsistemas visibles, Bitácora del Capitán de 4 rondas por turnos y saltos entre escenas con pantallas de carga entre nodos) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
 ```
