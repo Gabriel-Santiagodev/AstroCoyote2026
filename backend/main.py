@@ -30,9 +30,24 @@ app.add_middleware(
 manager = GameManager(sio)
 
 
+def _lan_ip() -> str:
+    """IPv4 of the interface on the default route (no packets are sent by a UDP connect)."""
+    import socket
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        probe.connect(("10.255.255.255", 1))
+        return str(probe.getsockname()[0])
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        probe.close()
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+    # lan_ip lets the host's lobby show phones a reachable join address instead of localhost.
+    return {"status": "ok", "lan_ip": _lan_ip()}
 
 
 @app.get("/api/catalog")

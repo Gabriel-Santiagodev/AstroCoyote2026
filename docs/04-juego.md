@@ -118,3 +118,18 @@ Tanto si la misión termina en **`FULL_SUCCESS`**, **`PARTIAL_SUCCESS`** o **`FA
    - Relaciona lo que vivió el jugador con *Artemis I*, *OSIRIS-REx* o *Mars Reconnaissance Orbiter (MRO)* citando la fuente oficial.
 4. **Aporte por Rol y Botón `Redesign & Retry`:**
    - Muestra qué aportó cada rol (humano o IA) y permite volver de inmediato a mejorar la estrategia en menos de 5 minutos.
+
+## Flujo vigente del videojuego (2026-11-15, iteraciones de jugabilidad)
+
+1. **Pantalla de carga única** (solo al abrir el juego): animación `loading-loop.webp` generada en Python sobre el fondo de nebulosa del arte.
+2. **Menú principal** (mockup del equipo): *ASTRO SQUAD* + `SINGLE PLAYER`, `MULTI PLAYER` y engrane de opciones (nombre, sonido, música, cómo jugar, sandbox). Botones en placa dorada MLI / acero cepillado con letras blancas, paleta tomada del arte.
+3. **Multijugador:** `HOST MATCH` (apodo → sala) o `JOIN MATCH` estilo Kahoot (PIN → apodo). En la sala, banner con dirección, PIN grande y jugadores conectados (los asientos vacíos los vuela la IA).
+4. **Rol → Misión** (cada misión trae su dificultad: Luna fácil, asteroide media, Marte difícil).
+5. **Estaciones:** cinemática a pantalla completa (el escuadrón camina a la puerta) → briefing → minijuego a pantalla completa (2 por jugador) → *Waiting for the crew* si otros no han terminado → cinemática → estación 2.
+6. **Árbol de decisiones en vivo:** franja *If we launched now* con las 4 compuertas (Liftoff, Engine burn, Space hazard, Call Earth) recalculadas por el servidor tras cada decisión.
+7. **Despegue según la misión** (destino Luna/asteroide/Marte con sprites del arte) → **fase de supervivencia**: un evento aleatorio por partida (tormenta solar, micrometeoroide, caída de antena DSN, eyección de partículas, tormenta de polvo, conjunción solar) que el diseño puede bloquear (p. ej. RTG contra la tormenta de polvo) → 4 capítulos de bitácora → reporte con el evento y su fuente real.
+
+### Dificultad y pronóstico (2026-11-15, P0 de `docs/23`)
+
+- **Curva de dificultad por peligros espaciales** (`story_tree.json → random_events._difficulty`, estimado del juego): *easy* = 1 evento ×1.0, *medium* = 1 evento ×1.5, *hard* = 2 eventos distintos ×1.5. Simulado: Luna perdona; asteroide sin cámara autónoma → éxito parcial; Marte exige RTG (o batería alta) **y** código de señal limpio para el éxito total (con energía solar la tormenta de polvo deja la batería bajo 25 % → éxito parcial).
+- **Pronóstico honesto:** cada compuerta muestra *Not decided · waits ROL* hasta que su rol actúa (Liftoff → Engineer en estación 2, Engine burn → Soldier en estación 1, Space hazard → Medic en estación 1, Call Earth → Defender en estación 2); los asientos de IA cuentan como decididos al rellenarse. Etiqueta *+ hazards · dificultad* recuerda que al despegar llegan peligros aleatorios.

@@ -43,6 +43,11 @@ const ENGINES = nasaCatalog.engines as EngineOption[];
 const ROUTES_BY_MISSION = nasaCatalog.mission_routes as Record<string, RouteOption[]>;
 
 const BASE_DRY_MASS_ESTIMATE_KG = 620;
+/**
+ * Same 5 % delta-v margin the backend Node 2 gate checks (decision_tree.evaluate_preliminary_gates).
+ * The route's lower delta-v already includes its fuel saving, so propellant is sized from it alone.
+ */
+const DV_MARGIN = 1.05;
 
 export function Rol3A_OrbitalSniper({
   missionId,
@@ -91,7 +96,7 @@ export function Rol3A_OrbitalSniper({
 
   const calculations = useMemo(() => {
     const burnMult = liveMetrics.fuel_burn_multiplier || 1.0;
-    const effectiveDv = route.required_dv_ms * burnMult;
+    const effectiveDv = route.required_dv_ms * burnMult * DV_MARGIN;
     const exponent = -(effectiveDv / (engine.isp_seconds * G0_M_S2));
     const propFraction = Math.max(0.02, Math.min(0.88, 1 - Math.exp(exponent)));
 
@@ -100,7 +105,7 @@ export function Rol3A_OrbitalSniper({
       BASE_DRY_MASS_ESTIMATE_KG + liveMetrics.instruments_mass_kg
     );
     const rawPropMass = dryEstimate * (propFraction / (1 - propFraction));
-    const propellantMassKg = Math.max(85, Math.round(rawPropMass + route.propellant_delta_kg));
+    const propellantMassKg = Math.max(85, Math.round(rawPropMass));
     const powerOverBudget = engine.power_demand_w > liveMetrics.available_power_w;
 
     return {
@@ -130,10 +135,10 @@ export function Rol3A_OrbitalSniper({
       const burnMult = liveMetrics.fuel_burn_multiplier || 1.0;
       const propFrac = Math.max(
         0.02,
-        Math.min(0.88, 1 - Math.exp(-(nextRoute.required_dv_ms * burnMult) / (nextEngine.isp_seconds * G0_M_S2)))
+        Math.min(0.88, 1 - Math.exp(-(nextRoute.required_dv_ms * burnMult * DV_MARGIN) / (nextEngine.isp_seconds * G0_M_S2)))
       );
       const dryEst = Math.max(BASE_DRY_MASS_ESTIMATE_KG, BASE_DRY_MASS_ESTIMATE_KG + liveMetrics.instruments_mass_kg);
-      const propMass = Math.max(85, Math.round(dryEst * (propFrac / (1 - propFrac)) + nextRoute.propellant_delta_kg));
+      const propMass = Math.max(85, Math.round(dryEst * (propFrac / (1 - propFrac))));
 
       onLiveMutation({
         trajectory_choice: `${nextRoute.id}__${nextOrbit.id}`,

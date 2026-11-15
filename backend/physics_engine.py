@@ -290,6 +290,9 @@ def compute_live_metrics(
         partial_state.get("ufe_reserve_pct", mission.get("recommended_ufe_pct", 25.0))
     )
 
+    data_day, rate_mbps, hours_needed = data_downlink_budget(partial_state)
+    duration_days = mission_duration_days(partial_state, active_mission_id)
+
     metrics = LiveMetrics(
         estimated_wet_mass_kg=est_wet_mass,
         remaining_budget_usd=remaining_budget,
@@ -303,6 +306,60 @@ def compute_live_metrics(
         selected_instruments=raw_instruments if isinstance(raw_instruments, list) else [],
         required_dv_ms=required_dv,
         has_thermal_protection=bool(partial_state.get("has_thermal_protection", True)),
+        data_generated_gbit_day=data_day,
+        downlink_rate_mbps=rate_mbps,
+        downlink_hours_needed=hours_needed,
+        mission_duration_days=duration_days,
     )
     return metrics.model_dump()
+
+
+HOURS_PER_DAY = 24.0
+MEGABIT_PER_GIGABIT = 1000.0
+SECONDS_PER_HOUR = 3600.0
+
+
+def data_downlink_budget(partial_state: dict[str, Any]) -> tuple[float, float, float]:
+    """Challenge resource "Data": science data per day vs the link that must send it home.
+
+    data/day = Rol 4A `data_generated_gbit` (sum of instrument `data_gbit_day` from the catalog),
+    or the catalog sum for `selected_instruments`; rate = Rol 4B `downlink_rate_mbps`.
+    hours_needed = data / (rate x 3600 s / 1000) — pure unit conversion, no game constant.
+    Returns (data_gbit_day, rate_mbps, hours_needed); hours_needed is 0 while the rate is unknown.
+    """
+    data_day = partial_state.get("data_generated_gbit")
+    if not isinstance(data_day, (int, float)):
+        catalog_by_id = {item["id"]: item for item in get_instruments() if "id" in item}
+        data_day = 0.0
+        for item in partial_state.get("selected_instruments") or []:
+            item_id = item.get("id") if isinstance(item, dict) else item
+            if item_id in catalog_by_id:
+                data_day += float(catalog_by_id[item_id].get("data_gbit_day", 0.0))
+    rate = partial_state.get("downlink_rate_mbps")
+    rate_mbps = float(rate) if isinstance(rate, (int, float)) and rate > 0 else 0.0
+    gbit_per_hour = rate_mbps * SECONDS_PER_HOUR / MEGABIT_PER_GIGABIT
+    hours_needed = round(float(data_day) / gbit_per_hour, 2) if gbit_per_hour > 0 else 0.0
+    return round(float(data_day), 2), rate_mbps, hours_needed
+
+
+def mission_duration_days(partial_state: dict[str, Any], mission_id: str) -> float:
+    """Challenge resource "Time": transit time of the chosen route (catalog `transit_days`)."""
+    choice = str(partial_state.get("trajectory_choice") or "")
+    route_id = choice.split("__")[0] if choice else ""
+    if not route_id:
+        return 0.0
+    routes = _mission_routes().get(mission_id) or []
+    for route in routes:
+        if route.get("id") == route_id:
+            return float(route.get("transit_days", 0.0))
+    return 0.0
+
+
+def _mission_routes() -> dict[str, list[dict[str, Any]]]:
+    if __package__:
+        from .models.subsystems import get_catalog
+    else:
+        from models.subsystems import get_catalog
+    routes = get_catalog().get("mission_routes", {})
+    return routes if isinstance(routes, dict) else {}
 

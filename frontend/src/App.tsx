@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SoundControlPill, soundEngine } from "./components/paper/SoundEngine";
 import { Starfield } from "./components/paper/Starfield";
+import { BootSplash } from "./components/paper/BootSplash";
+import { AnimatePresence } from "framer-motion";
 import nasaCatalog from "./data/nasa_catalog.json";
 import { ROLE_META } from "./components/MinigameShell";
 import { DevSandboxView } from "./views/DevSandboxView";
@@ -31,6 +33,8 @@ import {
   socket,
   type ConnectionStatus,
   type EstadoSalaActualizadoPayload,
+  type GateForecast,
+  type RandomEventSummary,
   type JugadorBloqueoTomaPayload,
   type PreguntaVuelo60sPayload,
   type ReporteFinalMisionPayload,
@@ -105,6 +109,10 @@ const DEFAULT_METRICS: LiveMetrics = {
   selected_instruments: [],
   required_dv_ms: 1803.6,
   has_thermal_protection: true,
+  data_generated_gbit_day: 0,
+  downlink_rate_mbps: 0,
+  downlink_hours_needed: 0,
+  mission_duration_days: 0,
 };
 
 const PREVIEW_REPORT: ReporteFinalMisionPayload = {
@@ -277,6 +285,9 @@ export function App() {
   // --- Connection ------------------------------------------------------------
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("checking");
   const [notice, setNotice] = useState<string | null>(null);
+  /** One-time boot loading screen (first load only; never between stations). */
+  const [booting, setBooting] = useState(() => typeof window !== "undefined" && !window.location.pathname.startsWith("/dev-sandbox"));
+  const finishBoot = useCallback(() => setBooting(false), []);
   const isOnline = connectionStatus === "online";
 
   // --- Navigation & lobby ----------------------------------------------------
@@ -312,6 +323,10 @@ export function App() {
   const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(DEFAULT_METRICS);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
   const [spectralChallenge, setSpectralChallenge] = useState<unknown>(undefined);
+  /** Live decision-tree forecast of the 4 flight gates (server authority, `gate_forecast`). */
+  const [gateForecast, setGateForecast] = useState<GateForecast>({});
+  /** Survival hazard picked by the backend at liftoff (seeded by the room PIN). */
+  const [randomEvents, setRandomEvents] = useState<RandomEventSummary[]>([]);
   const [awaitingLaunch, setAwaitingLaunch] = useState(false);
 
   // --- Flight ----------------------------------------------------------------
@@ -434,6 +449,8 @@ export function App() {
     setLockedTakes([]);
     setKnownTakePayloads({});
     setLiveMetrics(DEFAULT_METRICS);
+    setGateForecast({});
+    setRandomEvents([]);
     setToastAlert(null);
     setSpectralChallenge(undefined);
     setAwaitingLaunch(false);
@@ -521,16 +538,20 @@ export function App() {
           }
         }
         setKnownTakePayloads(aiLoadout);
+        // AI-flown seats are already filled by the server: show them as locked for Wave 1.
+        setLockedTakes(Object.keys(aiLoadout).map((r) => ({ role_id: r as RoleType, wave: 1 as const })));
         setStationDuration(payload.duration_sec || STATION_SEC);
         setLiveMetrics((prev) => mergeMetrics(prev, payload.initial_constraints || {}));
         setSpectralChallenge(payload.spectral_challenge);
+        if (payload.gate_forecast) setGateForecast(payload.gate_forecast);
         setWave(1);
         setScreen("stations");
       },
-      mutacion_en_vivo: ({ source_role, live_metrics, toast_alert }) => {
+      mutacion_en_vivo: ({ source_role, live_metrics, toast_alert, gate_forecast, quiet }) => {
         setLiveMetrics((prev) => mergeMetrics(prev, live_metrics || {}));
+        if (gate_forecast) setGateForecast(gate_forecast);
         // Only teammates' changes are news; your own action already shows in your window.
-        if (source_role && source_role === latest.current.role) {
+        if (quiet || (source_role && source_role === latest.current.role)) {
           // no toast
         } else if (toast_alert) {
           pushToast(toast_alert);
@@ -554,6 +575,15 @@ export function App() {
         // (clock at 0) never triggers the auto-lock safety net during the sync.
         setStationOpen(false);
         setStationTimeLeft(initialTimeLeft(payload.duration_sec || STATION_SEC));
+        // Wave 2 AI takes are synthesized server-side for every seat without a human.
+        const humanRoles = new Set(latest.current.players.map((p) => p.role_id).filter(Boolean));
+        if (humanRoles.size === 0) humanRoles.add(latest.current.role);
+        setLockedTakes((prev) => [
+          ...prev,
+          ...ALL_ROLES.filter((r) => !humanRoles.has(r) && !prev.some((t) => t.role_id === r && t.wave === 2)).map(
+            (r) => ({ role_id: r, wave: 2 as const })
+          ),
+        ]);
         setWave(2);
       },
       iniciar_vuelo_60s: (payload) => {
@@ -561,6 +591,7 @@ export function App() {
         setFlightQuestion(null);
         setFlightRound(1);
         const totalSec = payload.total_duration_sec || FLIGHT_TOTAL_SEC;
+        setRandomEvents(payload.random_events?.length ? payload.random_events : payload.random_event ? [payload.random_event] : []);
         if (latest.current.screen !== "stations") {
           setAwaitingLaunch(false);
           startGlobalFlightTimer(totalSec);
@@ -702,11 +733,30 @@ export function App() {
   };
 
   /** `crear_sala` (host / singleplayer). Falls back to the preview lobby when offline. */
-  const handleCreateRoom = (m: GameMode, hostName?: string) => {
+  /** Try once more to reach Mission Control before giving up (phones often probe before Wi-Fi settles). */
+  const ensureOnline = async (): Promise<boolean> => {
+    if (latest.current.isOnline) return true;
+    setIsCreatingRoom(true);
+    const healthy = await probeBackend();
+    const connected = healthy && (await connectWithTimeout());
+    setIsCreatingRoom(false);
+    setConnectionStatus(connected ? "online" : "offline");
+    return connected;
+  };
+  const OFFLINE_MULTI_NOTICE =
+    "Can't reach Mission Control from this device. Use the host's address (same Wi-Fi) and try again.";
+
+  const handleCreateRoom = async (m: GameMode, hostName?: string) => {
     setMode(m);
     setNotice(null);
     if (hostName && hostName.trim()) setPlayerName(hostName.trim());
-    if (!isOnline) {
+    if (!(await ensureOnline())) {
+      // Solo can still play the offline demo; a multiplayer room nobody can join is misleading.
+      if (m === "multi") {
+        setNotice(OFFLINE_MULTI_NOTICE);
+        soundEngine.playError();
+        return;
+      }
       enterPreviewLobby();
       return;
     }
@@ -716,13 +766,15 @@ export function App() {
   };
 
   /** `unirse_sala` from a phone / second player. Guests never host the room. */
-  const handleJoinWithPin = (joinPin: string, name: string) => {
+  const handleJoinWithPin = async (joinPin: string, name: string) => {
     const cleanPin = joinPin.trim().toUpperCase();
     setMode("multi");
     setNotice(null);
     if (name && name.trim()) setPlayerName(name.trim());
-    if (!isOnline) {
-      enterPreviewLobby();
+    // Joining someone else's room only works online: never fake it with the offline demo lobby.
+    if (!(await ensureOnline())) {
+      setNotice(OFFLINE_MULTI_NOTICE);
+      soundEngine.playError();
       return;
     }
     setPin(cleanPin);
@@ -890,7 +942,13 @@ export function App() {
 
   // Optional Flight60sView props (Host stage flag + Fase 8 station loadout for the cabin shelf).
   // Passed as a typed spread so this compiles before and after Codex declares each prop.
-  const flightStageProps: { isHostStage?: boolean; stationLoadout?: StationLoadout; untimed?: boolean } = {
+  const flightStageProps: {
+    isHostStage?: boolean;
+    stationLoadout?: StationLoadout;
+    untimed?: boolean;
+    randomEvents?: RandomEventSummary[];
+  } = {
+    randomEvents,
     isHostStage: !isPhoneConsole,
     stationLoadout,
     untimed: FLIGHT_ROUND_SEC <= 0,
@@ -908,6 +966,9 @@ export function App() {
     <>
       <Starfield />
       <SoundControlPill />
+      <AnimatePresence>
+        {booting && <BootSplash key="boot" ready={connectionStatus !== "checking"} onDone={finishBoot} />}
+      </AnimatePresence>
 
       {screen === "sandbox" && <DevSandboxView onExitSandbox={() => setScreen("home")} />}
 
@@ -968,6 +1029,7 @@ export function App() {
           isHost={isHost}
           mode={mode}
           stageViewOverride={stageViewOverride}
+          gateForecast={gateForecast}
         />
       )}
 

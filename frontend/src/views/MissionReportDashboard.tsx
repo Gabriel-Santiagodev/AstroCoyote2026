@@ -1,11 +1,13 @@
 // Owner: Leonardo (Task LEO-07) — Always-present NASA causal feedback and score report.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronDown, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
+import type { RandomEventSummary } from "../socket";
+import nasaCatalogForNames from "../data/nasa_catalog.json";
 
 export interface MissionOutcomeUI {
   outcome: "FAILED" | "PARTIAL_SUCCESS" | "FULL_SUCCESS";
@@ -111,14 +113,56 @@ const PODIUM_ORDER: Array<{ role: RoleType; heightClass: string; place: string }
   { role: "science_comms", heightClass: "h-8 sm:h-12", place: "4" },
 ];
 
+/** Decision-tree gate ids in player words (same names as the station forecast). */
+const GATE_LABEL: Record<string, string> = {
+  NODE_1_LAUNCH: "Liftoff (rocket, mass & budget)",
+  NODE_2_PROPULSION: "Engine burn (fuel & balance)",
+  NODE_3_EVENT: "Space hazard (power, reserve & shield)",
+  NODE_4_DOWNLINK: "Call Earth (signal & data)",
+};
+
+/** Catalog ids -> display names (launchers, orbits, routes) for report text. */
+const ID_NAMES: Array<[RegExp, string]> = [
+  ...(nasaCatalogForNames.launchers as Array<{ id: string; name: string }>).map(
+    (l) => [new RegExp(`\\b${l.id}\\b`, "g"), l.name] as [RegExp, string]
+  ),
+  ...(nasaCatalogForNames.orbits as Array<{ id: string; name: string }>).map(
+    (o) => [new RegExp(`\\b${o.id}\\b`, "g"), o.name] as [RegExp, string]
+  ),
+  ...Object.values(nasaCatalogForNames.mission_routes as Record<string, Array<{ id: string; name: string }>>)
+    .flat()
+    .map((r) => [new RegExp(`\\b${r.id}\\b`, "g"), r.name] as [RegExp, string]),
+];
+function humanizeText(text: string): string {
+  return ID_NAMES.reduce((acc, [re, name]) => acc.replace(re, name), text);
+}
+/** Deep copy with display strings humanized; enum-like fields (outcome, gate ids) are untouched. */
+function humanizeDeep<T>(value: T): T {
+  if (typeof value === "string") return humanizeText(value) as unknown as T;
+  if (Array.isArray(value)) return value.map((v) => humanizeDeep(v)) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = k === "outcome" || k === "failed_or_degraded_gate" || k === "role" || k === "role_id" ? v : humanizeDeep(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export function MissionReportDashboard({
-  report,
+  report: rawReport,
   onRetry,
-  roleContributions,
+  roleContributions: rawRoleContributions,
   scoreBreakdown,
   missionId,
   myRole,
 }: MissionReportDashboardProps) {
+  const report = useMemo(() => humanizeDeep(rawReport), [rawReport]);
+  const roleContributions = useMemo(
+    () => (rawRoleContributions ? humanizeDeep(rawRoleContributions) : rawRoleContributions),
+    [rawRoleContributions]
+  );
   const reduceMotion = useReducedMotion();
   const [displayScore, setDisplayScore] = useState(0);
   const [revealedReport, setRevealedReport] = useState<MissionOutcomeUI | null>(null);
@@ -245,6 +289,72 @@ export function MissionReportDashboard({
         </div>
       </motion.section>
 
+      {/* Survival event: what hit the ship and whether the crew's design blocked it */}
+      {(() => {
+        const raw = report as unknown as { random_event?: RandomEventSummary | null; random_events?: RandomEventSummary[] };
+        const list = raw.random_events?.length ? raw.random_events : raw.random_event ? [raw.random_event] : [];
+        if (list.length === 0) return null;
+        return list.map((ev) => (
+          <section key={ev.event_id} className={`rounded-2xl border-[3px] border-ink-black p-4 text-ink-black shadow-paper ${ev.mitigated ? "bg-status-ok" : "bg-status-warn"}`}
+            aria-label="Survival event">
+            <p className="font-mono text-[11px] font-black uppercase tracking-widest">Survival event</p>
+            <h2 className="font-display text-2xl font-black">{ev.title}</h2>
+            <p className="mt-1 text-sm font-semibold">{ev.description}</p>
+            <p className="mt-2 text-sm font-bold">
+              {ev.mitigated
+                ? `Why it didn't hurt: ${ev.mitigation_text}`
+                : `It cost you: ${Object.entries(ev.applied_effects || {})
+                    .map(([k, v]) => `${k.replace(/_pct|_db/, "").replace(/_/g, " ")} ${v > 0 ? "+" : ""}${v}`)
+                    .join(", ")}. A different design choice could have blocked it.`}
+            </p>
+            {ev.fuente && (
+              <a href={ev.fuente} target="_blank" rel="noreferrer" className="mt-1 inline-block font-mono text-[11px] underline">
+                Real-world source
+              </a>
+            )}
+          </section>
+        ));
+      })()}
+
+      {/* Crew collaboration (challenge: reward successful collaboration) */}
+      {(() => {
+        const collab = (report as unknown as {
+          collaboration?: { score: number; humans: number; own_locks_pct: number; answered_pct: number; gates_ready_at_liftoff: number };
+        }).collaboration;
+        if (!collab) return null;
+        const rows: Array<[string, number, string]> = [
+          ["Stations locked by the crew", collab.own_locks_pct, `${collab.own_locks_pct}%`],
+          ["Flight calls answered", collab.answered_pct, `${collab.answered_pct}%`],
+          ["Gates ready at liftoff", (collab.gates_ready_at_liftoff / 4) * 100, `${collab.gates_ready_at_liftoff}/4`],
+        ];
+        return (
+          <section className="flash-panel p-4" aria-label="Crew collaboration">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <p className="font-mono text-[11px] font-black uppercase tracking-widest text-sky-glow">Crew collaboration</p>
+                <h2 className="font-display text-2xl font-black">{collab.score}/100</h2>
+              </div>
+              <p className="font-mono text-[11px] text-slate-300">
+                {collab.humans} human{collab.humans === 1 ? "" : "s"} · AI flew the empty seats
+              </p>
+            </div>
+            <div className="mt-3 space-y-2">
+              {rows.map(([label, pct, value]) => (
+                <div key={label}>
+                  <div className="flex justify-between font-mono text-[11px] font-bold">
+                    <span className="text-slate-300">{label}</span>
+                    <span className="text-paper-cream">{value}</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink-black bg-space-ink">
+                    <div className={`h-full ${pct >= 75 ? "bg-status-ok" : pct >= 50 ? "bg-status-warn" : "bg-status-crit"}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Final podium: the 4 Astro Sprites on stepped pedestals under a soft hangar light */}
       <section className="flash-panel relative overflow-hidden px-3 pb-0 pt-4" aria-label="Crew podium">
         <div className="hangar-glow pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden="true" />
@@ -358,7 +468,7 @@ export function MissionReportDashboard({
           </div>
           {report.failed_or_degraded_gate && (
             <p className="mb-3 inline-block rounded-md border border-status-warn/60 bg-space-ink px-2 py-1 font-mono text-xs font-semibold text-status-warn">
-              Gate to revisit: {report.failed_or_degraded_gate}
+              Gate to revisit: {GATE_LABEL[report.failed_or_degraded_gate.trim().toUpperCase()] ?? report.failed_or_degraded_gate}
             </p>
           )}
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
@@ -378,6 +488,20 @@ export function MissionReportDashboard({
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
             {report.nasa_real_world_fact}
           </p>
+          {(() => {
+            const spec = missionId
+              ? (nasaCatalogForNames.missions as Record<string, { budget_note?: string; budget_note_fuente?: string }>)[missionId]
+              : undefined;
+            if (!spec?.budget_note) return null;
+            return (
+              <p className="mt-2 rounded-lg border border-slate-500/60 bg-space-ink/70 px-2 py-1.5 font-mono text-[11px] leading-snug text-slate-300">
+                {spec.budget_note}{" "}
+                {spec.budget_note_fuente && (
+                  <a href={spec.budget_note_fuente} target="_blank" rel="noreferrer" className="underline">Source</a>
+                )}
+              </p>
+            );
+          })()}
         </section>
       </div>
 

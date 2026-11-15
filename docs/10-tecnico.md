@@ -170,3 +170,16 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
   - `frontend/src/views/*`, `frontend/src/components/paper/*`, `MinigameShell.tsx` $\rightarrow$ **Leonardo**
 - **Sandbox de prueba aislada:** Leonardo creará la ruta local `/dev-sandbox` (`DevSandboxView.tsx`) donde Ismael y Abraham pueden renderizar y probar cada uno de sus 8 minijuegos en solitario con `mockLiveMetrics` antes de conectar el Socket.IO real.
 - **`main` siempre compila y arranca:** Nunca hacer `git push` directo con código roto; usar ramas cortas por tarea (`feat/ism-rol2a`, `feat/sch-60s-tree`) y revisar que pase `npm run build` / `pytest` antes de integrar.
+
+### Extensión opcional de `LiveMetrics` (2026-11-15)
+
+Campos **opcionales** añadidos (no se renombró ninguno) para los recursos del reto *Data* y *Time*, calculados en `backend/physics_engine.compute_live_metrics`:
+
+| Campo | Significado | Origen |
+|---|---|---|
+| `data_generated_gbit_day?` | Datos científicos por día | Suma de `data_gbit_day` de los instrumentos (Rol 4A, catálogo) |
+| `downlink_rate_mbps?` | Velocidad del enlace | Rol 4B |
+| `downlink_hours_needed?` | Horas de contacto por día necesarias = datos ÷ (Mbps × 3.6) | Conversión de unidades |
+| `mission_duration_days?` | Días de viaje de la ruta elegida | `mission_routes[].transit_days` del catálogo |
+
+Si las horas necesarias superan 24 h/día, la compuerta `NODE_4_DOWNLINK` se degrada y el reporte explica el cuello de botella (`decision_tree.data_return_ratio`).

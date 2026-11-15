@@ -20,7 +20,7 @@ import type {
 
 type MinigameKey = "Rol1A" | "Rol1B" | "Rol2A" | "Rol2B" | "Rol3A" | "Rol3B" | "Rol4A" | "Rol4B";
 type NumericMetricKey = {
-  [Key in keyof LiveMetrics]: LiveMetrics[Key] extends number ? Key : never;
+  [Key in keyof LiveMetrics]-?: LiveMetrics[Key] extends number ? Key : never;
 }[keyof LiveMetrics];
 
 const ROUND_SECONDS = 30; // docs/04-juego.md: one 30-second take per station.

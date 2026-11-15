@@ -50,3 +50,15 @@
 | `pregunta_vuelo_60s` | `{ "round": 1 \| 2 \| 3 \| 4, "duration_sec": 15, "gate": str, "active_role": RoleType, "active_player_name": str, "question": FlightQuestionNode }` | Muestra la crisis espacial, activa los botones de respuesta solo para el jugador en turno (o único jugador) y corre el cronómetro de 15 s. |
 | `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). **Desde el 2026-11-15 `duration_sec = 0` en `iniciar_oleada_1/2` y `pregunta_vuelo_60s` significa *sin reloj*:** el cliente no muestra cuenta atrás y el servidor solo aplica un respaldo AFK oculto. |
 | `reporte_final_mision` | `MissionResolutionOutcome` + `{ "role_contributions": [...], "decision_history": [...] }` | Transiciona a `MissionReportDashboard` mostrando siempre resultado, puntaje (0–1,000), explicación causal y dato real NASA. |
+
+## Extensiones opcionales (2026-11-15, sin cambiar nombres de eventos)
+
+| Evento | Campo nuevo (opcional) | Significado |
+|---|---|---|
+| `iniciar_oleada_1` | `gate_forecast` | Pronóstico inicial de las 4 compuertas (`PASS` / `DEGRADED` / `CRITICAL`) calculado con `decision_tree.evaluate_preliminary_gates` sobre el estado compartido. |
+| `mutacion_en_vivo` | `gate_forecast` | Pronóstico en vivo tras cada decisión parcial **y** tras cada toma bloqueada (el servidor emite un `mutacion_en_vivo` extra después de `jugador_bloqueo_toma`). La UI lo muestra como *If we launched now*. |
+| `iniciar_vuelo_60s` | `preliminary_gates` (ahora relleno) y `random_event` | `random_event = { event_id, title, description, mitigated, mitigation_text, applied_effects, fuente }`: el evento de supervivencia aplicado al despegar (semilla = PIN de sala). |
+| `reporte_final_mision` | `random_event` | El mismo resumen, para el análisis causal del reporte. |
+| `iniciar_vuelo_60s` y `reporte_final_mision` | `random_events` | Lista de todos los eventos de la partida (*hard* recibe dos); `random_event` sigue siendo el primero por compatibilidad. |
+| `reporte_final_mision` | `collaboration` | `{ score 0–100, humans, own_locks_pct, answered_pct, gates_ready_at_liftoff }`: 40 % estaciones bloqueadas por humanos (sin respaldo de IA), 30 % llamadas de vuelo respondidas, 30 % compuertas `PASS` al despegar. |
+| `mutacion_en_vivo` | `quiet` | `true` en el refresco que el servidor manda tras un bloqueo: la UI actualiza métricas y pronóstico sin toast. |

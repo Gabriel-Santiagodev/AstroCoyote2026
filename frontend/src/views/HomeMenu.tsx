@@ -1,21 +1,25 @@
-// Owner: Leonardo (Task LEO-04) — Home screen: title, squad lineup, name, Solo / Host and PIN join.
-// Kept deliberately light on text: every block reads in under two seconds.
+// Owner: Leonardo (Task LEO-04) — Main menu (team mockup): ASTRO SQUAD title + SINGLE PLAYER,
+// MULTI PLAYER and an options gear. Multiplayer opens HOST / JOIN; JOIN MATCH is a two-step,
+// Kahoot-style screen (game PIN, then nickname). Background: AI art nebula + floating sprites.
 import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BookOpen,
-  Bot,
+  ArrowLeft,
   ClipboardList,
   KeyRound,
   LogIn,
-  Rocket,
+  Music,
+  Settings,
   Users,
+  Volume2,
+  VolumeX,
   Wrench,
   X,
   Zap,
 } from "lucide-react";
-import { KeyArt } from "../components/paper/KeyArt";
 import { soundEngine } from "../components/paper/SoundEngine";
+import { MenuBackdrop, type FloatingSprite } from "../components/paper/MenuBackdrop";
+import { ART } from "../data/artManifest";
 
 interface HomeMenuProps {
   onSelectMode: (mode: "single" | "multi") => void;
@@ -27,22 +31,84 @@ interface HomeMenuProps {
   connectionStatus?: "checking" | "online" | "offline";
 }
 
+/** Floating AI-art sprites behind the main menu (Python art pipeline output). */
+const MENU_SPRITES: FloatingSprite[] = [
+  { src: ART.vehicles.spaceship.src, alt: "", className: "left-[-10%] top-[12%] w-[38vw] max-w-[520px]",
+    drift: { x: ["0vw", "70vw", "0vw"], y: [0, -14, 0] }, durationSec: 46 },
+  { src: ART.planets.planetMars.src, alt: "", className: "bottom-[-8%] left-[-6%] w-[28vw] max-w-[360px]",
+    drift: { x: [0, 10, 0], y: [0, -10, 0], rotate: [0, 8, 0] }, durationSec: 30 },
+  { src: ART.planets.planetMoon.src, alt: "", className: "right-[4%] top-[8%] w-[12vw] max-w-[150px]",
+    drift: { x: [0, -8, 0], y: [0, 8, 0] }, durationSec: 22 },
+  { src: ART.anim.astronautFloat.src, alt: "", className: "bottom-[10%] right-[6%] w-[14vw] max-w-[200px]",
+    drift: { x: [0, -12, 0], y: [0, -18, 0] }, durationSec: 9 },
+  { src: ART.vehicles.satellite.src, alt: "", className: "right-[18%] bottom-[38%] hidden w-[16vw] max-w-[220px] md:block",
+    drift: { x: [0, 14, 0], y: [0, 10, 0], rotate: [-4, 4, -4] }, durationSec: 18 },
+];
+
+type MenuView = "main" | "multi" | "host_name" | "join_pin" | "join_name";
+
 const MIN_PIN_LENGTH = 4;
 const MAX_PIN_LENGTH = 8;
 const MAX_CALLSIGN_LENGTH = 18;
+const NAME_STORAGE_KEY = "astro-squad-name";
 
-/** How a match plays, in four glanceable steps (shown in the guide modal). */
-const GUIDE_STEPS: Array<{ icon: typeof Rocket; title: string; text: string; tint: string }> = [
-  { icon: Users, title: "Pick a role", text: "4 specialists. Empty seats = AI.", tint: "text-role-finance" },
-  { icon: ClipboardList, title: "Pick a mission", text: "Moon, asteroid or Mars.", tint: "text-role-spacecraft" },
-  { icon: Wrench, title: "Build it", text: "2 stations. Your choices affect the crew.", tint: "text-role-orbit" },
-  { icon: Zap, title: "Fly it", text: "4 crisis calls. Then see why.", tint: "text-role-science" },
+const GUIDE_STEPS: Array<{ icon: typeof Users; title: string; text: string }> = [
+  { icon: Users, title: "Pick a role", text: "4 specialists. Empty seats fly on AI." },
+  { icon: ClipboardList, title: "Pick a mission", text: "Moon (easy), asteroid (medium) or Mars (hard)." },
+  { icon: Wrench, title: "Build it", text: "2 stations each. Every choice changes the crew's limits." },
+  { icon: Zap, title: "Fly & survive", text: "Liftoff, random events, 4 calls. Then see why." },
 ];
 
-type PendingAction =
-  | { type: "create"; mode: "single" | "multi" }
-  | { type: "join"; pin: string }
-  | null;
+function readStoredName(): string {
+  try {
+    return window.localStorage.getItem(NAME_STORAGE_KEY) || "Commander";
+  } catch {
+    return "Commander";
+  }
+}
+
+function storeName(name: string) {
+  try {
+    window.localStorage.setItem(NAME_STORAGE_KEY, name);
+  } catch {
+    /* storage blocked: keep the name in memory only */
+  }
+}
+
+/** Big mockup-style menu button (red slab, thick ink outline, hard shadow). */
+function MenuButton({
+  children,
+  onClick,
+  disabled,
+  tone = "gold",
+  label,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: "gold" | "steel";
+  label?: string;
+}) {
+  return (
+    <motion.button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      whileHover={disabled ? undefined : { scale: 1.03, y: -2 }}
+      whileTap={disabled ? undefined : { scale: 0.97, y: 2 }}
+      onMouseEnter={() => soundEngine.playHover()}
+      onClick={() => {
+        soundEngine.playClick();
+        onClick();
+      }}
+      className={`flex w-full items-center justify-center gap-3 px-6 py-3 font-display text-2xl font-black uppercase tracking-wide disabled:opacity-50 sm:text-3xl ${
+        tone === "gold" ? "plate-gold" : "plate-steel"
+      }`}
+    >
+      {children}
+    </motion.button>
+  );
+}
 
 export function HomeMenu({
   onSelectMode,
@@ -53,201 +119,215 @@ export function HomeMenu({
   connectionError = null,
   connectionStatus,
 }: HomeMenuProps) {
-  const [callsign, setCallsign] = useState("Commander");
+  const [view, setView] = useState<MenuView>("main");
+  const [callsign, setCallsign] = useState<string>(readStoredName);
   const [pinInput, setPinInput] = useState("");
-  const [pinNotice, setPinNotice] = useState<string | null>(null);
-  const [showGuide, setShowGuide] = useState(false);
-  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
+  const [muted, setMuted] = useState(() => soundEngine.isMuted());
+  const [music, setMusic] = useState(() => soundEngine.isAmbientPlaying());
+
+  useEffect(
+    () =>
+      soundEngine.subscribe(() => {
+        setMuted(soundEngine.isMuted());
+        setMusic(soundEngine.isAmbientPlaying());
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (connectionError) soundEngine.playError();
+  }, [connectionError]);
 
   const safeName = callsign.trim() || "Commander";
 
-  // Clear the local boot loader if a connection error comes back
-  useEffect(() => {
-    if (connectionError) {
-      soundEngine.playError();
-      setPendingAction(null);
-    }
-  }, [connectionError]);
-
-  const executePendingAction = (action: PendingAction) => {
-    if (!action) return;
-    if (action.type === "create") {
-      if (onCreateRoom) onCreateRoom(action.mode, safeName);
-      else onSelectMode(action.mode);
-    } else if (onJoinWithPin) {
-      onJoinWithPin(action.pin, safeName);
-    } else {
-      onSelectMode("multi");
-    }
-    setPendingAction(null);
+  const go = (next: MenuView) => {
+    setNotice(null);
+    setView(next);
   };
 
-  const handleModeStart = (mode: "single" | "multi") => {
-    soundEngine.playClick();
-    setPinNotice(null);
-    executePendingAction({ type: "create", mode });
+  const startSingle = () => {
+    storeName(safeName);
+    if (onCreateRoom) onCreateRoom("single", safeName);
+    else onSelectMode("single");
   };
 
-  const handleJoinSubmit = (e: FormEvent) => {
+  const submitHost = (e: FormEvent) => {
     e.preventDefault();
-    const cleanedPin = pinInput.trim().toUpperCase();
-    if (cleanedPin.length < MIN_PIN_LENGTH) {
+    storeName(safeName);
+    if (onCreateRoom) onCreateRoom("multi", safeName);
+    else onSelectMode("multi");
+  };
+
+  const submitPin = (e: FormEvent) => {
+    e.preventDefault();
+    const clean = pinInput.trim().toUpperCase();
+    if (clean.length < MIN_PIN_LENGTH) {
       soundEngine.playError();
-      setPinNotice(`PIN needs ${MIN_PIN_LENGTH}+ characters`);
+      setNotice(`The game PIN has ${MIN_PIN_LENGTH}+ characters`);
       return;
     }
-    soundEngine.playClick();
-    setPinNotice(null);
-    executePendingAction({ type: "join", pin: cleanedPin });
+    soundEngine.playComplete();
+    go("join_name");
   };
 
-  const showBootLoader = Boolean(pendingAction) || isConnecting;
+  const submitJoin = (e: FormEvent) => {
+    e.preventDefault();
+    storeName(safeName);
+    const clean = pinInput.trim().toUpperCase();
+    if (onJoinWithPin) onJoinWithPin(clean, safeName);
+    else onSelectMode("multi");
+  };
+
+  const statusChip = connectionStatus && (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase text-ink-black ${
+        connectionStatus === "online" ? "bg-status-ok" : connectionStatus === "checking" ? "bg-status-warn" : "bg-slate-300"
+      }`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-ink-black" />
+      {connectionStatus === "online" ? "Online" : connectionStatus === "checking" ? "Linking…" : "Offline demo"}
+    </span>
+  );
+
+  const panelMotion = {
+    initial: { opacity: 0, y: 16, scale: 0.98 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: -12, scale: 0.98 },
+    transition: { duration: 0.2 },
+  };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-5 px-3 pb-8 pt-14 sm:px-6 sm:pt-16">
-      {/* Title + squad */}
-      <motion.section
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="flash-panel w-full overflow-hidden p-4 sm:p-6"
-      >
-        <div className="hazard-stripe-bar -mx-4 -mt-4 mb-4 h-3 border-b-3 border-ink-black sm:-mx-6 sm:-mt-6" />
+    <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-4 pb-8 pt-12">
+      <MenuBackdrop backgroundSrc={ART.bg.nebula.src} sprites={MENU_SPRITES} />
 
-        <div className="flex items-center justify-between gap-2">
-          {connectionStatus ? (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase text-ink-black ${
-                connectionStatus === "online"
-                  ? "bg-status-ok"
-                  : connectionStatus === "checking"
-                  ? "bg-status-warn"
-                  : "bg-slate-300"
-              }`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-ink-black" />
-              {connectionStatus === "online" ? "Online" : connectionStatus === "checking" ? "Linking…" : "Offline demo"}
-            </span>
-          ) : (
-            <span />
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center">
+        <motion.h1
+          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 160, damping: 16 }}
+          className="text-center font-display text-5xl font-black uppercase leading-none tracking-tight text-paper-cream sm:text-7xl"
+          style={{ textShadow: "4px 4px 0 #0F172A, -2px -2px 0 #0F172A, 2px -2px 0 #0F172A, -2px 2px 0 #0F172A, 0 8px 24px rgba(249,115,22,0.35)" }}
+        >
+          Astro Squad
+        </motion.h1>
+        <p className="mt-2 font-mono text-xs font-bold uppercase tracking-[0.25em] text-sky-glow sm:text-sm">
+          Design · Launch · Survive
+        </p>
+        <div className="mt-3">{statusChip}</div>
+
+        <div className="mt-5 w-full">
+          <AnimatePresence mode="wait">
+            {view === "main" && (
+              <motion.div key="main" {...panelMotion} className="flex flex-col items-center gap-4">
+                <MenuButton onClick={startSingle} disabled={isConnecting}>
+                  Single Player
+                </MenuButton>
+                <MenuButton onClick={() => go("multi")} disabled={isConnecting}>
+                  Multi Player
+                </MenuButton>
+                <div className="w-1/2">
+                  <MenuButton onClick={() => setShowOptions(true)} label="Options" tone="steel">
+                    <Settings className="h-8 w-8" strokeWidth={2.5} />
+                  </MenuButton>
+                </div>
+              </motion.div>
+            )}
+
+            {view === "multi" && (
+              <motion.div key="multi" {...panelMotion} className="flex flex-col gap-4">
+                <MenuButton onClick={() => go("host_name")} disabled={isConnecting}>
+                  <Users className="h-7 w-7" /> Host match
+                </MenuButton>
+                <MenuButton onClick={() => go("join_pin")} disabled={isConnecting}>
+                  <LogIn className="h-7 w-7" /> Join match
+                </MenuButton>
+                <button type="button" onClick={() => go("main")}
+                  className="mx-auto mt-1 inline-flex items-center gap-1.5 font-mono text-sm font-bold uppercase text-slate-300 hover:text-paper-cream">
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+              </motion.div>
+            )}
+
+            {(view === "host_name" || view === "join_name") && (
+              <motion.form
+                key={view}
+                {...panelMotion}
+                onSubmit={view === "host_name" ? submitHost : submitJoin}
+                className="rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
+              >
+                <div className="text-center font-display text-2xl font-black uppercase">
+                  {view === "host_name" ? "Host match" : `Join ${pinInput.trim().toUpperCase()}`}
+                </div>
+                <label className="mt-3 block font-mono text-xs font-bold uppercase text-slate-600">
+                  Nickname
+                  <input
+                    autoFocus
+                    type="text"
+                    maxLength={MAX_CALLSIGN_LENGTH}
+                    value={callsign}
+                    onChange={(e) => setCallsign(e.target.value)}
+                    className="mt-1 w-full rounded-lg border-[3px] border-ink-black bg-white px-3 py-3 text-center font-display text-2xl font-bold text-ink-black focus:outline-none focus:ring-4 focus:ring-sky-glow"
+                  />
+                </label>
+                <button type="submit" disabled={isConnecting}
+                  className="plate-gold mt-4 w-full py-3 font-display text-xl font-black uppercase disabled:opacity-60">
+                  {isConnecting ? "Connecting…" : view === "host_name" ? "Create room" : "OK, go!"}
+                </button>
+                <button type="button" onClick={() => go(view === "host_name" ? "multi" : "join_pin")}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 font-mono text-xs font-bold uppercase text-slate-500">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                </button>
+              </motion.form>
+            )}
+
+            {view === "join_pin" && (
+              <motion.form
+                key="join_pin"
+                {...panelMotion}
+                onSubmit={submitPin}
+                className="rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
+              >
+                <div className="text-center font-display text-3xl font-black uppercase">Join match</div>
+                <div className="relative mt-4">
+                  <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="text"
+                    maxLength={MAX_PIN_LENGTH}
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value.toUpperCase())}
+                    placeholder="Game PIN"
+                    aria-label="Game PIN"
+                    className="w-full rounded-lg border-[3px] border-ink-black bg-white py-4 pl-11 pr-3 text-center font-mono text-3xl font-bold uppercase tracking-[0.3em] text-ink-black placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-glow"
+                  />
+                </div>
+                {notice && <p className="mt-2 text-center font-mono text-xs font-bold text-red-600">{notice}</p>}
+                <button type="submit"
+                  className="plate-gold mt-4 w-full py-3 font-display text-xl font-black uppercase">
+                  Enter
+                </button>
+                <button type="button" onClick={() => go("multi")}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 font-mono text-xs font-bold uppercase text-slate-500">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          {connectionError && (
+            <div role="alert" className="mt-4 rounded-xl border-[3px] border-ink-black bg-status-crit px-4 py-2 text-center font-mono text-xs font-bold text-ink-black">
+              {connectionError}
+            </div>
           )}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playClick();
-                setShowGuide(true);
-              }}
-              className="paper-btn inline-flex items-center gap-1.5 bg-space-ink px-3 py-1.5 text-xs text-paper-cream"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-role-spacecraft" />
-              How to play
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playClick();
-                onOpenSandbox();
-              }}
-              title="Developer sandbox"
-              aria-label="Open developer sandbox"
-              className="paper-btn bg-slate-800 p-1.5 text-slate-200"
-            >
-              <Wrench className="h-4 w-4 text-role-finance" />
-            </button>
-          </div>
         </div>
+      </div>
 
-        <KeyArt className="mt-3" />
-
-        <div className="mt-4 text-center">
-          <h1 className="font-display text-4xl font-bold tracking-tight text-paper-cream drop-shadow-[3px_3px_0_#0F172A] sm:text-6xl">
-            ASTRO SQUAD
-          </h1>
-          <p className="mt-1 font-mono text-xs uppercase tracking-[0.2em] text-sky-glow sm:text-sm">
-            Build a NASA mission · 5 min
-          </p>
-        </div>
-      </motion.section>
-
-      {/* Name + play buttons + PIN join */}
-      <section className="flash-panel w-full space-y-4 p-4 sm:p-5">
-        <label className="block">
-          <span className="mb-1 block font-mono text-[11px] font-bold uppercase tracking-wider text-slate-300">
-            Your name
-          </span>
-          <input
-            type="text"
-            maxLength={MAX_CALLSIGN_LENGTH}
-            value={callsign}
-            onChange={(e) => setCallsign(e.target.value)}
-            placeholder="Commander"
-            className="w-full rounded-lg border-2 border-ink-black bg-paper-cream px-3 py-2.5 font-mono text-base font-bold text-ink-black focus:outline-none focus:ring-2 focus:ring-role-spacecraft"
-          />
-        </label>
-
-        {connectionError && (
-          <div role="alert" className="rounded-xl border-2 border-ink-black bg-status-crit px-4 py-2 font-mono text-xs font-bold text-ink-black">
-            {connectionError}
-          </div>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            disabled={showBootLoader}
-            onClick={() => handleModeStart("single")}
-            className="paper-btn flex items-center justify-between gap-3 bg-status-ok px-4 py-4 text-left text-ink-black"
-          >
-            <span className="inline-flex items-center gap-2 text-xl font-bold">
-              <Rocket className="h-6 w-6" />
-              Solo
-            </span>
-            <span className="inline-flex items-center gap-1 font-mono text-xs font-bold opacity-80">
-              You + 3 <Bot className="h-4 w-4" />
-            </span>
-          </button>
-          <button
-            type="button"
-            disabled={showBootLoader}
-            onClick={() => handleModeStart("multi")}
-            className="paper-btn flex items-center justify-between gap-3 bg-role-finance px-4 py-4 text-left text-ink-black"
-          >
-            <span className="inline-flex items-center gap-2 text-xl font-bold">
-              <Users className="h-6 w-6" />
-              Host room
-            </span>
-            <span className="font-mono text-xs font-bold opacity-80">1–4 players</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleJoinSubmit} className="flex gap-2 border-t-2 border-dashed border-slate-700 pt-4">
-          <div className="relative flex-1">
-            <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              maxLength={MAX_PIN_LENGTH}
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.toUpperCase())}
-              placeholder="ROOM PIN"
-              aria-label="Room PIN"
-              className="w-full rounded-lg border-2 border-ink-black bg-paper-cream py-2.5 pl-9 pr-3 font-mono text-base font-bold uppercase tracking-[0.25em] text-ink-black focus:outline-none focus:ring-2 focus:ring-role-spacecraft"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={showBootLoader}
-            className="paper-btn inline-flex shrink-0 items-center gap-1.5 bg-role-spacecraft px-4 py-2.5 text-base text-ink-black"
-          >
-            <LogIn className="h-5 w-5" />
-            Join
-          </button>
-        </form>
-        {pinNotice && <p className="font-mono text-xs font-bold text-status-warn">{pinNotice}</p>}
-      </section>
-
+      {/* Options */}
       <AnimatePresence>
-        {showGuide && (
+        {showOptions && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -255,47 +335,66 @@ export function HomeMenu({
             className="fixed inset-0 z-50 flex items-center justify-center bg-space-ink/80 p-4"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="guide-modal-title"
-            onClick={() => setShowGuide(false)}
+            aria-labelledby="options-title"
+            onClick={() => setShowOptions(false)}
           >
             <motion.div
               initial={{ scale: 0.92, y: 12 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="flash-panel max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto p-5"
+              className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
             >
-              <div className="flex items-center justify-between gap-2">
-                <h2 id="guide-modal-title" className="font-display text-2xl font-bold">
-                  How to play
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowGuide(false)}
-                  aria-label="Close guide"
-                  className="paper-btn bg-paper-cream p-1.5 text-ink-black"
-                >
-                  <X className="h-4 w-4" />
+              <div className="flex items-center justify-between">
+                <h2 id="options-title" className="font-display text-3xl font-black uppercase">Options</h2>
+                <button type="button" onClick={() => setShowOptions(false)} aria-label="Close options"
+                  className="rounded-lg border-[3px] border-ink-black bg-white p-1.5">
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-              <ol className="grid gap-2.5 sm:grid-cols-2">
-                {GUIDE_STEPS.map(({ icon: Icon, title, text, tint }, i) => (
-                  <li key={title} className="flex items-start gap-3 rounded-xl border-2 border-ink-black bg-space-ink p-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-ink-black bg-blueprint-navy">
-                      <Icon className={`h-5 w-5 ${tint}`} />
-                    </span>
-                    <div>
-                      <div className={`font-mono text-xs font-bold uppercase ${tint}`}>
-                        {i + 1} · {title}
+
+              <label className="block font-mono text-xs font-bold uppercase text-slate-600">
+                Your name
+                <input type="text" maxLength={MAX_CALLSIGN_LENGTH} value={callsign}
+                  onChange={(e) => setCallsign(e.target.value)} onBlur={() => storeName(safeName)}
+                  className="mt-1 w-full rounded-lg border-[3px] border-ink-black bg-white px-3 py-2 font-display text-lg font-bold" />
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => soundEngine.toggleMute()}
+                  className={`flex items-center justify-center gap-2 rounded-lg border-[3px] border-ink-black py-2.5 font-bold ${muted ? "bg-slate-300" : "bg-status-ok"}`}>
+                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />} Sound {muted ? "off" : "on"}
+                </button>
+                <button type="button" onClick={() => soundEngine.toggleAmbientPad()}
+                  className={`flex items-center justify-center gap-2 rounded-lg border-[3px] border-ink-black py-2.5 font-bold ${music ? "bg-status-ok" : "bg-slate-300"}`}>
+                  <Music className="h-5 w-5" /> Music {music ? "on" : "off"}
+                </button>
+              </div>
+
+              <div>
+                <div className="mb-2 font-display text-lg font-black uppercase">How to play</div>
+                <ol className="grid gap-2 sm:grid-cols-2">
+                  {GUIDE_STEPS.map(({ icon: Icon, title, text }, i) => (
+                    <li key={title} className="flex items-start gap-2 rounded-xl border-[3px] border-ink-black bg-white p-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-ink-black bg-amber-400">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <div className="font-mono text-[11px] font-bold uppercase">{i + 1} · {title}</div>
+                        <p className="text-sm leading-snug text-slate-700">{text}</p>
                       </div>
-                      <p className="mt-0.5 text-sm text-slate-200">{text}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <p className="font-mono text-[10px] text-slate-400">
-                Real data: NASA Artemis, OSIRIS-REx, MRO. No NASA logos used.
-              </p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-slate-300 pt-3">
+                <p className="font-mono text-[10px] text-slate-500">AI-generated art · real NASA mission data · no NASA logos</p>
+                <button type="button" onClick={() => { setShowOptions(false); onOpenSandbox(); }}
+                  className="inline-flex items-center gap-1 rounded-lg border-2 border-ink-black bg-white px-2 py-1 font-mono text-[11px] font-bold">
+                  <Wrench className="h-3.5 w-3.5" /> Sandbox
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

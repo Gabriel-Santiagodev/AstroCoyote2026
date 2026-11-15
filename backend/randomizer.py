@@ -11,10 +11,10 @@ from typing import Any
 
 if __package__:
     from . import physics_engine
-    from .models.subsystems import get_mission
+    from .models.subsystems import get_catalog, get_mission
 else:
     import physics_engine
-    from models.subsystems import get_mission
+    from models.subsystems import get_catalog, get_mission
 
 ALL_ROLES: tuple[str, ...] = (
     "finance_launch",
@@ -141,6 +141,26 @@ def synthesize_ai_role_wave1(
             isp = 225.0
             alt_km = 550.0 if traj == "leo_550" else 700.0
 
+        # Power-margin rule (2026-11-15): pick the highest-Isp catalog engine whose power demand
+        # fits the ship's power budget (physics_engine's baseline when nothing is known yet).
+        power_budget_w = float(physics_engine.compute_live_metrics({}, str(resolved_mission_id)).get("available_power_w", 0.0))
+        engines = [e for e in get_catalog().get("engines", []) if float(e.get("power_demand_w", 0.0)) <= power_budget_w]
+        if engines:
+            best = max(engines, key=lambda e: float(e.get("isp_seconds", 0.0)))
+            if isp > float(best.get("isp_seconds", isp)) or not any(
+                float(e.get("isp_seconds", 0.0)) == isp for e in engines
+            ):
+                isp = float(best.get("isp_seconds", isp))
+
+        # Fly a real catalog route (the "Time" resource needs it): conservative AIs take the
+        # lowest delta-v route; the others take the catalog's first route. Its delta-v replaces
+        # the generic value above so fuel matches the route actually flown.
+        routes = get_catalog().get("mission_routes", {}).get(str(resolved_mission_id)) or []
+        if routes:
+            route = min(routes, key=lambda r: float(r.get("required_dv_ms", 0.0))) if arch == "CONSERVATIVE" else routes[0]
+            traj = f"{route['id']}__{traj}"
+            req_dv = float(route.get("required_dv_ms", req_dv))
+
         est_dry = (461.0 if resolved_mission_id == "mars_sample_return" else 373.0) + 68.0
         f_prop = physics_engine.compute_propellant_fraction(req_dv * 1.12, isp, 1.0)
         est_wet = est_dry / max(0.08, 1.0 - f_prop)
@@ -243,12 +263,20 @@ def synthesize_ai_role_wave2(
 
     if role_id == "finance_launch":
         # Select the most cost-effective verified launcher that fits wet_mass and budget
-        candidates = [
-            ("rideshare_xl", 831.0, 2_100_000.0),
-            ("falcon9_block5", 4020.0, 74_000_000.0),
-            ("vulcan_vc6", 14400.0, 120_000_000.0),
-            ("falcon_heavy", 16800.0, 115_000_000.0),
-        ]
+        # Only launchers with a sourced Earth-escape capacity can reach the Moon, an asteroid or
+        # Mars (nasa_catalog.json `max_mass_mars_kg`); cheapest first.
+        def reach_kg(l: dict[str, Any]) -> float:
+            tli = float(l.get("max_mass_tli_kg") or 0.0) if resolved_mission_id == "artemis_moon" else 0.0
+            return max(float(l.get("max_mass_mars_kg") or 0.0), tli)
+
+        candidates = sorted(
+            (
+                (str(l["id"]), reach_kg(l), float(l["cost_usd"]))
+                for l in get_catalog().get("launchers", [])
+                if reach_kg(l) > 0
+            ),
+            key=lambda c: c[2],
+        )
         for lid, max_kg, cost_usd in candidates:
             if wet_mass <= max_kg and cost_usd <= max(remaining_budget, 2_100_000.0):
                 return {

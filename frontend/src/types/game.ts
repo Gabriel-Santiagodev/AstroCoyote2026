@@ -21,6 +21,11 @@ export interface LiveMetrics {
   selected_instruments: Array<{ id: string; name: string; mass_kg: number }>;
   required_dv_ms: number;
   has_thermal_protection: boolean;
+  // Optional since 2026-11-15 — challenge resources "Data" and "Time" (server-derived, docs/10).
+  data_generated_gbit_day?: number; // science data made per day (sum of instrument data_gbit_day)
+  downlink_rate_mbps?: number;      // Rol 4B link speed
+  downlink_hours_needed?: number;   // hours of radio contact per day needed to send the data home
+  mission_duration_days?: number;   // transit time of the chosen route (catalog transit_days)
 }
 
 export interface MinigameProps {

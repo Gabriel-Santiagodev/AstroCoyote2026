@@ -11,6 +11,7 @@ import {
 } from "../components/paper/CrewmateAvatar";
 import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
+import type { RandomEventSummary } from "../socket";
 
 export interface FlightQuestionOptionUI {
   option_id: string;
@@ -46,6 +47,8 @@ interface Flight60sViewProps {
   globalTimeLeftSec?: number;
   /** Untimed turns (docs/03, 2026-11-15): no countdown, the crew answers when ready. */
   untimed?: boolean;
+  /** Survival hazard applied at liftoff (backend random event). */
+  randomEvents?: RandomEventSummary[];
   rocketHealthPct?: number;
   lastTurnResult?: FlightTurnResultUI | null;
   missionId?: MissionIdType;
@@ -438,9 +441,55 @@ function CabinScene({
   );
 }
 
+const EVENT_EFFECT_LABEL: Record<string, string> = {
+  battery_reserve_pct: "Battery",
+  ufe_reserve_pct: "Reserve",
+  link_margin_db: "Signal",
+};
+
+/** Survival phase hazard: what happened, what it cost, or how the crew's design blocked it. */
+function SurvivalEventCard({ event, compact }: { event: RandomEventSummary; compact: boolean }) {
+  const [open, setOpen] = useState(true);
+  const effects = Object.entries(event.applied_effects || {});
+  return (
+    <motion.section
+      initial={{ y: -16, opacity: 0, rotate: -1 }}
+      animate={{ y: 0, opacity: 1, rotate: 0 }}
+      className={"flex shrink-0 items-start gap-3 rounded-xl border-[3px] border-ink-black p-2.5 text-ink-black shadow-paper " +
+        (event.mitigated ? "bg-status-ok" : "bg-status-warn")}
+      role="status"
+      aria-label={"Survival event: " + event.title}
+    >
+      <span className="mt-0.5 shrink-0 rounded-md border-2 border-ink-black bg-paper-cream px-1.5 py-0.5 font-mono text-[10px] font-black uppercase">
+        Event
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-base font-black leading-tight sm:text-lg">{event.title}</p>
+        {open && !compact && <p className="text-sm leading-snug">{event.description}</p>}
+        <div className="mt-1 flex flex-wrap gap-1.5 font-mono text-[11px] font-bold">
+          {event.mitigated ? (
+            <span className="rounded border-2 border-ink-black bg-paper-cream px-1.5">Blocked · {event.mitigation_text}</span>
+          ) : (
+            effects.map(([key, delta]) => (
+              <span key={key} className="rounded border-2 border-ink-black bg-paper-cream px-1.5">
+                {(EVENT_EFFECT_LABEL[key] ?? key) + " " + (delta > 0 ? "+" : "") + delta + (key.endsWith("_db") ? " dB" : "%")}
+              </span>
+            ))
+          )}
+        </div>
+      </div>
+      {!compact && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="shrink-0 font-mono text-[10px] font-bold underline">
+          {open ? "Less" : "More"}
+        </button>
+      )}
+    </motion.section>
+  );
+}
+
 export function Flight60sView({
   round, timeLeftSec, myRole, question, onAnswerOption,
-  activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult, untimed = false,
+  activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult, untimed = false, randomEvents = [],
   missionId = "artemis_moon", isHostStage, stationLoadout,
 }: Flight60sViewProps) {
   const isNarrow = useNarrowViewport();
@@ -602,6 +651,10 @@ export function Flight60sView({
           })}
         </ol>
       </header>
+
+      {randomEvents.map((ev) => (
+        <SurvivalEventCard key={ev.event_id} event={ev} compact={isPhoneConsole} />
+      ))}
 
       <div className={"min-w-0 gap-4 " +
         (isPhoneConsole

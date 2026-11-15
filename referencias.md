@@ -29,3 +29,9 @@
 
 ## 4. Declaración de Uso de IA (AI Use)
 - **Asistencia en desarrollo y documentación (`ABR-01` a `ABR-06`):** Se utilizó apoyo de agente de IA (Antigravity) para adaptar el motor analítico FTIR heredado (`backend/logica/` + `backend/juegos_espectrales/`) y redactar los componentes React (`Rol3A`, `Rol4A`, `Rol4B`, `Rol3B`). Todas las constantes físicas, contratos `MinigameProps`, cálculos orbitales/espectrales y compilación fueron revisados y validados por el equipo mediante `pytest` y `tsc && vite build`.
+
+## 5. Arte generado con IA (sprites, fondo y animaciones)
+- **Hojas de arte fuente (IA):** 9 hojas de sprites generadas con IA y aportadas por el equipo (equipo, vehículos, astronautas, nave, partes de rover, fondo de nebulosa, planetas, terreno, cohetes/cápsulas). Copias en `herramientas/arte/fuentes/`.
+- **Procesamiento:** `herramientas/arte/procesar_arte.py` (+ `segmentar.py`; Python, Pillow, NumPy, SciPy) recorta los sprites (fondo negro → alfa, componentes conexos), genera el fondo `bg/nebula*.webp`, la animación `anim/loading-loop.webp`, la tira procedural `anim/thruster-flame.webp` y `anim/astronaut-float.webp` en `frontend/public/assets/art/`, y escribe `frontend/src/data/artManifest.ts`.
+- **Marca de agua:** el fondo de nebulosa y la animación de carga llevan la leyenda visible "AI-generated art"; la UI del juego muestra una etiqueta global de arte generado con IA para los sprites.
+- **Exclusiones (regla de AGENTS.md: nunca usar el logo de la NASA):** no se recortan el cohete grande con el logotipo "NASA", la torreta con el emblema "meatball" ni los astronautas con parches de bandera/agencia de la hoja de cohetes; se usan los astronautas genéricos de la hoja de vehículos. La cruz roja del botiquín blanco se recoloreó a verde (emblema protegido).

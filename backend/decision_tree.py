@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,7 @@ if __package__:
         FlightQuestionNode,
         MissionResolutionOutcome,
     )
-    from .models.subsystems import get_mission
+    from .models.subsystems import get_catalog, get_mission
 else:
     from juegos_espectrales import adaptadores_web
     from models.session import (
@@ -25,7 +26,7 @@ else:
         FlightQuestionNode,
         MissionResolutionOutcome,
     )
-    from models.subsystems import get_mission
+    from models.subsystems import get_catalog, get_mission
 
 _STORY_PATH = Path(__file__).resolve().with_name("story_tree.json")
 
@@ -92,7 +93,7 @@ def evaluate_preliminary_gates(
     available_dv = s.isp_seconds * g0 * math.log(max(1.0001, mass_ratio))
     effective_dv = available_dv / max(1.0, s.fuel_burn_multiplier)
     g2 = "PASS"
-    if effective_dv < s.required_dv_ms:
+    if effective_dv < s.required_dv_ms or engine_power_short(s.isp_seconds, s.power_generation_w):
         g2 = "CRITICAL"
     elif not s.cg_balanced or effective_dv < s.required_dv_ms * 1.05:
         g2 = "DEGRADED"
@@ -111,7 +112,12 @@ def evaluate_preliminary_gates(
         g3 = "DEGRADED"
 
     g4 = "PASS"
-    if s.link_margin_db < 3.0 or s.downlink_efficiency < 0.85 or not s.dtmf_code_ok:
+    if (
+        s.link_margin_db < 3.0
+        or s.downlink_efficiency < 0.85
+        or not s.dtmf_code_ok
+        or data_return_ratio(s.data_generated_gbit, s.downlink_rate_mbps) < 1.0
+    ):
         g4 = "DEGRADED"
 
     return {
@@ -255,13 +261,31 @@ def evaluate_mission_deployment(
         comms_factor = min(s.downlink_efficiency, 0.65)
     else:
         comms_factor = s.downlink_efficiency
+    # Data budget (challenge resource "Data"): only the share that fits in a day of contact returns.
+    data_ratio = data_return_ratio(s.data_generated_gbit, s.downlink_rate_mbps)
+    if data_ratio < 1.0:
+        comms_factor *= data_ratio
+        notes.append(
+            f"Data bottleneck: instruments make {s.data_generated_gbit:.0f} Gbit/day but a "
+            f"{s.downlink_rate_mbps:.1f} Mbps link sends at most "
+            f"{s.downlink_rate_mbps * float(get_catalog().get('constants', {}).get('dsn_data_hours_per_day', 24.0)) * 3.6:.0f} "
+            f"Gbit/day in a typical DSN day."
+        )
     effective_completion = min(1.0, event_survival * comms_factor * spectral_quality)
 
     obj_score = 500.0 * effective_completion
     sci_score = 300.0 * min(1.0, s.science_value / 100.0) * s.science_calibration_f1
     mass_eff = max(0.0, 1.0 - (wet_mass_kg / max(1.0, s.launcher_max_mass_kg)))
     budget_eff = max(0.0, 1.0 - (total_cost_usd / max(1.0, s.budget_limit_usd)))
-    eff_score = 200.0 * (0.5 * mass_eff + 0.5 * budget_eff)
+    # Challenge resource "Time": a slower route keeps the mission (and its costs and risks) going
+    # longer. time_eff = fastest catalog route / chosen route (1.0 when the route is unknown).
+    time_eff, chosen_days, fastest_days = time_efficiency(mission_id, str(getattr(s, "trajectory_choice", "") or ""))
+    eff_score = 200.0 * (0.4 * mass_eff + 0.4 * budget_eff + 0.2 * time_eff)
+    if chosen_days and fastest_days and chosen_days > fastest_days:
+        notes.append(
+            f"Time: the chosen route takes {chosen_days:.0f} days vs {fastest_days:.0f} on the fastest one, "
+            f"lowering mission efficiency."
+        )
     final_score = int(round(obj_score + sci_score + eff_score))
 
     if effective_completion < 0.85:
@@ -381,6 +405,105 @@ def select_flight_round_question(
     return out
 
 
+def engine_power_short(isp_seconds: float, power_w: float) -> bool:
+    """True when the catalog engine with this Isp needs more electrical power than the ship makes."""
+    for engine in get_catalog().get("engines", []):
+        if abs(float(engine.get("isp_seconds", -1.0)) - float(isp_seconds)) < 0.5:
+            return float(engine.get("power_demand_w", 0.0)) > float(power_w)
+    return False
+
+
+def time_efficiency(mission_id: str, trajectory_choice: str) -> tuple[float, float, float]:
+    """(time_eff, chosen_days, fastest_days) from the catalog's mission_routes transit_days."""
+    routes = get_catalog().get("mission_routes", {}).get(mission_id) or []
+    days = [float(r.get("transit_days", 0.0)) for r in routes if float(r.get("transit_days", 0.0)) > 0]
+    route_id = trajectory_choice.split("__")[0] if trajectory_choice else ""
+    chosen = next((float(r.get("transit_days", 0.0)) for r in routes if r.get("id") == route_id), 0.0)
+    if not days or chosen <= 0:
+        return 1.0, chosen, min(days) if days else 0.0
+    fastest = min(days)
+    return min(1.0, fastest / chosen), chosen, fastest
+
+
+def data_return_ratio(data_gbit_day: float, rate_mbps: float) -> float:
+    """Share of daily science data a link can return in 24 h (unit conversion only)."""
+    if rate_mbps <= 0 or data_gbit_day <= 0:
+        return 1.0
+    hours = float(get_catalog().get("constants", {}).get("dsn_data_hours_per_day", 24.0))
+    capacity_gbit_day = rate_mbps * hours * 3600.0 / 1000.0
+    return min(1.0, capacity_gbit_day / data_gbit_day)
+
+
+def pick_random_event(mission_id: str, seed: str) -> dict[str, Any] | None:
+    """Pick the match's random survival event, deterministically from `seed` (room PIN)."""
+    events = _load_story_tree().get("random_events", {}).get(mission_id) or []
+    if not isinstance(events, list) or not events:
+        return None
+    index = zlib.crc32(f"{seed}:{mission_id}".encode("utf-8")) % len(events)
+    return dict(events[index])
+
+
+def difficulty_tuning(difficulty: str | None) -> dict[str, float]:
+    """Events per match and effect scale for a difficulty (story_tree.json random_events._difficulty)."""
+    table = _load_story_tree().get("random_events", {}).get("_difficulty", {})
+    row = table.get(str(difficulty or "easy")) or table.get("easy") or {}
+    return {"count": float(row.get("count", 1)), "scale": float(row.get("scale", 1.0))}
+
+
+def pick_random_events(mission_id: str, seed: str, difficulty: str | None = None) -> list[dict[str, Any]]:
+    """Pick this match's distinct survival events (more on harder difficulties), deterministic per seed."""
+    events = _load_story_tree().get("random_events", {}).get(mission_id) or []
+    if not isinstance(events, list) or not events:
+        return []
+    count = max(1, min(len(events), int(difficulty_tuning(difficulty)["count"])))
+    start = zlib.crc32(f"{seed}:{mission_id}".encode("utf-8")) % len(events)
+    return [dict(events[(start + i) % len(events)]) for i in range(count)]
+
+
+def apply_random_event(
+    state: dict[str, Any],
+    event: dict[str, Any] | None,
+    mission_id: str | None = None,
+    scale: float = 1.0,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Apply the event's effects to the flight state unless the crew's design mitigates it.
+
+    Missing keys use the ConsolidatedMissionState defaults (never a silent 0), both for the
+    value being hit and for the mitigation check.
+    """
+    if not event:
+        return state, None
+    resolved = mission_id or str(state.get("mission_id") or "artemis_moon")
+    merged = {**_as_state(state, resolved).model_dump(), **dict(state)}
+    next_state = dict(state)
+    mitigators = event.get("mitigated_if") or {}
+    mitigated = bool(mitigators) and all(merged.get(k) == v for k, v in mitigators.items())
+    applied: dict[str, float] = {}
+    if not mitigated:
+        for key, raw_delta in (event.get("effects") or {}).items():
+            if isinstance(raw_delta, (int, float)):
+                delta = round(float(raw_delta) * float(scale), 2)
+                base = float(merged.get(key, 0.0) or 0.0)
+                next_state[key] = round(max(0.0, base + float(delta)) if key.endswith("_pct") else base + float(delta), 2)
+                applied[key] = float(delta)
+        if "link_margin_db" in applied:
+            # Remembered so absolute link values from later flight options keep the penalty.
+            next_state["event_link_penalty_db"] = round(
+                float(next_state.get("event_link_penalty_db", 0.0) or 0.0) + applied["link_margin_db"], 2
+            )
+    summary = {
+        "event_id": event.get("event_id"),
+        "title": event.get("title"),
+        "description": event.get("description"),
+        "mitigated": mitigated,
+        "mitigation_text": event.get("mitigation_text") if mitigated else None,
+        "applied_effects": applied,
+        "fuente": event.get("fuente"),
+    }
+    next_state["active_event_id"] = event.get("event_id")
+    return next_state, summary
+
+
 def _iter_all_question_nodes(story_nodes: dict[str, Any]):
     for gate_data in story_nodes.values():
         if not isinstance(gate_data, dict):
@@ -427,7 +550,10 @@ def apply_flight_option(
         if isinstance(val, bool):
             updated[key] = val
         elif isinstance(val, (int, float)):
-            if key in ("fuel_burn_multiplier", "downlink_efficiency", "link_margin_db"):
+            if key == "link_margin_db":
+                # Absolute link value from the option, still degraded by an active survival event.
+                updated[key] = float(val) + float(updated.get("event_link_penalty_db", 0.0) or 0.0)
+            elif key in ("fuel_burn_multiplier", "downlink_efficiency"):
                 updated[key] = float(val)
             elif key == "science_calibration_f1":
                 curr_f1 = float(updated.get("science_calibration_f1", 0.85))

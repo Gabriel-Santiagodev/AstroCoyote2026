@@ -2,7 +2,7 @@
 
 Archivo generado el 2026-11-15 con `node herramientas/combinar.mjs`. No lo edites a mano: edita los archivos de `docs/` y vuelve a generarlo.
 
-Contiene 25 archivos, en este orden: README.md, TRASPASO.md, docs/00-indice.md, docs/01-proyecto.md, docs/02-reto.md, docs/03-decisiones.md, docs/04-juego.md, docs/05-mvp.md, docs/06-datos-nasa.md, docs/07-hardware.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/11-entrega.md, docs/12-roles.md, docs/13-plan-48h.md, docs/14-tareas.md, docs/15-preguntas-frecuentes.md, docs/16-glosario.md, docs/17-roadmap-ruben.md, docs/18-roadmap-ismael.md, docs/19-roadmap-abraham.md, docs/20-roadmap-schoenstadt.md, docs/21-roadmap-leonardo.md, docs/22-como-trabajar-y-hacer-merge.md.
+Contiene 27 archivos, en este orden: README.md, TRASPASO.md, docs/00-indice.md, docs/01-proyecto.md, docs/02-reto.md, docs/03-decisiones.md, docs/04-juego.md, docs/05-mvp.md, docs/06-datos-nasa.md, docs/07-hardware.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/11-entrega.md, docs/12-roles.md, docs/13-plan-48h.md, docs/14-tareas.md, docs/15-preguntas-frecuentes.md, docs/16-glosario.md, docs/17-roadmap-ruben.md, docs/18-roadmap-ismael.md, docs/19-roadmap-abraham.md, docs/20-roadmap-schoenstadt.md, docs/21-roadmap-leonardo.md, docs/22-como-trabajar-y-hacer-merge.md, docs/23-retroalimentacion-pruebas.md, docs/24-validacion-reto.md.
 
 ---
 
@@ -122,6 +122,8 @@ Mucho éxito al equipo en estas 24 horas en Querétaro.
 | `20-roadmap-schoenstadt.md` | Roadmap paso a paso de **Schoenstadt** (Motor físico, `randomizer.py`, Árbol de Decisiones de 4 Nodos y Árbol de Preguntas del Vuelo de 60s). | Schoenstadt |
 | `21-roadmap-leonardo.md` | Roadmap paso a paso de **Leonardo** (Sistema visual *Paper Mario × Among Us*, Menús, Lobby, Pista Lineal, Vuelo 60s y Dashboard). | Leonardo |
 | `22-como-trabajar-y-hacer-merge.md` | Reglas de trabajo en paralelo tipo rompecabezas, auto-instalación, pruebas aisladas (`/dev-sandbox` / `pytest`) y protocolo de `git merge` sin conflictos. | Rubén, Equipo |
+| `24-validacion-reto.md` | Matriz de trazabilidad reto → juego, hechos NASA revisados y corregidos, verificación y pendientes. | Leonardo, Equipo |
+| `23-retroalimentacion-pruebas.md` | Resultados de las pruebas de juego en local (solo y multijugador), correcciones aplicadas y áreas de oportunidad priorizadas (P0–P2) con dueño sugerido. | Leonardo, Equipo |
 
 ### Documentos maestros de arquitectura complementarios (en la raíz)
 - `arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` — Especificación matemática, ecuaciones orbitales, integración `logica/` + `juegos_espectrales/`, `randomizer.py` y `decision_tree.py`.
@@ -589,6 +591,21 @@ Tanto si la misión termina en **`FULL_SUCCESS`**, **`PARTIAL_SUCCESS`** o **`FA
 4. **Aporte por Rol y Botón `Redesign & Retry`:**
    - Muestra qué aportó cada rol (humano o IA) y permite volver de inmediato a mejorar la estrategia en menos de 5 minutos.
 
+## Flujo vigente del videojuego (2026-11-15, iteraciones de jugabilidad)
+
+1. **Pantalla de carga única** (solo al abrir el juego): animación `loading-loop.webp` generada en Python sobre el fondo de nebulosa del arte.
+2. **Menú principal** (mockup del equipo): *ASTRO SQUAD* + `SINGLE PLAYER`, `MULTI PLAYER` y engrane de opciones (nombre, sonido, música, cómo jugar, sandbox). Botones en placa dorada MLI / acero cepillado con letras blancas, paleta tomada del arte.
+3. **Multijugador:** `HOST MATCH` (apodo → sala) o `JOIN MATCH` estilo Kahoot (PIN → apodo). En la sala, banner con dirección, PIN grande y jugadores conectados (los asientos vacíos los vuela la IA).
+4. **Rol → Misión** (cada misión trae su dificultad: Luna fácil, asteroide media, Marte difícil).
+5. **Estaciones:** cinemática a pantalla completa (el escuadrón camina a la puerta) → briefing → minijuego a pantalla completa (2 por jugador) → *Waiting for the crew* si otros no han terminado → cinemática → estación 2.
+6. **Árbol de decisiones en vivo:** franja *If we launched now* con las 4 compuertas (Liftoff, Engine burn, Space hazard, Call Earth) recalculadas por el servidor tras cada decisión.
+7. **Despegue según la misión** (destino Luna/asteroide/Marte con sprites del arte) → **fase de supervivencia**: un evento aleatorio por partida (tormenta solar, micrometeoroide, caída de antena DSN, eyección de partículas, tormenta de polvo, conjunción solar) que el diseño puede bloquear (p. ej. RTG contra la tormenta de polvo) → 4 capítulos de bitácora → reporte con el evento y su fuente real.
+
+### Dificultad y pronóstico (2026-11-15, P0 de `docs/23`)
+
+- **Curva de dificultad por peligros espaciales** (`story_tree.json → random_events._difficulty`, estimado del juego): *easy* = 1 evento ×1.0, *medium* = 1 evento ×1.5, *hard* = 2 eventos distintos ×1.5. Simulado: Luna perdona; asteroide sin cámara autónoma → éxito parcial; Marte exige RTG (o batería alta) **y** código de señal limpio para el éxito total (con energía solar la tormenta de polvo deja la batería bajo 25 % → éxito parcial).
+- **Pronóstico honesto:** cada compuerta muestra *Not decided · waits ROL* hasta que su rol actúa (Liftoff → Engineer en estación 2, Engine burn → Soldier en estación 1, Space hazard → Medic en estación 1, Call Earth → Defender en estación 2); los asientos de IA cuentan como decididos al rellenarse. Etiqueta *+ hazards · dificultad* recuerda que al despegar llegan peligros aleatorios.
+
 ---
 
 <!-- Archivo: docs/05-mvp.md -->
@@ -846,6 +863,19 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 }
 ```
 
+## Reglas de racionalidad (auditoría 2026-11-15)
+
+- **Capacidad útil del lanzador = capacidad al destino:** asteroide y Marte usan la de escape terrestre (`max_mass_mars_kg`); la **Luna** usa la mayor entre escape e inyección translunar (`max_mass_tli_kg`): Vulcan VC6 **11 500 kg** (C3 −2 km²/s², `ulalaunch.com/rockets/vulcan-centaur`) y Electron + Lunar Photon **25 kg** (demostrado: CAPSTONE, NSSDC 2022-070A). Sin cifra con fuente para el destino → 0 kg y el Nodo 1 falla con *no alcanza el destino*. Lo aplican `game_manager`, la IA (`randomizer.py`, el más barato que alcanza) y Rol 1B. Vulcan GTO = 14 500 kg (ULA).
+- **Propelente (Rol 3A):** se dimensiona con el Δv de la ruta elegida × margen 1.05 (el mismo que usa la compuerta del Nodo 2); ya no se resta otra vez `propellant_delta_kg` (doble conteo).
+- **Reserva UFE:** las opciones de vuelo que gastan reserva ahora la reducen (antes la aumentaban).
+- **Eventos aleatorios:** `story_tree.json → random_events` (efectos = estimado del juego; fenómenos con fuente: NOAA SWPC, NASA ODPO, OSIRIS-REx, NASA Mars, DSN).
+- **Pendiente con fuente antes de implementar:** horas de contacto DSN por día (para *Data* vs capacidad de bajada), duración de misión (*Time*) por ruta, pérdida de trayecto real Tierra–Marte/Luna, potencia real de un MMRTG (~110 W), costo de instrumentos en el presupuesto y foto del despegue (`launch_snapshot`) para que el Nodo 1 no cambie con respuestas de vuelo.
+
+- **Data (2026-11-15):** horas de enlace/día = Gbit/día ÷ (Mbps × 3600 / 1000). Límite: `constants.dsn_data_hours_per_day` = **10 h/día** (MRO: ~16 h/día de seguimiento DSN, 10–11 h enviando datos; `descanso.jpl.nasa.gov/DPSummary/MRO_092106.pdf`). Si se necesitan más horas, la compuerta *Call Earth* se degrada.
+- **Pérdida real Tierra–destino (informativa):** FSPL = 92.45 + 20 log d(km) + 20 log f(GHz) (ITU-R P.525), banda X de la DSN 8.4 GHz: Luna (384 400 km) **222.6 dB**; Marte (54.6–401.4 millones de km, NSSDC) **265.7–283.0 dB**. Campo `earth_link_fspl_db` por misión; se muestra en el HUD *COMMS*. El margen del juego sigue usando la órbita elegida.
+- **Diferidos:** MMRTG ~110 W al inicio de misión (`science.nasa.gov`, RPS FAQ) y ~45 kg (kit de prensa Mars 2020): no se aplica porque el resto del modelo de potencia es estimado del juego. Costos de instrumentos: sin fuente pública por instrumento (estimado del equipo). **Time:** `transit_days` de la ruta (ya con fuente). La IA del piloto ahora elige una ruta real del catálogo.
+- **Hechos corregidos:** Artemis I usó una órbita retrógrada distante (no retorno libre; eso es Artemis II). El presupuesto de MSR del juego está escalado y lo indica con fuente.
+
 ---
 
 <!-- Archivo: docs/07-hardware.md -->
@@ -952,6 +982,18 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 | `pregunta_vuelo_60s` | `{ "round": 1 \| 2 \| 3 \| 4, "duration_sec": 15, "gate": str, "active_role": RoleType, "active_player_name": str, "question": FlightQuestionNode }` | Muestra la crisis espacial, activa los botones de respuesta solo para el jugador en turno (o único jugador) y corre el cronómetro de 15 s. |
 | `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). **Desde el 2026-11-15 `duration_sec = 0` en `iniciar_oleada_1/2` y `pregunta_vuelo_60s` significa *sin reloj*:** el cliente no muestra cuenta atrás y el servidor solo aplica un respaldo AFK oculto. |
 | `reporte_final_mision` | `MissionResolutionOutcome` + `{ "role_contributions": [...], "decision_history": [...] }` | Transiciona a `MissionReportDashboard` mostrando siempre resultado, puntaje (0–1,000), explicación causal y dato real NASA. |
+
+## Extensiones opcionales (2026-11-15, sin cambiar nombres de eventos)
+
+| Evento | Campo nuevo (opcional) | Significado |
+|---|---|---|
+| `iniciar_oleada_1` | `gate_forecast` | Pronóstico inicial de las 4 compuertas (`PASS` / `DEGRADED` / `CRITICAL`) calculado con `decision_tree.evaluate_preliminary_gates` sobre el estado compartido. |
+| `mutacion_en_vivo` | `gate_forecast` | Pronóstico en vivo tras cada decisión parcial **y** tras cada toma bloqueada (el servidor emite un `mutacion_en_vivo` extra después de `jugador_bloqueo_toma`). La UI lo muestra como *If we launched now*. |
+| `iniciar_vuelo_60s` | `preliminary_gates` (ahora relleno) y `random_event` | `random_event = { event_id, title, description, mitigated, mitigation_text, applied_effects, fuente }`: el evento de supervivencia aplicado al despegar (semilla = PIN de sala). |
+| `reporte_final_mision` | `random_event` | El mismo resumen, para el análisis causal del reporte. |
+| `iniciar_vuelo_60s` y `reporte_final_mision` | `random_events` | Lista de todos los eventos de la partida (*hard* recibe dos); `random_event` sigue siendo el primero por compatibilidad. |
+| `reporte_final_mision` | `collaboration` | `{ score 0–100, humans, own_locks_pct, answered_pct, gates_ready_at_liftoff }`: 40 % estaciones bloqueadas por humanos (sin respaldo de IA), 30 % llamadas de vuelo respondidas, 30 % compuertas `PASS` al despegar. |
+| `mutacion_en_vivo` | `quiet` | `true` en el refresco que el servidor manda tras un bloqueo: la UI actualiza métricas y pronóstico sin toast. |
 
 ---
 
@@ -1215,6 +1257,19 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
   - `frontend/src/views/*`, `frontend/src/components/paper/*`, `MinigameShell.tsx` $\rightarrow$ **Leonardo**
 - **Sandbox de prueba aislada:** Leonardo creará la ruta local `/dev-sandbox` (`DevSandboxView.tsx`) donde Ismael y Abraham pueden renderizar y probar cada uno de sus 8 minijuegos en solitario con `mockLiveMetrics` antes de conectar el Socket.IO real.
 - **`main` siempre compila y arranca:** Nunca hacer `git push` directo con código roto; usar ramas cortas por tarea (`feat/ism-rol2a`, `feat/sch-60s-tree`) y revisar que pase `npm run build` / `pytest` antes de integrar.
+
+### Extensión opcional de `LiveMetrics` (2026-11-15)
+
+Campos **opcionales** añadidos (no se renombró ninguno) para los recursos del reto *Data* y *Time*, calculados en `backend/physics_engine.compute_live_metrics`:
+
+| Campo | Significado | Origen |
+|---|---|---|
+| `data_generated_gbit_day?` | Datos científicos por día | Suma de `data_gbit_day` de los instrumentos (Rol 4A, catálogo) |
+| `downlink_rate_mbps?` | Velocidad del enlace | Rol 4B |
+| `downlink_hours_needed?` | Horas de contacto por día necesarias = datos ÷ (Mbps × 3.6) | Conversión de unidades |
+| `mission_duration_days?` | Días de viaje de la ruta elegida | `mission_routes[].transit_days` del catálogo |
+
+Si las horas necesarias superan 24 h/día, la compuerta `NODE_4_DOWNLINK` se degrada y el reporte explica el cuello de botella (`decision_tree.data_return_ratio`).
 
 ---
 
@@ -2411,3 +2466,153 @@ El repositorio ya incluye `package.json` y `requirements.txt` en la **raíz**, a
    npm run build:frontend
    ```
 3. Luego todos hacen `git checkout main && git pull origin main` y abren su siguiente rama limpia para la Oleada 2 / pulido final.
+
+---
+
+<!-- Archivo: docs/23-retroalimentacion-pruebas.md -->
+> **Archivo: `docs/23-retroalimentacion-pruebas.md`**
+
+# 23 · Retroalimentación de pruebas de juego (2026-11-15)
+
+**Qué contiene:** resultados de jugar el videojuego completo en local (`npm run play`, backend `:8000` + frontend `:5173`) desde el navegador integrado, lo que se corrigió en el momento y las **áreas de oportunidad priorizadas** para la fase final antes del pull request y el despliegue.
+**Dueño:** Leonardo (redactado por Claude Code)
+**Última actualización:** 2026-11-15
+
+---
+
+## 1. Cómo se probó
+
+| Prueba | Configuración | Resultado |
+|---|---|---|
+| A | Solo · Engineer · Artemis (fácil) | Éxito total, 811/1000 pts. Evento: caída de antena DSN (bloqueado por el código de señal). |
+| B | Solo · Soldier · Mars (difícil), eligiendo **Solar** en la estación de energía | Sin crash (antes rompía el vuelo). Éxito total. Evento: conjunción solar (bloqueado). |
+| C | Solo · Engineer · Artemis | Éxito total. Tormenta solar −10 % batería en una corrida previa → éxito parcial. |
+| D | **Multijugador:** anfitrión en escritorio + invitado en vista de teléfono (375 px) uniéndose con PIN | Asiento asignado por el servidor, cambio de rol sincronizado, misión solo para el anfitrión, cada uno en su estación, “Waiting for the crew”, avance a Estación 2 en ambos. |
+
+Ritmo medido con script (bloqueando rápido): ~90 s hasta el vuelo; con humanos leyendo el briefing y jugando: **3–5 min** estimados (objetivo cumplido).
+
+## 2. Lo que funciona bien (verificado)
+
+- Menú del mockup, opciones, `HOST MATCH` / `JOIN MATCH` (PIN → apodo) en escritorio y teléfono sin scroll horizontal.
+- Pantalla de carga única con la animación de nebulosa generada en Python; sprites del arte en menú, misiones y despegue.
+- Estaciones a pantalla completa con briefing, metas, sin reloj; cinemáticas entre estaciones y despegue según misión.
+- **Árbol de decisiones en vivo** (*If we launched now*): reacciona al instante (rideshare → *Liftoff FAILS*; gastar toda la reserva → no alcanza para el cohete → *FAILS*; volver a Falcon 9 → *READY*).
+- Eventos aleatorios con mitigación por diseño y explicación con fuente real en el reporte.
+- Vuelo sin congelarse (bug de autocancelación arreglado) y reporte siempre visible.
+
+## 3. Corregido durante esta prueba
+
+| # | Problema encontrado | Corrección |
+|---|---|---|
+| 1 | Los asientos de IA no aparecían como bloqueados: el invitado veía *Waiting for the crew · 1/4* y la barra de tareas arrancaba en 0/8. | `App.tsx` marca como bloqueados los roles de IA al iniciar cada ola (el servidor ya los rellena). Ahora arranca en 3/8 en solitario. |
+| 2 | El banner del anfitrión decía *Join at localhost:5173* (inútil para teléfonos). | `/health` devuelve `lan_ip` (interfaz de la ruta por defecto); el lobby muestra `IP-LAN:5173`. |
+| 3 | Vulcan y Electron marcados *Earth orbit only* (falso: solo falta la cifra de escape en el catálogo). | Rideshare → *Earth orbit only*; los demás sin dato → *No escape data*. |
+| 4 | El reporte mostraba ids crudos (`falcon9_block5`, `sso_700`, rutas). | El reporte traduce ids del catálogo a nombres (*SpaceX Falcon 9 Block 5*, etc.). |
+
+## 4. Áreas de oportunidad (priorizadas)
+
+### P0 — Afectan aprender, ganar o perder
+
+1. ✅ **Resuelto (2026-11-15): curva de dificultad por peligros (ver `docs/04`).** Antes: **el juego era demasiado fácil.** 3 de 3 corridas terminaron en éxito total con decisiones por defecto, incluida **Marte (difícil) con energía solar**. Propuesta: umbrales por dificultad en `nasa_catalog.json` (con fuente), IA de autopiloto que no siempre elija lo seguro en *medium/hard*, y en Marte exigir RTG o batería alta para la tormenta de polvo. *Dueño sugerido: Schoenstadt (árbol) + Abraham (catálogo).*
+2. ✅ **Resuelto (2026-11-15): compuertas *Not decided · waits ROL* hasta que su rol actúa.** Antes: **el pronóstico arrancaba todo en verde** antes de que nadie decida (son los valores por defecto/IA). Propuesta: mostrar cada compuerta como *Not decided* hasta que su rol la toque. *Leonardo.*
+3. **Se perdió el trade-off de lanzadores:** solo Falcon 9 y Falcon Heavy tienen capacidad de escape con fuente, así que casi siempre gana Falcon 9. Propuesta: añadir capacidades TLI/escape con fuente (Vulcan Centaur — guía de usuario de ULA; Electron + Photon — misión CAPSTONE; Falcon Heavy expendable). *Abraham.*
+4. ✅ **Resuelto (2026-11-15): HUD con DATA y TIME derivados del catálogo; Data afecta *Call Earth* (ver `docs/24`).** Antes: **faltaban dos recursos del reto: Data y Time.** Para *Data* hace falta una cifra con fuente de horas de contacto DSN por día (capacidad de bajada vs datos generados); para *Time*, la duración por ruta ya existe (`transit_days`) pero no se evalúa. *Rubén + Schoenstadt.*
+
+### P1 — Claridad y racionalidad
+
+5. **Bitácora de vuelo con mucha jerga** (~124 palabras por entrada: *Translunar Injection*, *cislunar*, *UFE*, *F1*). Propuesta: reescribir `story_tree.json` en lenguaje simple (≤40 palabras) y mostrar el efecto de cada opción como íconos (+combustible, −batería…). *Schoenstadt.*
+6. **Reporte con jerga** (*UFE*, *F1*, *DSN*, *dB*, *4 node decision tree*). Propuesta: glosario emergente o sustituir por *reserva*, *calidad científica*, *señal*. *Leonardo.*
+7. **La IA del piloto elige motor Hall (Isp 1600 s) con energía de celda de combustible** sin revisar la potencia. Propuesta: regla de margen de potencia (`generación − instrumentos − motor`) en backend y en `randomizer.py`. *Schoenstadt.*
+8. **Rol 3A calcula el propelente con una masa seca estimada (620 kg)**, no con la real de la nave; una nave más pesada queda corta de combustible. *Abraham.*
+9. **El costo de los instrumentos no entra al presupuesto** y en Artemis la reserva casi no afecta las compuertas. *Rubén.*
+10. **El Nodo 1 se reevalúa con el estado después del vuelo** (respuestas de vuelo cambian un despegue ya ocurrido). Propuesta: `launch_snapshot`. *Rubén.*
+
+### P2 — Pulido y despliegue
+
+11. `herramientas/jugar.mjs` imprime la IP de un adaptador virtual (192.168.56.1); usar la de la ruta por defecto (como ya hace `/health`). *Rubén.*
+12. El id del invitado se resuelve por apodo: dos jugadores con el mismo apodo pueden confundirse. Propuesta: que `unirse_sala` devuelva `player_id`. *Rubén.*
+13. En pestañas en segundo plano las animaciones de transición se pausan (comportamiento del navegador); probar en teléfonos reales antes de la demo.
+14. Datos por validar con fuente: costo de MSR ($2.5B vs estimaciones de NASA), pérdida de señal real Tierra–Luna/Marte, potencia real de un MMRTG (~110 W).
+15. El puntaje (811/1000 con éxito total) necesita una explicación visible de qué faltó para 1000.
+16. El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
+
+## 5. Siguiente paso recomendado
+
+1. Resolver **P0-1 (dificultad)** y **P0-2 (pronóstico “no decidido”)**: son los que más cambian la experiencia del jurado.
+2. Conseguir las cifras con fuente de **P0-3/P0-4** y activarlas en backend.
+3. Reescribir textos de vuelo (**P1-5**) y luego preparar el pull request a `main` y el despliegue.
+
+---
+
+<!-- Archivo: docs/24-validacion-reto.md -->
+> **Archivo: `docs/24-validacion-reto.md`**
+
+# 24 · Validación contra el reto Space Apps (2026-11-15)
+
+**Qué contiene:** 3 iteraciones finales de validación: (1) trazabilidad de cada requisito del reto *Space Mission Design Game* (texto oficial en `docs/02-reto.md`) con evidencia en el juego; (2) revisión del contexto de investigación (datos y hechos NASA) con correcciones; (3) verificación jugando en local y con pruebas automáticas.
+**Dueño:** Leonardo (redactado por Claude Code)
+**Última actualización:** 2026-11-15
+
+---
+
+## 1. Matriz de trazabilidad (reto → juego)
+
+| Requisito del reto | Dónde lo cubre el juego | Estado |
+|---|---|---|
+| Jugar solo o en equipo de hasta 4 | `SINGLE PLAYER` / `MULTI PLAYER` (HOST / JOIN con PIN); asientos vacíos los vuela la IA (`randomizer.py`) | ✅ Verificado (anfitrión + invitado por PIN) |
+| Roles con responsabilidades distintas | 4 especialistas: presupuesto/lanzador, nave/masa, órbita/energía, ciencia/comunicaciones | ✅ |
+| Definir el **objetivo de misión** | Cada tarjeta de misión muestra su objetivo científico (`science_goal` del catálogo) | ✅ **Nuevo en esta ronda** (antes no se mostraba) |
+| Diseñar la nave | Rol 2A (estructura, potencia, escudo térmico, deorbitación) + Rol 2B (centro de masa) | ✅ |
+| Seleccionar instrumentos (masa, potencia, costo, datos, valor científico) | Rol 4A con instrumentos del catálogo con fuente | ✅ |
+| Elegir lanzador y órbita, con **chequeo de compatibilidad de masa** | Rol 1B (capacidad de escape del catálogo; rideshare = solo órbita terrestre) + Rol 3A (ruta, órbita, motor) | ✅ |
+| Recursos: **Mass** | HUD *MASS* (+ centrado y escudo) | ✅ |
+| Recursos: **Power** | HUD *POWER*; motor y radio consumen potencia | ✅ |
+| Recursos: **Budget** | HUD *BUDGET* (+ reserva) | ✅ |
+| Recursos: **Data** | HUD *DATA*: Gbit/día de los instrumentos y horas de enlace/día necesarias; si pasa de 24 h/día, la compuerta *Call Earth* se degrada y el reporte explica el cuello de botella | ✅ **Nuevo en esta ronda** |
+| Recursos: **Communications** | HUD *COMMS* (pérdida de trayecto) + Rol 4B (antena, margen, código) | ✅ (renombrado de *SIGNAL* a *COMMS*) |
+| Recursos: **Time** (vida de misión) | HUD *TIME*: días de viaje de la ruta elegida (`transit_days` del catálogo) | ✅ **Nuevo en esta ronda** (solo informativo; no penaliza todavía) |
+| Ver cómo una decisión afecta a otras partes | Pronóstico en vivo *If we launched now* (servidor) + mutaciones en vivo entre roles | ✅ |
+| No hay una única solución perfecta | Varias rutas/motores/lanzadores válidos; simulado: varias combinaciones logran éxito total | ✅ |
+| Eventos aleatorios / restricciones inesperadas | Peligros por misión con fuente; *hard* recibe 2 y más fuertes | ✅ |
+| Niveles de dificultad / varios escenarios | Luna (fácil), asteroide (media), Marte (difícil) | ✅ |
+| Simulación y evaluación de la misión | Vuelo de 4 capítulos sobre el árbol de 4 compuertas | ✅ |
+| Puntaje que premia éxito, ciencia y eficiencia | 50 % objetivo · 30 % ciencia · 20 % eficiencia | ✅ |
+| Premiar la **colaboración** | Tarjeta *Crew collaboration* (0–100): 40 % estaciones bloqueadas por la tripulación, 30 % llamadas de vuelo respondidas, 30 % compuertas listas al despegar | ✅ (iteración 4) |
+| Explicar **por qué** triunfa o falla | Reporte causal, compuerta a revisar en palabras, eventos con fuente | ✅ |
+| Rediseñar y simular varias veces | *Redesign & Retry* + comparación de intentos | ✅ |
+| Accesible a distintos niveles | Briefing por estación, textos simples en estaciones y bitácora de vuelo reescrita en lenguaje simple (32 preguntas, 96 opciones; etiquetas = efectos reales) | ✅ (iteración 4) |
+
+## 2. Contexto de investigación: hechos revisados
+
+| Hecho / dato | Revisión | Acción |
+|---|---|---|
+| *“Artemis I used a Free-Return Trajectory”* (tarjeta y reporte de la Luna) | **Incorrecto.** Artemis I (2022) usó una órbita retrógrada distante (DRO); la trayectoria de retorno libre es de **Artemis II** (tripulada). La reentrada a casi 40 000 km/h sí es correcta. | ✅ Corregido en `nasa_catalog.json` con fuentes `nasa.gov/mission/artemis-i` y `artemis-ii`. |
+| Presupuesto de Mars Sample Return = $2.5B | Muy por debajo de la estimación de la revisión independiente de NASA (2023), que llevó a replantear MSR. | ✅ Nota *Game-scaled budget* con fuente (`science.nasa.gov/mission/mars-sample-return/`), visible en el reporte de Marte. |
+| MRO: 2 180 kg al lanzar, 1 149 kg de propelente, antena de 3 m, hasta 6 Mbps, grabador de 160 Gbit | Coincide con la ficha DESCANSO de JPL ya citada. | Sin cambio. |
+| OSIRIS-REx: navegación por reconocimiento visual (Natural Feature Tracking) en Bennu | Correcto. | Sin cambio. |
+| Capacidad de lanzadores para salir de la Tierra | Solo Falcon 9 y Falcon Heavy tienen cifra de escape con fuente en el catálogo. | ✅ Iteración 4: para la **Luna** basta la inyección translunar (TLI): Vulcan VC6 **11 500 kg** (ULA) y Electron + Lunar Photon **25 kg** (demostrado por CAPSTONE, NSSDC 2022-070A). Vulcan GTO corregido a 14 500 kg. Escape/Marte de Vulcan y Electron: **no publicado** → siguen en 0 kg para asteroide y Marte. |
+| La IA del piloto no elegía una ruta real | Su plan solo nombraba la órbita (`sso_700`), así que el *Time* quedaba vacío y su Δv era genérico. | ✅ Corregido: la IA elige una ruta del catálogo (la de menor Δv si es conservadora) y usa su Δv. |
+
+## 3. Verificación (iteración 3)
+
+- **Pruebas automáticas:** `pytest backend/tests` **29/29** (nuevas: Data/Time derivados del catálogo, cuello de botella de datos que degrada *Call Earth*). Build del frontend con 0 errores.
+- **Jugado en local (online):** las tarjetas de misión muestran el objetivo; el HUD muestra los 6 recursos del reto; *TIME* = 210 días en Marte; *DATA*: 242 Gbit/día con enlace de 0.5 Mbps → **134 h/día necesarias → RISK** y *Call Earth: Risky*; con 6 Mbps → 11.2 h/día → OK y *Call Earth: Ready*, pero la radio consume **347 W** (el *trade-off* de datos contra potencia que pide el reto).
+
+## 4. Lo que queda (ordenado por impacto)
+
+1. **Puntuar la colaboración** (el reto lo menciona): por ejemplo, bonus por roles humanos que bloquean y por decisiones de vuelo tomadas a tiempo.
+2. **Hacer que *Time* tenga consecuencia**: p. ej., rutas largas consumen más reserva o batería (requiere una regla con fuente o declarada como estimado del juego).
+3. **Bitácora de vuelo en lenguaje simple** (`story_tree.json`).
+4. **Cifras con fuente pendientes:** escape de Vulcan / Electron + Photon, pérdida de trayecto real Tierra–Marte/Luna, potencia real de un MMRTG (~110 W), costo de instrumentos en el presupuesto.
+5. **Regla de margen de potencia** para la IA (motor Hall con celda de combustible).
+
+## 5. Iteración 4 (2026-11-15): implementado
+
+- **Multijugador:** los invitados ya aparecen en la sala. Causa: el Firewall de Windows bloqueaba el puerto 8000; ahora Vite hace de proxy (`/socket.io`, `/health`, `/api`) y el teléfono solo usa el puerto 5173. Un *join* sin conexión ya no abre un lobby falso.
+- **Colaboración puntuada** (`game_manager._collaboration_score`, campo `collaboration` en `reporte_final_mision`).
+- ***Time* con consecuencia:** la eficiencia = 40 % masa + 40 % presupuesto + 20 % tiempo (ruta más rápida del catálogo ÷ ruta elegida) y nota en el reporte.
+- **Bitácora en lenguaje simple** (`story_tree.json`, solo textos; ids y efectos sin cambios).
+- **Regla de margen de potencia:** la IA elige el motor de mayor Isp cuya demanda cabe en la potencia de la nave; un motor sin potencia suficiente deja el Nodo 2 en *CRITICAL*.
+- **Cifras con fuente aplicadas:** TLI de Vulcan/Electron (arriba); **10 h/día de datos por la DSN** (MRO: ~16 h de seguimiento, 10–11 h enviando datos; DESCANSO) en lugar del límite físico de 24 h; **pérdida real Tierra–destino** en banda X 8.4 GHz (ITU-R P.525 con distancias NSSDC): Luna 222.6 dB, Marte 265.7–283.0 dB, mostrada como contexto en *COMMS*.
+- **Diferidos (sin fuente suficiente):** potencia del MMRTG (~110 W al inicio, ~45 kg) — todo el modelo de potencia del juego es estimado, cambiar solo el RTG lo desbalancea; **costo de instrumentos**: no hay fuente pública por instrumento, siguen como estimado del equipo; distancia al asteroide (depende del objetivo).
+- **Verificación:** `pytest` **34/34**, build sin errores, partida en vivo (bot solo, Luna con Vulcan) → *FULL_SUCCESS*, colaboración 100/100, bitácora nueva visible.

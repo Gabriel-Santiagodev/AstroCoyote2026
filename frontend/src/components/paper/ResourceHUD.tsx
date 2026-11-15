@@ -6,7 +6,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Clock,
   Coins,
+  Database,
   Radio,
   Scale,
   ShieldAlert,
@@ -28,6 +30,13 @@ interface ResourceHUDProps {
 }
 
 type StatusLevel = "OK" | "WARN" | "CRIT";
+
+/**
+ * Hours per day a deep-space mission really gets to send data through the DSN (MRO: ~16 h
+ * tracked, 10-11 h sending; nasa_catalog.json constants.dsn_data_hours_per_day + fuente).
+ */
+const DSN_DATA_HOURS_PER_DAY =
+  (nasaCatalog.constants as { dsn_data_hours_per_day?: number }).dsn_data_hours_per_day ?? 24;
 
 function StatusPill({ level }: { level: StatusLevel }) {
   if (level === "OK") {
@@ -91,6 +100,10 @@ export function ResourceHUD({
   const [expandedMobile, setExpandedMobile] = useState(!compact);
 
   const missionSpec = nasaCatalog.missions[missionId];
+  // Real Earth-to-target signal loss (NSSDC distance, X-band, ITU-R P.525), shown as context.
+  const earthLink = missionSpec as { earth_link_fspl_db?: number[]; earth_link_fuente?: string };
+  const earthLinkDb = earthLink.earth_link_fspl_db;
+  const earthLinkFuente = earthLink.earth_link_fuente;
   const falcon9MarsCap =
     nasaCatalog.launchers.find((l) => l.id === "falcon9_block5")?.max_mass_mars_kg ??
     4020;
@@ -148,6 +161,12 @@ export function ResourceHUD({
       : liveMetrics.fspl_loss_db <= 192
       ? "WARN"
       : "CRIT";
+
+  // Challenge resources "Data" and "Time" (optional LiveMetrics fields, server-derived).
+  const dataGbitDay = liveMetrics.data_generated_gbit_day ?? 0;
+  const linkHoursNeeded = liveMetrics.downlink_hours_needed ?? 0;
+  const missionDays = liveMetrics.mission_duration_days ?? 0;
+  const dataLevel: StatusLevel = linkHoursNeeded > DSN_DATA_HOURS_PER_DAY ? "CRIT" : "OK";
 
   const ownerRoleHighlight = (owner: RoleType) =>
     activeRole === owner
@@ -226,6 +245,14 @@ export function ResourceHUD({
             </span>
           </div>
           <SegmentedBar pct={massPct} level={massLevel} />
+          <div className="flex flex-wrap gap-x-2 text-[10px] font-bold">
+            <span className={liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"}>
+              {liveMetrics.cg_balanced ? "Centered" : "Off-center"}
+            </span>
+            <span className={liveMetrics.has_thermal_protection ? "text-status-ok" : "text-status-crit"}>
+              {liveMetrics.has_thermal_protection ? "Shield" : "No shield"}
+            </span>
+          </div>
         </div>
 
         {/* 2. Remaining Budget */}
@@ -249,56 +276,53 @@ export function ResourceHUD({
             </span>
           </div>
           <SegmentedBar pct={budgetPct} level={budgetLevel} />
+          <div className={`text-[10px] font-bold ${ufeLevel === "OK" ? "text-status-ok" : ufeLevel === "WARN" ? "text-status-warn" : "text-status-crit"}`}>
+            Reserve {liveMetrics.ufe_reserve_pct.toFixed(0)}%
+          </div>
         </div>
 
-        {/* 3. UFE Reserve & R&D Factor F */}
+        {/* 3. DATA: science data per day vs what the link can send home (challenge resource) */}
         <div
-          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
-            "finance_launch"
-          )}`}
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("science_comms")}`}
+          title="Science data made per day, and hours of radio contact per day needed to send it home"
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
-              <ShieldCheck className="h-3.5 w-3.5 text-role-finance" />
-              RESERVE
+              <Database className="h-3.5 w-3.5 text-role-science" />
+              DATA
             </span>
-            <StatusPill level={ufeLevel} />
+            <StatusPill level={dataLevel} />
           </div>
           <div className="text-sm font-bold text-paper-cream">
-            {liveMetrics.ufe_reserve_pct.toFixed(0)}%
+            {dataGbitDay.toFixed(0)}
+            <span className="text-[11px] font-normal text-slate-400"> Gbit/day</span>
           </div>
-          <SegmentedBar pct={liveMetrics.ufe_reserve_pct * 2} level={ufeLevel} />
+          <SegmentedBar pct={(linkHoursNeeded / DSN_DATA_HOURS_PER_DAY) * 100} level={dataLevel} />
+          <div className="text-[10px] font-bold text-slate-300">
+            {linkHoursNeeded > 0
+              ? `${linkHoursNeeded.toFixed(1)} / ${DSN_DATA_HOURS_PER_DAY} h DSN/day`
+              : "Link speed not set"}
+          </div>
         </div>
 
-        {/* 4. CG Balance & Thermal Shield */}
+        {/* 4. TIME: how long the chosen route takes to reach the target (challenge resource) */}
         <div
-          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
-            "spacecraft_mass"
-          )}`}
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("orbit_power")}`}
+          title="Travel time of the chosen route (catalog transit days)"
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
-              <Scale className="h-3.5 w-3.5 text-role-spacecraft" />
-              BALANCE
+              <Clock className="h-3.5 w-3.5 text-role-orbit" />
+              TIME
             </span>
-            <StatusPill level={cgLevel} />
+            <StatusPill level={missionDays > 0 ? "OK" : "WARN"} />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
-            <span
-              className={
-                liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"
-              }
-            >
-              {liveMetrics.cg_balanced ? "Centered" : "Off-center"}
-            </span>
-            <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-200">
-              {liveMetrics.has_thermal_protection ? (
-                <ShieldCheck className="h-3.5 w-3.5 text-status-ok" />
-              ) : (
-                <ShieldAlert className="h-3.5 w-3.5 text-status-crit" />
-              )}
-              {liveMetrics.has_thermal_protection ? "Shield" : "No shield"}
-            </span>
+          <div className="text-sm font-bold text-paper-cream">
+            {missionDays > 0 ? missionDays.toFixed(0) : "—"}
+            <span className="text-[11px] font-normal text-slate-400"> days to target</span>
+          </div>
+          <div className="text-[10px] font-bold text-slate-300">
+            {missionDays > 0 ? "Route chosen" : "Waiting for a route"}
           </div>
         </div>
 
@@ -332,7 +356,7 @@ export function ResourceHUD({
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Radio className="h-3.5 w-3.5 text-role-science" />
-              SIGNAL
+              COMMS
             </span>
             <StatusPill level={fsplLevel} />
           </div>
@@ -340,6 +364,13 @@ export function ResourceHUD({
             {liveMetrics.fspl_loss_db.toFixed(1)} dB
           </div>
           <SegmentedBar pct={fsplPct} level={fsplLevel} />
+          {earthLinkDb && (
+            <div className="text-[10px] font-bold text-slate-300" title={earthLinkFuente}>
+              Earth link: {earthLinkDb[0] === earthLinkDb[1]
+                ? `${earthLinkDb[0]} dB`
+                : `${earthLinkDb[0]}–${earthLinkDb[1]} dB`}
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -170,3 +170,16 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
   ]
 }
 ```
+
+## Reglas de racionalidad (auditoría 2026-11-15)
+
+- **Capacidad útil del lanzador = capacidad al destino:** asteroide y Marte usan la de escape terrestre (`max_mass_mars_kg`); la **Luna** usa la mayor entre escape e inyección translunar (`max_mass_tli_kg`): Vulcan VC6 **11 500 kg** (C3 −2 km²/s², `ulalaunch.com/rockets/vulcan-centaur`) y Electron + Lunar Photon **25 kg** (demostrado: CAPSTONE, NSSDC 2022-070A). Sin cifra con fuente para el destino → 0 kg y el Nodo 1 falla con *no alcanza el destino*. Lo aplican `game_manager`, la IA (`randomizer.py`, el más barato que alcanza) y Rol 1B. Vulcan GTO = 14 500 kg (ULA).
+- **Propelente (Rol 3A):** se dimensiona con el Δv de la ruta elegida × margen 1.05 (el mismo que usa la compuerta del Nodo 2); ya no se resta otra vez `propellant_delta_kg` (doble conteo).
+- **Reserva UFE:** las opciones de vuelo que gastan reserva ahora la reducen (antes la aumentaban).
+- **Eventos aleatorios:** `story_tree.json → random_events` (efectos = estimado del juego; fenómenos con fuente: NOAA SWPC, NASA ODPO, OSIRIS-REx, NASA Mars, DSN).
+- **Pendiente con fuente antes de implementar:** horas de contacto DSN por día (para *Data* vs capacidad de bajada), duración de misión (*Time*) por ruta, pérdida de trayecto real Tierra–Marte/Luna, potencia real de un MMRTG (~110 W), costo de instrumentos en el presupuesto y foto del despegue (`launch_snapshot`) para que el Nodo 1 no cambie con respuestas de vuelo.
+
+- **Data (2026-11-15):** horas de enlace/día = Gbit/día ÷ (Mbps × 3600 / 1000). Límite: `constants.dsn_data_hours_per_day` = **10 h/día** (MRO: ~16 h/día de seguimiento DSN, 10–11 h enviando datos; `descanso.jpl.nasa.gov/DPSummary/MRO_092106.pdf`). Si se necesitan más horas, la compuerta *Call Earth* se degrada.
+- **Pérdida real Tierra–destino (informativa):** FSPL = 92.45 + 20 log d(km) + 20 log f(GHz) (ITU-R P.525), banda X de la DSN 8.4 GHz: Luna (384 400 km) **222.6 dB**; Marte (54.6–401.4 millones de km, NSSDC) **265.7–283.0 dB**. Campo `earth_link_fspl_db` por misión; se muestra en el HUD *COMMS*. El margen del juego sigue usando la órbita elegida.
+- **Diferidos:** MMRTG ~110 W al inicio de misión (`science.nasa.gov`, RPS FAQ) y ~45 kg (kit de prensa Mars 2020): no se aplica porque el resto del modelo de potencia es estimado del juego. Costos de instrumentos: sin fuente pública por instrumento (estimado del equipo). **Time:** `transit_days` de la ruta (ya con fuente). La IA del piloto ahora elige una ruta real del catálogo.
+- **Hechos corregidos:** Artemis I usó una órbita retrógrada distante (no retorno libre; eso es Artemis II). El presupuesto de MSR del juego está escalado y lo indica con fuente.

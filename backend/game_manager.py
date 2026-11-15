@@ -15,13 +15,13 @@ import socketio
 if __package__:
     from . import decision_tree, physics_engine, randomizer
     from .juegos_espectrales import adaptadores_web
-    from .models.subsystems import get_mission
+    from .models.subsystems import get_launcher, get_mission
 else:
     import decision_tree
     import physics_engine
     import randomizer
     from juegos_espectrales import adaptadores_web
-    from models.subsystems import get_mission
+    from models.subsystems import get_launcher, get_mission
 
 ALL_ROLES = ["finance_launch", "spacecraft_mass", "orbit_power", "science_comms"]
 VALID_MISSIONS = {"artemis_moon", "asteroid_hunter", "mars_sample_return"}
@@ -33,11 +33,11 @@ class GameManager:
         self,
         sio: socketio.AsyncServer,
         wave_duration_sec: float = 0.0,
-        sync_delay_sec: float = 2.0,
+        sync_delay_sec: float = 3.0,
         flight_round_sec: float = 0.0,
         flight_feedback_sec: float = 4.0,
         station_grace_sec: float = 2.0,
-        launch_transition_sec: float = 3.0,
+        launch_transition_sec: float = 4.5,
         wave_backstop_sec: float = 150.0,
         flight_backstop_sec: float = 90.0,
     ) -> None:
@@ -49,7 +49,7 @@ class GameManager:
         self.flight_feedback_sec = flight_feedback_sec
         # Extra slack before a *timed* station is forced (client walk animation + network).
         self.station_grace_sec = station_grace_sec
-        # Walk to the launchpad (1.5 s) + loading screen (2.5 s) in LinearStationTrack/App.tsx.
+        # Walk to the launchpad (2.2 s) + liftoff cutscene (2.3 s) in LinearStationTrack/App.tsx.
         self.launch_transition_sec = launch_transition_sec
         # Hidden AFK backstops for untimed play: an idle player can never block the room forever.
         # Not shown to players; generous enough that nobody playing normally ever hits them.
@@ -154,6 +154,19 @@ class GameManager:
         state.setdefault("budget_limit_usd", float(mission.get("budget_limit_usd", 800_000_000.0)))
         self._sync_alias_pair(state, "dry_mass_kg", "bus_dry_mass_kg", changed)
         self._sync_alias_pair(state, "available_power_w", "power_generation_w", changed)
+        # Every mission leaves Earth: the usable capacity is the launcher's Earth-escape (Mars)
+        # capacity from nasa_catalog.json. LEO-only vehicles (rideshare, Electron) or vehicles
+        # without a sourced escape figure get 0 kg, so Node 1 fails with "cannot reach target".
+        if not state.get("selected_launcher") and state.get("selected_launcher_id"):
+            state["selected_launcher"] = str(state["selected_launcher_id"])
+        if state.get("selected_launcher"):
+            wanted = str(state["selected_launcher"])
+            launcher = get_launcher(wanted)
+            matched = launcher.get("id") == wanted or launcher.get("name") == wanted
+            escape_kg = launcher.get("max_mass_mars_kg") if matched else None
+            # The Moon only needs trans-lunar injection (TLI); asteroids and Mars need Earth escape.
+            tli_kg = launcher.get("max_mass_tli_kg") if matched and mission_id == "artemis_moon" else None
+            state["launcher_max_mass_kg"] = float(max(float(escape_kg or 0.0), float(tli_kg or 0.0)))
 
         marks = state.get("spectral_marks")
         expected = state.get("_expected_spectral_peaks")
@@ -354,6 +367,7 @@ class GameManager:
                     "ai_wave1_state": ai_wave1,
                     "spectral_challenge": spectral,
                     "initial_constraints": initial_metrics,
+                    "gate_forecast": self._gate_forecast(room),
                 },
                 room=pin,
             )
@@ -400,6 +414,7 @@ class GameManager:
         payload: dict[str, Any] = {
             "source_role": data.get("role_id"),
             "live_metrics": metrics,
+            "gate_forecast": self._gate_forecast(room),
         }
         if toast_alert:
             payload["toast_alert"] = toast_alert
@@ -436,6 +451,17 @@ class GameManager:
                 {"role_id": role_id, "wave": wave},
                 room=pin,
             )
+            # A locked take changes the shared state: refresh everyone's metrics + gate forecast.
+            await self.sio.emit(
+                "mutacion_en_vivo",
+                {
+                    "source_role": role_id,
+                    "live_metrics": room["last_metrics"],
+                    "gate_forecast": self._gate_forecast(room),
+                    "quiet": True,
+                },
+                room=pin,
+            )
 
             human_roles = {p["role"] for p in room["players"].values() if p.get("role")}
             if human_roles and human_roles.issubset(set(target_map.keys())):
@@ -464,6 +490,7 @@ class GameManager:
             for r in human_roles:
                 if r not in room["wave1_takes"]:
                     fallback_w1 = randomizer.synthesize_ai_role_wave1(r, difficulty, mission_id)
+                    room.setdefault("human_fallbacks", []).append({"role": r, "wave": 1})
                     if r == "spacecraft_mass" and forced_by_timeout:
                         # Timeout penalty per docs/03-decisiones.md A5
                         fallback_w1["has_thermal_protection"] = False
@@ -507,6 +534,41 @@ class GameManager:
             await self._transition_to_flight(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
+
+    @staticmethod
+    def _collaboration_score(room: dict[str, Any]) -> dict[str, Any]:
+        """Crew coordination score 0-100 (challenge: reward successful collaboration).
+
+        40 % stations locked by the humans themselves (no AI fallback after a timeout),
+        30 % flight calls answered by the crew (not auto-answered), 30 % gates Ready at liftoff
+        (the subsystems the roles designed fit together). Fair in solo: it measures coordination.
+        """
+        human_roles = {p["role"] for p in room["players"].values() if p.get("role")}
+        human_stations = max(1, 2 * len(human_roles))
+        fallbacks = len(room.get("human_fallbacks", []))
+        own_locks = max(0.0, (human_stations - fallbacks) / human_stations)
+        history = room.get("decision_history", [])
+        answered = (sum(1 for h in history if not h.get("timed_out")) / len(history)) if history else 1.0
+        gates = room.get("launch_gates") or {}
+        gates_ready = (sum(1 for v in gates.values() if v == "PASS") / len(gates)) if gates else 1.0
+        score = round(100 * (0.4 * own_locks + 0.3 * answered + 0.3 * gates_ready))
+        return {
+            "score": int(score),
+            "humans": len(human_roles),
+            "own_locks_pct": round(own_locks * 100),
+            "answered_pct": round(answered * 100),
+            "gates_ready_at_liftoff": sum(1 for v in gates.values() if v == "PASS"),
+        }
+
+    @staticmethod
+    def _gate_forecast(room: dict[str, Any], source: dict[str, Any] | None = None) -> dict[str, str]:
+        """Live forecast of the 4 flight gates from the current shared state (server authority)."""
+        try:
+            base = source if source is not None else room.get("live_state", {})
+            state = {k: v for k, v in base.items() if not str(k).startswith("_")}
+            return decision_tree.evaluate_preliminary_gates(room["mission_id"], state)
+        except Exception:  # forecast is advisory: never break the match over it
+            return {}
 
     @staticmethod
     def _assign_free_roles(room: dict[str, Any]) -> bool:
@@ -554,6 +616,7 @@ class GameManager:
                     fallback_w2 = randomizer.synthesize_ai_role_wave2(
                         r, difficulty, w1_metrics, mission_id
                     )
+                    room.setdefault("human_fallbacks", []).append({"role": r, "wave": 2})
                     if r == "spacecraft_mass" and forced_by_timeout:
                         fallback_w2["cg_balanced"] = False
                         fallback_w2["fuel_burn_multiplier"] = 1.5
@@ -568,13 +631,30 @@ class GameManager:
             room["flight_state"] = {
                 k: v for k, v in room["live_state"].items() if not str(k).startswith("_")
             }
+            # Survival phase: one random hazard per match (seeded by PIN), softened by good design.
+            room["launch_gates"] = self._gate_forecast(room, room["flight_state"])
+            room["attempt"] = int(room.get("attempt", 0)) + 1
+            tuning = decision_tree.difficulty_tuning(room.get("difficulty"))
+            summaries: list[dict[str, Any]] = []
+            for event in decision_tree.pick_random_events(
+                room["mission_id"], f"{pin}:{room['attempt']}", room.get("difficulty")
+            ):
+                room["flight_state"], summary = decision_tree.apply_random_event(
+                    room["flight_state"], event, room["mission_id"], tuning["scale"]
+                )
+                if summary:
+                    summaries.append(summary)
+            room["random_events"] = summaries
+            room["random_event"] = summaries[0] if summaries else None
 
             await self.sio.emit(
                 "iniciar_vuelo_60s",
                 {
                     "total_duration_sec": 60,
                     "consolidated_state": room["flight_state"],
-                    "preliminary_gates": {},
+                    "preliminary_gates": self._gate_forecast(room, room["flight_state"]),
+                    "random_event": room.get("random_event"),
+                    "random_events": room.get("random_events", []),
                 },
                 room=pin,
             )
@@ -694,6 +774,7 @@ class GameManager:
                     "chosen_option": opt_id,
                     "label": chosen_label,
                     "gate_status": gate_status,
+                    "timed_out": bool(timed_out),
                 }
             )
 
@@ -800,6 +881,9 @@ class GameManager:
             ]
             final_payload = {
                 **outcome,
+                "random_event": room.get("random_event"),
+                "random_events": room.get("random_events", []),
+                "collaboration": self._collaboration_score(room),
                 "role_contributions": role_contributions,
                 "decision_history": list(room.get("decision_history", [])),
             }
@@ -818,6 +902,10 @@ class GameManager:
             room["wave1_takes"] = {}
             room["wave2_takes"] = {}
             room["flight_state"] = {}
+            room["random_event"] = None
+            room["random_events"] = []
+            room["human_fallbacks"] = []
+            room["launch_gates"] = {}
             room["decision_history"] = []
             room["round"] = 1
             room["round_answered"] = False

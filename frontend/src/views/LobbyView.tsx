@@ -16,11 +16,13 @@ import {
   Wallet,
 } from "lucide-react";
 import nasaCatalog from "../data/nasa_catalog.json";
+import { ART } from "../data/artManifest";
 import {
   CrewmateAvatar,
   ROLE_CHARACTER_PROFILE,
 } from "../components/paper/CrewmateAvatar";
 import { soundEngine } from "../components/paper/SoundEngine";
+import { BACKEND_URL } from "../socket";
 import type { DifficultyType, MissionIdType, RoleType } from "../types/game";
 
 export interface LobbyPlayer {
@@ -80,7 +82,34 @@ function missionDifficulty(id: MissionIdType): DifficultyType {
   return nasaCatalog.missions[id].difficulty_default as DifficultyType;
 }
 
+const MISSION_PLANET_ART: Record<MissionIdType, string> = {
+  artemis_moon: ART.planets.planetMoon.src,
+  asteroid_hunter: ART.planets.asteroidA.src,
+  mars_sample_return: ART.planets.planetMars.src,
+};
+
 function MissionPlanet({ id, size }: { id: MissionIdType; size: number }) {
+  const [artOk, setArtOk] = useState(true);
+  if (artOk) {
+    return (
+      <div aria-hidden className="relative flex shrink-0 items-center justify-center" style={{ width: size * 1.5, height: size * 1.15 }}>
+        <span className="hangar-glow absolute inset-0" />
+        <span
+          className="absolute rounded-[50%] border-2 border-dashed border-sky-glow/60"
+          style={{ width: size * 1.45, height: size * 0.5, transform: "rotate(-14deg)" }}
+        />
+        <motion.img
+          src={MISSION_PLANET_ART[id]}
+          alt=""
+          onError={() => setArtOk(false)}
+          className="relative object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.6)]"
+          style={{ width: size * 1.1, height: size * 1.1 }}
+          animate={{ rotate: [0, 6, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+    );
+  }
   const planet = MISSION_PLANET[id];
   return (
     <div aria-hidden className="relative flex shrink-0 items-center justify-center" style={{ width: size * 1.5, height: size * 1.15 }}>
@@ -148,6 +177,23 @@ export function LobbyView({
   onChangePerspective,
 }: LobbyViewProps) {
   const [step, setStep] = useState<LobbyStep>("role");
+  const [joinHost, setJoinHost] = useState(() => (typeof window !== "undefined" ? window.location.host : ""));
+  // On localhost, ask the backend for the LAN address so phones get a join URL that works.
+  useEffect(() => {
+    if (mode !== "multi" || typeof window === "undefined") return;
+    const { hostname, port } = window.location;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") return;
+    let alive = true;
+    fetch(`${BACKEND_URL}/health`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { lan_ip?: string } | null) => {
+        if (alive && data?.lan_ip && data.lan_ip !== "127.0.0.1") setJoinHost(`${data.lan_ip}${port ? `:${port}` : ""}`);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [mode]);
   const [copiedPin, setCopiedPin] = useState(false);
   const [perspective, setPerspective] = useState<ConsolePerspective>("auto");
   const [isNarrowScreen, setIsNarrowScreen] = useState(() =>
@@ -305,6 +351,34 @@ export function LobbyView({
             transition={{ duration: 0.22 }}
             className="space-y-4"
           >
+            {isMulti && (
+              <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 rounded-2xl border-[4px] border-ink-black bg-paper-cream px-4 py-3 text-ink-black shadow-[6px_6px_0_#0F172A] sm:flex-row sm:justify-between">
+                <div className="text-center sm:text-left">
+                  <div className="font-mono text-[11px] font-bold uppercase text-slate-500">
+                    {isHost ? "Join at" : "Room"} {joinHost}
+                  </div>
+                  <div className="font-display text-sm font-bold">Game PIN</div>
+                </div>
+                <div className="font-mono text-4xl font-black tracking-[0.25em] sm:text-5xl">{pin}</div>
+                <div className="flex max-w-xs flex-wrap justify-center gap-1.5">
+                  {(players && players.length > 0 ? players : [{ player_id: "local", player_name: playerName }]).map((p) => (
+                    <motion.span
+                      key={p.player_id}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="rounded-full border-2 border-ink-black bg-white px-2.5 py-0.5 font-display text-xs font-bold"
+                    >
+                      {p.player_name}
+                    </motion.span>
+                  ))}
+                  {Array.from({ length: Math.max(0, ROLE_ORDER.length - (players?.length || 1)) }, (_, i) => (
+                    <span key={`ai-${i}`} className="rounded-full border-2 border-dashed border-slate-400 px-2.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">
+                      AI
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <h2 className="text-center font-display text-2xl font-bold text-paper-cream sm:text-4xl">
               Pick your specialist
             </h2>
@@ -405,7 +479,7 @@ export function LobbyView({
             <button
               type="button"
               onClick={() => goToStep("mission")}
-              className="paper-btn mx-auto flex w-full max-w-md items-center justify-center gap-2 bg-status-ok py-3.5 text-lg text-ink-black"
+              className="plate-gold mx-auto flex w-full max-w-md items-center justify-center gap-2 py-3.5 font-display text-xl font-black uppercase"
             >
               Next: mission
               <ArrowRight className="h-5 w-5" />
@@ -455,6 +529,10 @@ export function LobbyView({
                         <DifficultyPips level={level} />
                       </div>
                       <div className="font-display text-base font-bold leading-tight sm:text-lg">{spec.name}</div>
+                      <p className={`line-clamp-2 text-[11px] leading-snug ${active ? "text-slate-700" : "text-slate-300"}`} title={spec.science_goal}>
+                        <span className="font-bold">Goal: </span>
+                        {spec.science_goal}
+                      </p>
                       <div
                         className={`flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] font-bold ${
                           active ? "text-slate-700" : "text-slate-300"
@@ -485,7 +563,7 @@ export function LobbyView({
               <button
                 type="button"
                 onClick={triggerLaunch}
-                className="paper-btn mx-auto flex w-full max-w-md items-center justify-center gap-2 bg-status-ok py-4 text-xl text-ink-black"
+                className="plate-gold mx-auto flex w-full max-w-md items-center justify-center gap-2 py-4 font-display text-2xl font-black uppercase"
               >
                 <Rocket className="h-6 w-6" />
                 Launch

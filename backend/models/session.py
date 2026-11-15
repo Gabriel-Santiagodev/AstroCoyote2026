@@ -65,6 +65,11 @@ class LiveMetrics(BaseModel):
     selected_instruments: list[InstrumentItem] = Field(default_factory=list)
     required_dv_ms: float = 1803.6
     has_thermal_protection: bool = True
+    # Challenge resources "Data" and "Time" (2026-11-15), derived in physics_engine.compute_live_metrics.
+    data_generated_gbit_day: float = 0.0
+    downlink_rate_mbps: float = 0.0
+    downlink_hours_needed: float = 0.0
+    mission_duration_days: float = 0.0
 
 
 class MissionSessionConfig(BaseModel):
@@ -162,6 +167,13 @@ class ConsolidatedMissionState(BaseModel):
             normalized["launch_cost_usd"] = float(normalized["total_launch_cost_usd"])
         if "trajectory_choice" not in normalized and "orbit_or_route_id" in normalized:
             normalized["trajectory_choice"] = str(normalized["orbit_or_route_id"])
+
+        # Rol3B power source ids -> schema ids (an unknown id used to crash the flight; 2026-11-15)
+        power_aliases = {"solar_arrays": "solar_standard", "solar": "solar_standard", "battery": "battery_heavy"}
+        if normalized.get("power_source") in power_aliases:
+            normalized["power_source"] = power_aliases[str(normalized["power_source"])]
+        if normalized.get("power_source") not in (None, "solar_standard", "battery_heavy", "fuel_cell", "rtg_nuclear"):
+            normalized["power_source"] = "fuel_cell"
 
         # Map Rol2A bus_dry_mass_kg -> dry_mass_kg when dry_mass_kg is omitted
         if "dry_mass_kg" not in normalized and "bus_dry_mass_kg" in normalized and normalized["bus_dry_mass_kg"] is not None:

@@ -39,7 +39,7 @@ function CoyotePatch() {
   );
 }
 
-function Rocket() {
+export function Rocket() {
   return (
     <g>
       {/* side boosters */}
@@ -66,7 +66,7 @@ function Rocket() {
   );
 }
 
-function Flame({ reduce }: { reduce: boolean }) {
+export function Flame({ reduce }: { reduce: boolean }) {
   return (
     <motion.g
       style={{ transformOrigin: "800px 700px" }}
@@ -81,7 +81,7 @@ function Flame({ reduce }: { reduce: boolean }) {
   );
 }
 
-function Smoke() {
+export function Smoke() {
   const puffs = [
     [560, 830, 70], [650, 852, 82], [740, 868, 90], [860, 868, 92], [960, 852, 80], [1050, 834, 66],
     [610, 790, 52], [990, 792, 54],
@@ -95,7 +95,7 @@ function Smoke() {
   );
 }
 
-function Gantry() {
+export function Gantry() {
   return (
     <g>
       <rect x="560" y="300" width="44" height="560" fill="#FACC15" stroke={INK} strokeWidth={STROKE} />

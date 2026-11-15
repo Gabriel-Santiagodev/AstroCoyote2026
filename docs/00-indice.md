@@ -29,6 +29,8 @@
 | `20-roadmap-schoenstadt.md` | Roadmap paso a paso de **Schoenstadt** (Motor físico, `randomizer.py`, Árbol de Decisiones de 4 Nodos y Árbol de Preguntas del Vuelo de 60s). | Schoenstadt |
 | `21-roadmap-leonardo.md` | Roadmap paso a paso de **Leonardo** (Sistema visual *Paper Mario × Among Us*, Menús, Lobby, Pista Lineal, Vuelo 60s y Dashboard). | Leonardo |
 | `22-como-trabajar-y-hacer-merge.md` | Reglas de trabajo en paralelo tipo rompecabezas, auto-instalación, pruebas aisladas (`/dev-sandbox` / `pytest`) y protocolo de `git merge` sin conflictos. | Rubén, Equipo |
+| `24-validacion-reto.md` | Matriz de trazabilidad reto → juego, hechos NASA revisados y corregidos, verificación y pendientes. | Leonardo, Equipo |
+| `23-retroalimentacion-pruebas.md` | Resultados de las pruebas de juego en local (solo y multijugador), correcciones aplicadas y áreas de oportunidad priorizadas (P0–P2) con dueño sugerido. | Leonardo, Equipo |
 
 ### Documentos maestros de arquitectura complementarios (en la raíz)
 - `arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` — Especificación matemática, ecuaciones orbitales, integración `logica/` + `juegos_espectrales/`, `randomizer.py` y `decision_tree.py`.

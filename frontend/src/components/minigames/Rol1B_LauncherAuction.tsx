@@ -29,6 +29,7 @@ interface CatalogLauncher {
   max_mass_sso_kg?: number;
   max_mass_gto_kg?: number;
   max_mass_mars_kg?: number;
+  max_mass_tli_kg?: number;
   max_mass_kg: number;
   cost_usd: number;
   rate_per_kg_usd?: number;
@@ -157,6 +158,18 @@ const FEATURED_IDS = new Set([
   "falcon_heavy",
 ]);
 
+/**
+ * Usable capacity for the chosen mission (nasa_catalog.json): the Moon only needs trans-lunar
+ * injection (`max_mass_tli_kg`, e.g. Vulcan 11,500 kg, Electron + Lunar Photon 25 kg), while an
+ * asteroid or Mars needs full Earth escape (`max_mass_mars_kg`). Vehicles without a sourced
+ * figure for that destination (rideshare plates) return 0 kg. Mirrors backend game_manager.
+ */
+function reachKg(l: CatalogLauncher, missionId?: string): number {
+  const escape = l.max_mass_mars_kg ?? 0;
+  const tli = missionId === "artemis_moon" ? l.max_mass_tli_kg ?? 0 : 0;
+  return Math.max(escape, tli);
+}
+
 export function Rol1B_LauncherAuction({
   missionId,
   timeLeftSec,
@@ -170,9 +183,9 @@ export function Rol1B_LauncherAuction({
 
   // Auto-pick best initial launcher that fits wetMassKg
   const initialLauncherId = useMemo(() => {
-    const fitting = LAUNCHERS.filter((l) => FEATURED_IDS.has(l.id) && l.max_mass_kg >= wetMassKg);
+    const fitting = LAUNCHERS.filter((l) => FEATURED_IDS.has(l.id) && reachKg(l, missionId) >= wetMassKg);
     return fitting[0]?.id ?? "falcon9_block5";
-  }, [wetMassKg]);
+  }, [wetMassKg, missionId]);
 
   const [selectedId, setSelectedId] = useState<string>(initialLauncherId);
   // Starts open: sealing the nose cone is a player action (hold-to-seal).
@@ -220,7 +233,7 @@ export function Rol1B_LauncherAuction({
       if (isLocked) return;
       onLiveMutation({
         selected_launcher: launcher.id,
-        launcher_max_mass_kg: launcher.max_mass_kg,
+        launcher_max_mass_kg: reachKg(launcher, missionId),
         fairing_ok: nextFairingOk,
         launch_cost_usd: launcher.cost_usd,
       });
@@ -250,7 +263,7 @@ export function Rol1B_LauncherAuction({
   const buildPayload = useCallback(
     () => ({
       selected_launcher: selectedLauncher.id,
-      launcher_max_mass_kg: selectedLauncher.max_mass_kg,
+      launcher_max_mass_kg: reachKg(selectedLauncher, missionId),
       fairing_ok: fairingOk,
       launch_cost_usd: selectedLauncher.cost_usd,
     }),
@@ -264,9 +277,9 @@ export function Rol1B_LauncherAuction({
     }
   }, [timeLeftSec, isLocked, onSubmitTake, buildPayload]);
 
-  const selectedFits = wetMassKg <= selectedLauncher.max_mass_kg;
+  const selectedFits = wetMassKg <= reachKg(selectedLauncher, missionId);
   const selectedAffordable = selectedLauncher.cost_usd <= remainingBudgetUsd;
-  const massMarginKg = selectedLauncher.max_mass_kg - wetMassKg;
+  const massMarginKg = reachKg(selectedLauncher, missionId) - wetMassKg;
 
   // ---------------------------------------------------------------------------
   // Game window UI (2026-11-15): VAB hangar with the stacked rocket, a rocket lineup,
@@ -311,7 +324,7 @@ export function Rol1B_LauncherAuction({
     { label: "Inside the budget", done: selectedAffordable },
     { label: "Nose cone sealed", done: fairingOk },
   ];
-  const liftPct = (wetMassKg / Math.max(1, selectedLauncher.max_mass_kg)) * 100;
+  const liftPct = (wetMassKg / Math.max(1, reachKg(selectedLauncher, missionId))) * 100;
   const costPct = (selectedLauncher.cost_usd / Math.max(1, remainingBudgetUsd)) * 100;
 
   return (
@@ -398,7 +411,7 @@ export function Rol1B_LauncherAuction({
           {/* rocket lineup */}
           <div className="relative grid grid-cols-5 gap-1.5 border-t-[3px] border-ink-black bg-slate-900/80 p-2">
             {visibleLaunchers.slice(0, 5).map((launcher) => {
-              const fits = wetMassKg <= launcher.max_mass_kg;
+              const fits = wetMassKg <= reachKg(launcher, missionId);
               const affordable = launcher.cost_usd <= remainingBudgetUsd;
               const active = launcher.id === selectedLauncher.id;
               return (
@@ -420,6 +433,11 @@ export function Rol1B_LauncherAuction({
                   <div className={`font-mono text-[10px] font-bold ${affordable ? "text-amber-300" : "text-status-crit"}`}>
                     ${(launcher.cost_usd / 1e6).toFixed(0)}M
                   </div>
+                  {reachKg(launcher, missionId) === 0 && (
+                    <div className="font-mono text-[9px] font-bold uppercase text-status-crit">
+                      {launcher.is_rideshare ? "Earth orbit only" : missionId === "artemis_moon" ? "No Moon data" : "No escape data"}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -433,7 +451,7 @@ export function Rol1B_LauncherAuction({
             <div className="space-y-2">
               <Readout
                 label="Ship weight / lift"
-                value={`${wetMassKg.toLocaleString()} / ${selectedLauncher.max_mass_kg.toLocaleString()} kg`}
+                value={`${wetMassKg.toLocaleString()} / ${reachKg(selectedLauncher, missionId).toLocaleString()} kg`}
                 pct={liftPct}
                 tone={selectedFits ? (liftPct > 90 ? "warn" : "ok") : "bad"}
               />
@@ -452,7 +470,12 @@ export function Rol1B_LauncherAuction({
           </PanelCard>
           {!selectedFits && (
             <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-2.5 py-1.5 text-xs font-bold text-ink-black">
-              <AlertTriangle className="h-4 w-4 shrink-0" /> Too heavy: liftoff will fail.
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {reachKg(selectedLauncher, missionId) === 0
+                ? selectedLauncher.is_rideshare
+                  ? "Rideshare plates only reach Earth orbit."
+                  : "No sourced capacity to this destination for this rocket."
+                : "Too heavy: liftoff will fail."}
             </div>
           )}
           <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock rocket" onLock={() => onSubmitTake(buildPayload())} />

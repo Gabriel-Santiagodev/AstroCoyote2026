@@ -7,7 +7,7 @@
 //     live LOCKED checks and the full 6-gauge ResourceHUD.
 //   • Phone Crew Console (< 768px or a PIN guest): compact track + compact HUD so the minigame
 //     controls own the screen inside a `.handheld-console-frame`.
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
@@ -30,6 +30,8 @@ import {
 } from "../components/MinigameShell";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { STATION_BRIEFINGS, type StationBriefing } from "../data/stationBriefings";
+import { MissionCutscene, type CutsceneKind } from "../components/paper/MissionCutscene";
+import { ART } from "../data/artManifest";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
 import { soundEngine } from "../components/paper/SoundEngine";
 import nasaCatalog from "../data/nasa_catalog.json";
@@ -41,7 +43,7 @@ import { Rol3A_OrbitalSniper } from "../components/minigames/Rol3A_OrbitalSniper
 import { Rol3B_AstroLogistics3D } from "../components/minigames/Rol3B_AstroLogistics3D";
 import { Rol4A_SpectralLabTask } from "../components/minigames/Rol4A_SpectralLabTask";
 import { Rol4B_CommsSpectralHacker } from "../components/minigames/Rol4B_CommsSpectralHacker";
-import type { ConnectionStatus, GameMode, JugadorBloqueoTomaPayload, RoomPlayer } from "../socket";
+import type { ConnectionStatus, GameMode, GateForecast, JugadorBloqueoTomaPayload, RoomPlayer } from "../socket";
 import type {
   DifficultyType,
   LiveMetrics,
@@ -54,11 +56,11 @@ import type {
 // Timing constants (docs/21-roadmap-leonardo.md §Paso 5 and docs/04-juego.md)
 // ---------------------------------------------------------------------------
 /** Automatic crewmate walk between two track nodes. */
-export const WALK_DURATION_SEC = 1.5;
+export const WALK_DURATION_SEC = 2.2;
 /** Default synchronized transition between Station 1 and Station 2 (`iniciar_oleada_2.sync_delay_sec`). */
-export const SYNC_DELAY_SEC = 2;
+export const SYNC_DELAY_SEC = 3;
 /** UI-only: how long the Launchpad -> 60s Flight loading screen stays up after the walk. */
-export const LAUNCH_LOADING_MS = 1500;
+export const LAUNCH_LOADING_MS = 2300;
 /**
  * "Get ready" breather when a station opens: the minigame is visible and explorable, but the
  * 30 s take clock (docs/03 A5) only starts once this countdown ends. Keeps the 1-shot take
@@ -317,6 +319,12 @@ function PaperWipe({ label, onDone }: { label: string; onDone: () => void }) {
 
 /** Total station takes in a match: 4 roles x 2 waves (segmented task bar). */
 const TOTAL_TASKS = 8;
+/** Destination planet sprites (Python art pipeline output); undefined falls back to an SVG planet. */
+const MISSION_PLANET_SRC: Record<MissionIdType, string | undefined> = {
+  artemis_moon: ART.planets.planetMoon.src,
+  asteroid_hunter: ART.planets.asteroidA.src,
+  mars_sample_return: ART.planets.planetMars.src,
+};
 const PORTHOLE_COUNT = 7;
 
 /** Bottom-left style sweep radar for the ship interior HUD. */
@@ -424,6 +432,88 @@ function ReadyBreather({ secondsLeft, task, suit }: { secondsLeft: number; task:
   );
 }
 
+/** The 4 flight gates in player words (decision tree nodes). */
+const FORECAST_GATES: Array<{ id: keyof GateForecast; label: string; owner: RoleType }> = [
+  { id: "NODE_1_LAUNCH", label: "Liftoff", owner: "finance_launch" },
+  { id: "NODE_2_PROPULSION", label: "Engine burn", owner: "orbit_power" },
+  { id: "NODE_3_EVENT", label: "Space hazard", owner: "spacecraft_mass" },
+  { id: "NODE_4_DOWNLINK", label: "Call Earth", owner: "science_comms" },
+];
+const FORECAST_STYLE: Record<string, { chip: string; word: string }> = {
+  PASS: { chip: "bg-status-ok", word: "Ready" },
+  DEGRADED: { chip: "bg-status-warn", word: "Risky" },
+  CRITICAL: { chip: "bg-status-crit", word: "Fails" },
+};
+
+/**
+ * Live decision-tree forecast: how each flight gate would end if the ship launched right now.
+ * Updates on every teammate decision (server `gate_forecast`).
+ */
+/** Which role (and station) decides each gate: until it acts, the gate shows "Not decided". */
+const GATE_OWNER_WAVE: Record<keyof GateForecast, 1 | 2> = {
+  NODE_1_LAUNCH: 2,
+  NODE_2_PROPULSION: 1,
+  NODE_3_EVENT: 1,
+  NODE_4_DOWNLINK: 2,
+};
+
+function FlightForecast({
+  forecast,
+  compact,
+  decided,
+  difficulty,
+}: {
+  forecast: GateForecast;
+  compact: boolean;
+  decided: Partial<Record<keyof GateForecast, boolean>>;
+  difficulty: string;
+}) {
+  if (Object.keys(forecast).length === 0) return null;
+  return (
+    <div className="flash-panel flex shrink-0 items-center gap-2 px-2 py-1.5 sm:gap-3 sm:px-3" aria-label="Flight forecast">
+      {!compact && (
+        <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          If we launched now
+        </span>
+      )}
+      <div className="grid flex-1 grid-cols-4 gap-1.5">
+        {FORECAST_GATES.map((g) => {
+          const isDecided = Boolean(decided[g.id]);
+          const status = forecast[g.id] ?? "PASS";
+          const style = isDecided ? FORECAST_STYLE[status] : { chip: "bg-slate-500 text-paper-cream", word: "Not decided" };
+          const owner = ROLE_CHARACTER_PROFILE[g.owner].short;
+          return (
+            <motion.div
+              key={g.id}
+              layout
+              initial={false}
+              animate={{ scale: [1.08, 1] }}
+              transition={{ duration: 0.3 }}
+              className={`flex items-center justify-center gap-1 rounded-md border-2 border-ink-black px-1 py-1 ${
+                isDecided ? "text-ink-black" : ""
+              } ${style.chip}`}
+              title={isDecided ? `${g.label}: ${style.word}` : `${g.label}: waiting on ${owner}`}
+            >
+              <span className="truncate font-display text-[11px] font-bold sm:text-xs">{g.label}</span>
+              <span className="hidden font-mono text-[10px] font-bold uppercase sm:inline">
+                · {isDecided ? style.word : `waits ${owner}`}
+              </span>
+            </motion.div>
+          );
+        })}
+      </div>
+      {!compact && (
+        <span
+          className="hidden shrink-0 rounded-md border-2 border-ink-black bg-tank-orange px-1.5 py-1 font-mono text-[10px] font-bold uppercase text-ink-black xl:inline"
+          title="Random space hazards hit after liftoff; harder missions get more and harsher ones."
+        >
+          + hazards · {difficulty}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Station briefing: why the job matters, what "good" looks like, how to play. */
 function StationBriefingCard({
   roleId,
@@ -490,7 +580,7 @@ function StationBriefingCard({
             type="button"
             onClick={onStart}
             autoFocus
-            className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-3 text-lg text-ink-black"
+            className="plate-gold flex w-full items-center justify-center gap-2 py-3 font-display text-xl font-black uppercase"
           >
             Start
           </button>
@@ -591,6 +681,8 @@ export interface LinearStationTrackProps {
   mode?: GameMode;
   /** Force the Host Main Stage or Phone Console presentation (default "auto"). */
   stageViewOverride?: StageViewOverride;
+  /** Live forecast of the 4 flight gates (empty in offline preview). */
+  gateForecast?: GateForecast;
 }
 
 export function LinearStationTrack(props: LinearStationTrackProps) {
@@ -618,6 +710,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     isHost,
     mode,
     stageViewOverride = "auto",
+    gateForecast = {},
   } = props;
 
   const isSmallViewport = useIsSmallViewport();
@@ -725,6 +818,22 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const showMinigame = phase === "station_1" || phase === "station_2";
   const activeWave: 1 | 2 = phase === "station_2" || phase === "sync" ? 2 : wave;
   activeWaveRef.current = activeWave;
+  // The local player "touches" their gate as soon as they change something in this station.
+  const [touchedWave, setTouchedWave] = useState<1 | 2 | null>(null);
+  // Stable identity: minigames (e.g. the 3D rover scene) re-initialise when this callback changes.
+  const onLiveRef = useRef(onLiveMutation);
+  onLiveRef.current = onLiveMutation;
+  const trackedLiveMutation = useCallback((delta: Record<string, unknown>) => {
+    setTouchedWave(activeWaveRef.current);
+    onLiveRef.current(delta);
+  }, []);
+  const gateDecided: Partial<Record<keyof GateForecast, boolean>> = {};
+  for (const g of FORECAST_GATES) {
+    const wave = GATE_OWNER_WAVE[g.id];
+    gateDecided[g.id] =
+      lockedTakes.some((t) => t.role_id === g.owner && t.wave >= wave) ||
+      (roleId === g.owner && activeWave === wave && (touchedWave === wave || isLocked));
+  }
   const ActiveMinigame = activeWave === 1 ? WAVE1_MAP[roleId] : WAVE2_MAP[roleId];
   const myProfile = ROLE_CHARACTER_PROFILE[roleId];
 
@@ -880,6 +989,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
           </div>
         </div>
 
+        <FlightForecast forecast={gateForecast} compact={isPhoneConsole} decided={gateDecided} difficulty={difficulty} />
+
         {isCritical && (
           <div
             className="flex shrink-0 items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-1.5 font-mono text-xs font-bold text-ink-black shadow-paper"
@@ -915,7 +1026,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
               timeLeftSec={timeLeftSec}
               liveMetrics={liveMetrics}
               spectralChallenge={spectralChallenge}
-              onLiveMutation={onLiveMutation}
+              onLiveMutation={trackedLiveMutation}
               onSubmitTake={onSubmitTake}
               isLocked={isLocked}
             />
@@ -961,397 +1072,39 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     );
   }
 
+  // Between game windows: full-screen cutscenes (no page, no loader).
+  const cutKind: CutsceneKind = phase === "launchpad" ? "liftoff" : phase === "sync" ? "sync" : "walk";
+  const cutTitle =
+    phase === "walk_to_station_1"
+      ? "To station 1"
+      : phase === "sync"
+      ? "Sharing your choices"
+      : phase === "walk_to_launchpad"
+      ? "Rolling to the pad"
+      : "Liftoff!";
+  const cutSubtitle =
+    phase === "walk_to_station_1"
+      ? myProfile.wave1Task
+      : phase === "sync"
+      ? `Next: ${myProfile.wave2Task}`
+      : phase === "walk_to_launchpad"
+      ? "Ship assembled"
+      : "Survival flight begins";
+  const cutDurationSec =
+    phase === "sync" ? syncDelaySec : phase === "launchpad" ? launchLoadingMs / 1000 : WALK_DURATION_SEC;
   return (
-    <main
-      className={`mx-auto overflow-x-hidden ${
-        // Top padding leaves room for the fixed <SoundControlPill /> in the top-right corner.
-        isPhoneConsole ? "max-w-xl space-y-3 px-2 pb-3 pt-14" : "max-w-6xl space-y-5 px-4 pb-6 pt-16"
-      }`}
-    >
-      {isPhoneConsole ? (
-        <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} compact activeRole={roleId} />
-      ) : (
-        <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} activeRole={roleId} />
-      )}
-
-      {isPhoneConsole ? (
-        // -------------------------------------------------------------------
-        // PHONE CREW CONSOLE — compact track, the minigame owns the screen
-        // -------------------------------------------------------------------
-        <section className="handheld-console-frame space-y-2 p-3" aria-label="Station track">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <CrewmateAvatar
-                role={roleId}
-                state={spriteMood(roleId).state}
-                actionEffect={spriteMood(roleId).actionEffect}
-                size={30}
-              />
-              <div className="min-w-0">
-                <div
-                  className="truncate font-mono text-[10px] font-bold uppercase"
-                  style={{ color: myProfile.suit }}
-                >
-                  {myProfile.codename} · {playerName || "You"}
-                </div>
-                <div className="truncate font-display text-sm font-bold">{headline}</div>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Smartphone className="h-3.5 w-3.5 text-role-spacecraft" aria-hidden="true" />
-              {connectionBadge}
-            </div>
-          </div>
-
-          {/* slim 5-dot progress rail */}
-          <div className="relative px-3">
-            <div className="absolute left-3 right-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full border border-ink-black bg-space-ink">
-              <motion.div
-                className="relative h-full rounded-full bg-status-ok"
-                initial={{ width: "0%" }}
-                animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
-                transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
-              >
-                {isWalking && <RailCometHead color={myProfile.glow} sizePx={10} />}
-              </motion.div>
-            </div>
-            <ol className="relative flex items-center justify-between">
-              {TRACK_NODES.map((node) => {
-                const reached = NODE_POSITION_PCT[node.id] <= NODE_POSITION_PCT[avatarNode];
-                const isActive = node.id === activeNode;
-                return (
-                  <li
-                    key={node.id}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-ink-black ${
-                      isActive
-                        ? "bg-status-ok text-ink-black"
-                        : reached
-                        ? "bg-paper-cream text-ink-black"
-                        : "bg-blueprint-navy text-slate-400"
-                    }`}
-                    aria-label={`${node.label}${isActive ? " (current)" : ""}`}
-                  >
-                    <node.Icon className="h-3 w-3" />
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          {isCritical && (
-            <div
-              className="flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-ink-black bg-status-crit px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink-black"
-              role="alert"
-            >
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">
-                Red alert · {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
-              </span>
-            </div>
-          )}
-
-          <TaskBar done={tasksDone} total={TOTAL_TASKS} />
-          {/* squad lock status (4 mini chips) */}
-          <ul className="grid grid-cols-4 gap-1.5" aria-label="Squad status">
-            {ALL_ROLES.map((role) => {
-              const profile = ROLE_CHARACTER_PROFILE[role];
-              const locked = isRoleLocked(role);
-              const mood = spriteMood(role);
-              return (
-                <li
-                  key={role}
-                  className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border-2 px-1 py-0.5 transition-colors ${
-                    celebrating.includes(role)
-                      ? "border-status-ok bg-status-ok/20"
-                      : mood.actionEffect === "error"
-                      ? "border-status-crit bg-status-crit/15"
-                      : role === roleId
-                      ? "border-ink-black bg-blueprint-navy"
-                      : "border-ink-black bg-space-ink"
-                  }`}
-                  title={`${profile.codename}${locked ? " · LOCKED" : mood.statusBadgeText ? ` · ${mood.statusBadgeText}` : ""}`}
-                >
-                  <CrewmateAvatar role={role} state={mood.state} actionEffect={mood.actionEffect} size={20} />
-                  {locked ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-status-ok" aria-label="locked" />
-                  ) : (
-                    <span className="truncate font-mono text-[9px] font-bold" style={{ color: profile.suit }}>
-                      {profile.short}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : (
-        // -------------------------------------------------------------------
-        // HOST MAIN STAGE — panoramic hangar track with the 4-sprite squad
-        // -------------------------------------------------------------------
-        <section className="flash-panel relative space-y-4 overflow-hidden p-4 sm:p-5" aria-label="Station track">
-          <div
-            className="hazard-stripe-bar -mx-4 -mt-4 h-3 border-b-[3px] border-ink-black sm:-mx-5 sm:-mt-5"
-            aria-hidden="true"
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <MiniRadar sizePx={48} alert={isCritical} />
-              <div>
-                <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-sky-glow">
-                  <Tv className="h-3.5 w-3.5" aria-hidden="true" />
-                  {MISSION_LABELS[missionId]} · {difficulty.toUpperCase()}
-                </p>
-                <h2 className="font-display text-xl font-bold sm:text-2xl">{headline}</h2>
-              </div>
-            </div>
-            {connectionBadge}
-          </div>
-          <TaskBar done={tasksDone} total={TOTAL_TASKS} />
-
-          {/* Hangar rail: node columns are w-28, so the rail is inset by half (3.5rem) to line up */}
-          <div
-            className="relative overflow-hidden rounded-[1.6rem] border-[4px] border-ink-black pb-3 pt-[6.75rem] shadow-paper"
-            style={{ background: "linear-gradient(180deg, #334155 0%, #1E293B 62%, #0F172A 100%)" }}
-          >
-            {/* hull cross-section: portholes onto the starfield */}
-            <div className="pointer-events-none absolute inset-x-6 top-2 flex justify-between" aria-hidden="true">
-              {Array.from({ length: PORTHOLE_COUNT }, (_, i) => (
-                <span
-                  key={i}
-                  className="h-5 w-5 rounded-full border-[3px] border-ink-black"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 35% 35%, rgba(56,189,248,0.55), transparent 55%), radial-gradient(#F8FAFC 1px, transparent 1.5px) 0 0 / 6px 6px, #0F172A",
-                  }}
-                />
-              ))}
-            </div>
-            <div className="blueprint-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden="true" />
-            {/* sliding bulkhead doors behind the two stations and the launchpad */}
-            <div className="pointer-events-none absolute left-14 right-14 top-[2.2rem]" aria-hidden="true">
-              {(["station_1", "station_2", "launchpad"] as TrackNodeId[]).map((id) => (
-                <div key={id} className="absolute -translate-x-1/2" style={{ left: `${NODE_POSITION_PCT[id]}%` }}>
-                  <BulkheadDoor open={NODE_POSITION_PCT[id] <= NODE_POSITION_PCT[avatarNode]} />
-                </div>
-              ))}
-            </div>
-            {/* metal grated deck */}
-            <div
-              className="metal-grate pointer-events-none absolute inset-x-0 top-[7.6rem] h-7 border-y-[3px] border-ink-black"
-              aria-hidden="true"
-            />
-
-            <div className="absolute left-14 right-14 top-[7.85rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
-              <motion.div
-                className="relative h-full rounded-full bg-status-ok"
-                initial={{ width: "0%" }}
-                animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
-                transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
-              >
-                {isWalking && <RailCometHead color={myProfile.glow} sizePx={16} />}
-              </motion.div>
-            </div>
-
-            {/* marching squad: all 4 ASTRO SPRITES advance node to node together */}
-            <div className="pointer-events-none absolute left-14 right-14 top-2 h-24">
-              {ALL_ROLES.map((role, i) => {
-                const profile = ROLE_CHARACTER_PROFILE[role];
-                const locked = isRoleLocked(role);
-                const mood = spriteMood(role);
-                const isMe = role === roleId;
-                const offsetPx = (i - (ALL_ROLES.length - 1) / 2) * SQUAD_SPREAD_PX;
-                return (
-                  <motion.div
-                    key={role}
-                    className="absolute top-0 flex flex-col items-center"
-                    style={{ zIndex: isMe ? 20 : 10 }}
-                    initial={false}
-                    animate={{
-                      left: `${NODE_POSITION_PCT[avatarNode]}%`,
-                      x: `calc(-50% + ${offsetPx}px)`,
-                      y: isWalking ? [0, -5, 0, -5, 0] : 0,
-                    }}
-                    transition={{
-                      left: { duration: WALK_DURATION_SEC, ease: "easeInOut", delay: i * 0.08 },
-                      x: { duration: 0.3 },
-                      y: { duration: 0.5, repeat: isWalking ? Infinity : 0, delay: i * 0.1 },
-                    }}
-                    aria-label={`${profile.codename} ${
-                      isWalking ? "walking" : locked ? "locked" : mood.statusBadgeText === "ALERT" ? "alert" : "working"
-                    }`}
-                  >
-                    <div className="flex h-4 items-end">
-                      {isMe && (
-                        <span className="rounded border border-ink-black bg-paper-cream px-1 font-mono text-[8px] font-bold leading-tight text-ink-black">
-                          YOU
-                        </span>
-                      )}
-                    </div>
-                    {mood.actionEffect === "thruster" && (
-                      <ThrusterTrail color={profile.glow} lengthPx={isMe ? 46 : 38} delaySec={i * 0.06} />
-                    )}
-                    <CrewmateAvatar
-                      role={role}
-                      state={mood.state}
-                      actionEffect={mood.actionEffect}
-                      statusBadgeText={mood.statusBadgeText}
-                      size={isMe ? 50 : 42}
-                    />
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            <ol className="relative flex items-start justify-between" aria-label="Station nodes">
-              {TRACK_NODES.map((node) => {
-                const reached = NODE_POSITION_PCT[node.id] <= NODE_POSITION_PCT[avatarNode];
-                const isActive = node.id === activeNode;
-                return (
-                  <li key={node.id} className="flex w-28 flex-col items-center gap-1 text-center">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-ink-black shadow-paper ${
-                        isActive
-                          ? "bg-status-ok text-ink-black"
-                          : reached
-                          ? "bg-paper-cream text-ink-black"
-                          : "bg-blueprint-navy text-slate-400"
-                      }`}
-                    >
-                      <node.Icon
-                        className={`h-4 w-4 ${node.id === "sync" && phase === "sync" ? "animate-spin" : ""}`}
-                      />
-                    </div>
-                    <div
-                      className={`font-mono text-xs font-bold leading-tight ${
-                        isActive ? "text-status-ok" : reached ? "text-paper-cream" : "text-slate-500"
-                      }`}
-                    >
-                      {node.label}
-                    </div>
-                    <div className="font-mono text-[10px] text-slate-400">{node.sub}</div>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          {/* Squad roster cards with live LOCKED checks */}
-          <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Squad status">
-            {ALL_ROLES.map((role) => {
-              const profile = ROLE_CHARACTER_PROFILE[role];
-              const human = players.find((p) => p.role_id === role);
-              const isMe = role === roleId;
-              const locked = isRoleLocked(role);
-              const mood = spriteMood(role);
-              const isFlashing = celebrating.includes(role);
-              return (
-                <motion.li
-                  key={role}
-                  animate={isFlashing ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-                  transition={{ duration: 0.45 }}
-                  className={`flex items-center gap-2 rounded-xl border-[3px] px-2 py-1.5 shadow-paper transition-colors ${
-                    isFlashing
-                      ? "border-status-ok bg-status-ok/20"
-                      : mood.actionEffect === "error"
-                      ? "border-status-crit bg-status-crit/15"
-                      : isMe
-                      ? "border-ink-black bg-blueprint-navy"
-                      : "border-ink-black bg-space-ink"
-                  }`}
-                >
-                  <CrewmateAvatar role={role} state={mood.state} actionEffect={mood.actionEffect} size={36} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-[10px] font-bold uppercase" style={{ color: profile.suit }}>
-                      {profile.codename}
-                      {isMe ? " · YOU" : ""}
-                    </div>
-                    <div className="truncate text-xs font-semibold text-paper-cream">
-                      {isMe ? playerName || "You" : human ? human.player_name : "AI Autopilot"}
-                    </div>
-                    <div className="truncate font-mono text-[9px] uppercase text-slate-400">
-                      {activeWave === 1 ? profile.wave1Task : profile.wave2Task}
-                    </div>
-                  </div>
-                  <AnimatePresence mode="wait" initial={false}>
-                    {locked ? (
-                      <motion.span
-                        key="locked"
-                        initial={{ scale: 0.4, rotate: -30, opacity: 0 }}
-                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                        className="flex items-center gap-1 rounded-md border-2 border-ink-black bg-status-ok px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink-black"
-                        aria-label={`${profile.codename} locked`}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> LOCKED
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="working"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="font-mono text-[10px] font-bold text-slate-400"
-                      >
-                        {mood.statusBadgeText === "ALERT" ? "ALERT" : !human && !isMe ? "AUTO" : "…"}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.li>
-              );
-            })}
-          </ul>
-
-          {isCritical && (
-            <div
-              className="flex flex-wrap items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-2 font-mono text-xs font-bold uppercase text-ink-black shadow-paper"
-              role="alert"
-            >
-              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Red alert:</span>
-              <span className="font-semibold normal-case">
-                {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
-              </span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* EXT-02 paper wipe between a sealed station and the hangar walk */}
-      <AnimatePresence>
-        {paperWipe && (
-          <PaperWipe key={paperWipe.key} label={paperWipe.label} onDone={() => setPaperWipe(null)} />
-        )}
-      </AnimatePresence>
-
-      {/* Cutscene captions between stations (no loading screens) */}
-      <AnimatePresence>
-        {!showMinigame && (
-          <CutsceneCaption
-            key={phase}
-            title={
-              phase === "walk_to_station_1"
-                ? "To station 1"
-                : phase === "sync"
-                ? "Sharing your choices"
-                : phase === "walk_to_launchpad"
-                ? "Rolling to the pad"
-                : "Liftoff!"
-            }
-            subtitle={
-              phase === "walk_to_station_1"
-                ? myProfile.wave1Task
-                : phase === "sync"
-                ? `Next: ${myProfile.wave2Task}`
-                : phase === "walk_to_launchpad"
-                ? "Ship assembled"
-                : "Survival flight ahead"
-            }
-            liftoff={phase === "launchpad"}
-          />
-        )}
-      </AnimatePresence>
-    </main>
+    <AnimatePresence mode="wait">
+      <MissionCutscene
+        key={phase}
+        kind={cutKind}
+        missionId={missionId}
+        myRole={roleId}
+        title={cutTitle}
+        subtitle={cutSubtitle}
+        durationSec={cutDurationSec}
+        planetSrc={MISSION_PLANET_SRC[missionId]}
+      />
+    </AnimatePresence>
   );
 }
 

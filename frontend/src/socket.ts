@@ -20,9 +20,14 @@ const defaultHost =
 /** Backend FastAPI + python-socketio port (docs/10-tecnico.md). */
 export const BACKEND_PORT = 8000;
 
+/**
+ * Default = same origin: the Vite dev/preview server proxies `/socket.io` and `/health` to the
+ * backend (vite.config.ts), so phones on the LAN only need the frontend port. A separately
+ * hosted backend (deploy) sets VITE_BACKEND_URL; `http://host:8000` stays as the no-window fallback.
+ */
 export const BACKEND_URL: string =
   (import.meta as { env?: Record<string, string> }).env?.VITE_BACKEND_URL ||
-  `http://${defaultHost}:${BACKEND_PORT}`;
+  (typeof window !== "undefined" ? window.location.origin : `http://${defaultHost}:${BACKEND_PORT}`);
 
 /** How long we wait for `/health` or the socket handshake before declaring offline/preview mode. */
 export const BACKEND_PROBE_TIMEOUT_MS = 2500;
@@ -135,11 +140,19 @@ export interface IniciarOleada1Payload {
   initial_constraints: Partial<LiveMetrics>;
   /** Emitted by backend/game_manager.py for Rol 4A; optional until documented in docs/08. */
   spectral_challenge?: unknown;
+  /** Optional since 2026-11-15: starting forecast of the 4 flight gates. */
+  gate_forecast?: GateForecast;
 }
+/** Live forecast of the 4 flight gates (backend decision_tree.evaluate_preliminary_gates). */
+export type GateForecast = Partial<Record<"NODE_1_LAUNCH" | "NODE_2_PROPULSION" | "NODE_3_EVENT" | "NODE_4_DOWNLINK", GateStatus>>;
 export interface MutacionEnVivoPayload {
   source_role: string;
   live_metrics: Partial<LiveMetrics>;
   toast_alert?: string;
+  /** Optional since 2026-11-15 (docs/08). */
+  gate_forecast?: GateForecast;
+  /** True for the metrics refresh the server sends after a lock: update silently, no toast. */
+  quiet?: boolean;
 }
 export interface JugadorBloqueoTomaPayload {
   role_id: RoleType;
@@ -151,10 +164,23 @@ export interface IniciarOleada2Payload {
   consolidated_wave1: Record<string, unknown>;
   spectral_challenge?: unknown;
 }
+/** Random survival event applied at liftoff (optional since 2026-11-15, docs/08). */
+export interface RandomEventSummary {
+  event_id: string;
+  title: string;
+  description: string;
+  mitigated: boolean;
+  mitigation_text?: string | null;
+  applied_effects: Record<string, number>;
+  fuente?: string;
+}
 export interface IniciarVuelo60sPayload {
   total_duration_sec: number;
   consolidated_state: Record<string, unknown>;
   preliminary_gates: Record<string, unknown>;
+  random_event?: RandomEventSummary | null;
+  /** All survival events of the match (Hard missions get two). */
+  random_events?: RandomEventSummary[];
 }
 export interface PreguntaVuelo60sPayload {
   round: 1 | 2 | 3 | 4;
