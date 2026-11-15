@@ -1,0 +1,190 @@
+{
+  "_owner": "Schoenstadt (Task SCH-05)",
+  "_note": "Conditional 60s flight crisis rounds (4 rounds x 3 missions x nominal/critical branches). Baseline puzzle stub ready; expand to 24+ full conditional cards in SCH-05.",
+  "nodes": {
+    "NODE_1_LAUNCH": {
+      "critical": {
+        "question_id": "Q1_CRIT",
+        "gate": "NODE_1_LAUNCH",
+        "assigned_role": "finance_launch",
+        "title": "Max-Q Structural Alert: Payload margin is razor thin!",
+        "scenario_context": "Wet mass exceeds 95% of launcher capacity or UFE budget is near limit.",
+        "nasa_concept_badge": "Max-Q & Nunn-McCurdy Reserve",
+        "options": [
+          {
+            "option_id": "use_ufe_reinforce",
+            "label": "Spend 5% UFE Reserve for Upper-Stage Boost",
+            "engineering_tradeoff_hint": "Preserves science mass, lowers emergency reserve",
+            "delta_effects": { "ufe_reserve_pct": -5.0, "propellant_mass_kg": 40.0 }
+          },
+          {
+            "option_id": "jettison_secondary_ballast",
+            "label": "Jettison Secondary Ballast (-40 kg)",
+            "engineering_tradeoff_hint": "Improves mass margin safely",
+            "delta_effects": { "dry_mass_kg": -40.0 }
+          }
+        ]
+      },
+      "nominal": {
+        "question_id": "Q1_NOM",
+        "gate": "NODE_1_LAUNCH",
+        "assigned_role": "finance_launch",
+        "title": "Nominal Liftoff! Rocket clears the pad cleanly.",
+        "scenario_context": "How should second-stage burn optimize remaining launch margin?",
+        "nasa_concept_badge": "Orbital Insertion Efficiency",
+        "options": [
+          {
+            "option_id": "optimal_burn",
+            "label": "Coast & Optimal Second-Stage Burn",
+            "engineering_tradeoff_hint": "Saves propellant reserve",
+            "delta_effects": { "propellant_mass_kg": 25.0 }
+          },
+          {
+            "option_id": "fast_direct_burn",
+            "label": "Direct High-Thrust Burn",
+            "engineering_tradeoff_hint": "Fast insertion, slightly higher power draw",
+            "delta_effects": { "battery_reserve_pct": -3.0 }
+          }
+        ]
+      }
+    },
+    "NODE_2_PROPULSION": {
+      "critical": {
+        "question_id": "Q2_CRIT",
+        "gate": "NODE_2_PROPULSION",
+        "assigned_role": "spacecraft_mass",
+        "title": "Attitude Thruster Vibration: Unbalanced CG burning 1.5x fuel!",
+        "scenario_context": "Offset Center of Gravity is wasting reaction control propellant during burn.",
+        "nasa_concept_badge": "Tsiolkovsky & CG Trim",
+        "options": [
+          {
+            "option_id": "battery_retrim",
+            "label": "Run Electric Reaction Wheel Re-Trim (-8% battery)",
+            "engineering_tradeoff_hint": "Restores 1.0x nominal burn multiplier",
+            "delta_effects": { "cg_balanced": true, "fuel_burn_multiplier": 1.0, "battery_reserve_pct": -8.0 }
+          },
+          {
+            "option_id": "push_direct",
+            "label": "Keep Thruster Compensation Burn",
+            "engineering_tradeoff_hint": "Saves battery, keeps propellant pressure",
+            "delta_effects": {}
+          }
+        ]
+      },
+      "nominal": {
+        "question_id": "Q2_NOM",
+        "gate": "NODE_2_PROPULSION",
+        "assigned_role": "spacecraft_mass",
+        "title": "Balanced Cruise Approach to Target Gravity Well.",
+        "scenario_context": "Select orbital capture profile.",
+        "nasa_concept_badge": "Capture Delta-v",
+        "options": [
+          {
+            "option_id": "conservative_capture",
+            "label": "Elliptical Capture Burn",
+            "engineering_tradeoff_hint": "Low thermal stress, protects battery",
+            "delta_effects": { "battery_reserve_pct": 2.0 }
+          },
+          {
+            "option_id": "low_science_orbit",
+            "label": "Tight Low Science Orbit",
+            "engineering_tradeoff_hint": "Boosts science quality (+5), costs small fuel",
+            "delta_effects": { "science_value": 5.0 }
+          }
+        ]
+      }
+    },
+    "NODE_3_EVENT": {
+      "critical": {
+        "question_id": "Q3_CRIT",
+        "gate": "NODE_3_EVENT",
+        "assigned_role": "orbit_power",
+        "title": "Space Environment Contingency Alert!",
+        "scenario_context": "Solar particle flux / dust cloud challenges low power or autonomy margin.",
+        "nasa_concept_badge": "Fault Protection & UFE",
+        "options": [
+          {
+            "option_id": "deploy_ufe_patch",
+            "label": "Activate Emergency UFE Ground Patch (-5% UFE)",
+            "engineering_tradeoff_hint": "Stabilizes autonomy and battery reserve (+10%)",
+            "delta_effects": { "ufe_reserve_pct": -5.0, "battery_reserve_pct": 10.0, "has_visual_autonomy": true }
+          },
+          {
+            "option_id": "safe_mode",
+            "label": "Enter Passive Safe Mode",
+            "engineering_tradeoff_hint": "Protects spacecraft survival, trims data volume",
+            "delta_effects": { "downlink_efficiency": 0.85 }
+          }
+        ]
+      },
+      "nominal": {
+        "question_id": "Q3_NOM",
+        "gate": "NODE_3_EVENT",
+        "assigned_role": "orbit_power",
+        "title": "Environment Anomaly Cleared with Strong Reserves!",
+        "scenario_context": "Use extra power margin to boost science return or safeguard hardware.",
+        "nasa_concept_badge": "Power Bus Resilience",
+        "options": [
+          {
+            "option_id": "bonus_science_scan",
+            "label": "Power Bonus High-Res Spectral Scan",
+            "engineering_tradeoff_hint": "Increases science return",
+            "delta_effects": { "science_value": 8.0, "battery_reserve_pct": -4.0 }
+          },
+          {
+            "option_id": "charge_reserves",
+            "label": "Hold Nominal Reserves",
+            "engineering_tradeoff_hint": "Maximizes end-of-mission battery safety",
+            "delta_effects": { "battery_reserve_pct": 5.0 }
+          }
+        ]
+      }
+    },
+    "NODE_4_DOWNLINK": {
+      "critical": {
+        "question_id": "Q4_CRIT",
+        "gate": "NODE_4_DOWNLINK",
+        "assigned_role": "science_comms",
+        "title": "Weak DSN Lock Before Solar Conjunction!",
+        "scenario_context": "160 Gbit onboard recorder needs rapid transmission under tight link margin.",
+        "nasa_concept_badge": "Deep Space Network Link Budget",
+        "options": [
+          {
+            "option_id": "prioritize_spectral_f1",
+            "label": "Compress & Prioritize High-F1 Spectral Packets",
+            "engineering_tradeoff_hint": "Recovers downlink efficiency for core science",
+            "delta_effects": { "downlink_efficiency": 0.95, "link_margin_db": 3.2 }
+          },
+          {
+            "option_id": "slow_carrier_retry",
+            "label": "Low-Rate Carrier Retry",
+            "engineering_tradeoff_hint": "Safest carrier lock, partial data queued",
+            "delta_effects": { "link_margin_db": 3.5, "downlink_efficiency": 0.75 }
+          }
+        ]
+      },
+      "nominal": {
+        "question_id": "Q4_NOM",
+        "gate": "NODE_4_DOWNLINK",
+        "assigned_role": "science_comms",
+        "title": "3 m High-Gain Antenna Locked on Goldstone/Madrid DSN!",
+        "scenario_context": "Link margin exceeds +3.0 dB. Select final downlink queue priority.",
+        "nasa_concept_badge": "DSN +3 dB Carrier Lock",
+        "options": [
+          {
+            "option_id": "full_spectral_dump",
+            "label": "Dump Full 160 Gbit Science Archive",
+            "engineering_tradeoff_hint": "Maximizes mission completion & F1 telemetry",
+            "delta_effects": { "downlink_efficiency": 1.0 }
+          },
+          {
+            "option_id": "verify_housekeeping",
+            "label": "Send Telemetry + Science Digest",
+            "engineering_tradeoff_hint": "Balances engineering verification",
+            "delta_effects": { "downlink_efficiency": 0.98 }
+          }
+        ]
+      }
+    }
+  }
+}

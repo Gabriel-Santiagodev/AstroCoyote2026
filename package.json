@@ -1,0 +1,16 @@
+{
+  "name": "space-apps-2026-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "NASA Space Apps Challenge 2026 — Space Mission Design Game (Frontend + Backend Monorepo)",
+  "scripts": {
+    "setup:frontend": "npm --prefix frontend install",
+    "setup:backend": "python -m pip install -r requirements.txt",
+    "setup": "npm run setup:frontend && npm run setup:backend",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "dev:backend": "python -m uvicorn backend.main:socket_app --host 0.0.0.0 --port 8000 --reload",
+    "test:backend": "python -m pytest backend/tests",
+    "combine-docs": "node herramientas/combinar.mjs"
+  }
+}

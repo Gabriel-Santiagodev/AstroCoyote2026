@@ -1,0 +1,6 @@
+# Text files use LF in the repository
+*.md   text eol=lf
+*.mjs  text eol=lf
+*.json text eol=lf
+*.cs   text eol=lf
+# Git LFS rules for images and audio are added at the event (task UNI-01)

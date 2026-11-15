@@ -1,0 +1,295 @@
+{
+  "_owner": "Abraham (Task ABR-01)",
+  "_note": "Single Source of Truth for Space Apps 2026 game data. Constants, orbits, launchers & missions come from docs/06-datos-nasa.md. Abraham (ABR-01) verifies items marked 'pendiente ABR-01' and adds official NSSDCA/NASA links.",
+  "constants": {
+    "mu_earth_km3_s2": 398600.4418,
+    "earth_radius_km": 6378.137,
+    "j2_earth": 0.00108262668,
+    "sso_nodal_precession_deg_day": 0.9856,
+    "g0_m_s2": 9.80665,
+    "fuente": "NIMA WGS84 (TR8350.2) & CODATA/NIST",
+    "estado": "verificado"
+  },
+  "missions": {
+    "artemis_moon": {
+      "id": "artemis_moon",
+      "name": "Operation Artemis: Lunar Return",
+      "difficulty_default": "easy",
+      "budget_limit_usd": 800000000,
+      "recommended_ufe_pct": 20,
+      "cg_tolerance_m": 0.25,
+      "requires_thermal_protection": true,
+      "min_battery_event_pct": 15,
+      "default_required_dv_ms": 1803.6,
+      "nasa_real_world_fact": "NASA Artemis I used a Free-Return Trajectory around the Moon and tested Orion's heat shield during 40,000 km/h Earth reentry.",
+      "fuente": "NASA Artemis Program / docs/06-datos-nasa.md",
+      "estado": "estimado del juego + verificado NASA"
+    },
+    "asteroid_hunter": {
+      "id": "asteroid_hunter",
+      "name": "Near-Earth Asteroid Hunter",
+      "difficulty_default": "medium",
+      "budget_limit_usd": 1200000000,
+      "recommended_ufe_pct": 25,
+      "cg_tolerance_m": 0.15,
+      "requires_thermal_protection": false,
+      "min_ufe_event_pct": 15,
+      "default_required_dv_ms": 1803.6,
+      "nasa_real_world_fact": "NASA OSIRIS-REx used Natural Feature Tracking (visual autonomy) at asteroid Bennu because deep-space light-time delay prevented real-time Earth piloting.",
+      "fuente": "NASA OSIRIS-REx / docs/06-datos-nasa.md",
+      "estado": "estimado del juego + verificado NASA"
+    },
+    "mars_sample_return": {
+      "id": "mars_sample_return",
+      "name": "Mars Sample Return & MRO Orbiter",
+      "difficulty_default": "hard",
+      "budget_limit_usd": 2500000000,
+      "recommended_ufe_pct": 25,
+      "cg_tolerance_m": 0.08,
+      "requires_thermal_protection": true,
+      "min_ufe_event_pct": 20,
+      "min_battery_event_pct": 25,
+      "default_required_dv_ms": 1803.6,
+      "nasa_real_world_fact": "Over 52% of NASA MRO's 2,180 kg launch mass was propellant (1,149 kg), and its 3 m High-Gain Antenna downlinks up to 6 Mbps to the Deep Space Network from a 160 Gbit solid-state recorder.",
+      "fuente": "JPL DESCANSO MRO_092106.pdf & NASA Mars Fact Sheet / docs/06-datos-nasa.md",
+      "estado": "estimado del juego + verificado NASA"
+    }
+  },
+  "launchers": [
+    {
+      "id": "electron",
+      "name": "Rocket Lab Electron",
+      "max_mass_leo_kg": 300,
+      "max_mass_sso_kg": 200,
+      "max_mass_kg": 300,
+      "cost_usd": 9200000,
+      "fairing_m": "1.2 m",
+      "fuente": "Rocket Lab Payload User's Guide / NextSpaceflight",
+      "estado": "fuente secundaria"
+    },
+    {
+      "id": "rideshare_xl",
+      "name": "SpaceX Rideshare XL",
+      "max_mass_leo_kg": 831,
+      "max_mass_sso_kg": 831,
+      "max_mass_kg": 831,
+      "cost_usd": 2100000,
+      "fairing_m": "Transporter XL Plate (max 831 kg)",
+      "fuente": "SpaceX Rideshare Payload User's Guide v11 (2026)",
+      "estado": "fuente secundaria"
+    },
+    {
+      "id": "falcon9_block5",
+      "name": "SpaceX Falcon 9 Block 5",
+      "max_mass_leo_kg": 22800,
+      "max_mass_reusable_leo_kg": 17500,
+      "max_mass_gto_kg": 5500,
+      "max_mass_mars_kg": 4020,
+      "max_mass_kg": 4020,
+      "cost_usd": 74000000,
+      "fairing_m": "5.2 m x 13.1 m",
+      "fuente": "SpaceX Vehicles / NextSpaceflight",
+      "estado": "verificado / fuente secundaria"
+    },
+    {
+      "id": "vulcan_vc6",
+      "name": "ULA Vulcan Centaur VC6",
+      "max_mass_leo_kg": 27200,
+      "max_mass_gto_kg": 14400,
+      "max_mass_kg": 14400,
+      "cost_usd": 120000000,
+      "fairing_m": "5.4 m",
+      "fuente": "ULA / NextSpaceflight",
+      "estado": "fuente secundaria"
+    },
+    {
+      "id": "falcon_heavy",
+      "name": "SpaceX Falcon Heavy",
+      "max_mass_leo_kg": 63800,
+      "max_mass_mars_kg": 16800,
+      "max_mass_kg": 16800,
+      "cost_usd": 115000000,
+      "fairing_m": "5.2 m",
+      "fuente": "SpaceX / Wikipedia ($97M-$150M range)",
+      "estado": "fuente secundaria"
+    }
+  ],
+  "orbits": [
+    {
+      "id": "leo_350",
+      "name": "LEO 350 km",
+      "altitude_km": 350,
+      "velocity_kms": 7.697,
+      "period_min": 91.54,
+      "max_eclipse_min": 36.33,
+      "sso_inclination_deg": 96.85,
+      "slant_range_km": 1303.6,
+      "fspl_s_band_db": 161.6,
+      "fspl_x_band_db": 173.0,
+      "fuente": "WGS84 Orbital Mechanics Table (docs/06-datos-nasa.md)",
+      "estado": "verificado"
+    },
+    {
+      "id": "sso_700",
+      "name": "SSO 700 km",
+      "altitude_km": 700,
+      "velocity_kms": 7.504,
+      "period_min": 98.77,
+      "max_eclipse_min": 35.29,
+      "sso_inclination_deg": 98.19,
+      "slant_range_km": 2155.3,
+      "fspl_s_band_db": 166.0,
+      "fspl_x_band_db": 177.4,
+      "fuente": "WGS84 Orbital Mechanics Table (docs/06-datos-nasa.md)",
+      "estado": "verificado"
+    },
+    {
+      "id": "meo_20200",
+      "name": "MEO 20,200 km",
+      "altitude_km": 20200,
+      "velocity_kms": 3.873,
+      "period_min": 718.70,
+      "max_eclipse_min": 55.44,
+      "sso_inclination_deg": null,
+      "slant_range_km": 24717.7,
+      "fspl_s_band_db": 187.2,
+      "fspl_x_band_db": 198.6,
+      "fuente": "WGS84 Orbital Mechanics Table (docs/06-datos-nasa.md)",
+      "estado": "verificado"
+    },
+    {
+      "id": "geo_35786",
+      "name": "GEO 35,786 km",
+      "altitude_km": 35786,
+      "velocity_kms": 3.075,
+      "period_min": 1436.07,
+      "max_eclipse_min": 69.41,
+      "sso_inclination_deg": null,
+      "slant_range_km": 40586.1,
+      "fspl_s_band_db": 191.5,
+      "fspl_x_band_db": 202.9,
+      "fuente": "WGS84 Orbital Mechanics Table (docs/06-datos-nasa.md)",
+      "estado": "verificado"
+    }
+  ],
+  "engines": [
+    {
+      "id": "hydrazine_mono",
+      "name": "Hydrazine Monopropellant",
+      "isp_seconds": 225.0,
+      "power_demand_w": 50.0,
+      "fuente": "docs/06-datos-nasa.md §4",
+      "estado": "verificado / balance de juego"
+    },
+    {
+      "id": "biprop_mmh_nto",
+      "name": "MMH/NTO Bipropellant",
+      "isp_seconds": 315.0,
+      "power_demand_w": 120.0,
+      "fuente": "docs/06-datos-nasa.md §4",
+      "estado": "verificado / balance de juego"
+    },
+    {
+      "id": "hall_thruster",
+      "name": "Hall Effect Electric Thruster",
+      "isp_seconds": 1600.0,
+      "power_demand_w": 1200.0,
+      "fuente": "docs/06-datos-nasa.md §4",
+      "estado": "verificado / balance de juego"
+    }
+  ],
+  "power_packs": [
+    {
+      "id": "chemical_pack",
+      "name": "Chemical Booster Pack",
+      "energy_mj": 15.0,
+      "rover_speed_delta_pct": 8.0,
+      "fuente": "docs/06-datos-nasa.md §4 (Rol3B_AstroLogistics3D)",
+      "estado": "estimado del juego"
+    },
+    {
+      "id": "battery_pack",
+      "name": "Electrochemical Battery",
+      "energy_mj": 45.0,
+      "rover_speed_delta_pct": -14.0,
+      "fuente": "docs/06-datos-nasa.md §4 (Rol3B_AstroLogistics3D)",
+      "estado": "estimado del juego"
+    },
+    {
+      "id": "h2_fuel_cell",
+      "name": "H2 Fuel Cell",
+      "energy_mj": 100.0,
+      "rover_speed_delta_pct": -4.0,
+      "fuente": "docs/06-datos-nasa.md §4 (Rol3B_AstroLogistics3D)",
+      "estado": "estimado del juego"
+    }
+  ],
+  "instruments": [
+    {
+      "id": "hirise",
+      "name": "HiRISE Camera",
+      "mass_kg": 65.0,
+      "power_w": 60.0,
+      "data_gbit_day": 90.0,
+      "cost_musd": 40.0,
+      "science_value": 45.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (confirmar masa exacta en ABR-01)"
+    },
+    {
+      "id": "ctx",
+      "name": "Context Camera (CTX)",
+      "mass_kg": 3.0,
+      "power_w": 7.0,
+      "data_gbit_day": 25.0,
+      "cost_musd": 15.0,
+      "science_value": 20.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (data_gbit_day y cost_musd pendientes ABR-01)"
+    },
+    {
+      "id": "crism",
+      "name": "CRISM Spectrometer",
+      "mass_kg": 33.0,
+      "power_w": 44.0,
+      "data_gbit_day": 40.0,
+      "cost_musd": 35.0,
+      "science_value": 40.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (confirmar potencia y volumen de datos en ABR-01)"
+    },
+    {
+      "id": "marci",
+      "name": "MARCI Weather Imager",
+      "mass_kg": 0.481,
+      "power_w": 5.0,
+      "data_gbit_day": 10.0,
+      "cost_musd": 10.0,
+      "science_value": 15.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (confirmar potencia y volumen de datos en ABR-01)"
+    },
+    {
+      "id": "mcs",
+      "name": "Mars Climate Sounder (MCS)",
+      "mass_kg": 9.0,
+      "power_w": 11.0,
+      "data_gbit_day": 12.0,
+      "cost_musd": 18.0,
+      "science_value": 22.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (confirmar volumen de datos en ABR-01)"
+    },
+    {
+      "id": "sharad",
+      "name": "SHARAD Subsurface Radar",
+      "mass_kg": 16.0,
+      "power_w": 40.0,
+      "data_gbit_day": 65.0,
+      "cost_musd": 30.0,
+      "science_value": 35.0,
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
+      "estado": "sin verificar (confirmar masa/potencia en ABR-01; rango 40-90 Gbit/day)"
+    }
+  ]
+}
