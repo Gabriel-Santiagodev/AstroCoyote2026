@@ -1402,7 +1402,7 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
+**Última actualización:** 2026-11-15 (01:08 h · `RUB-01` a `RUB-05`, `ISM-01` a `ISM-04`, `SCH-01` a `SCH-05`, `ABR-01` a `ABR-06`, `LEO-01` a `LEO-09` integrados)
 
 ## Cómo leer esta tabla
 
@@ -1421,11 +1421,11 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | RUB-01 | Completar `backend/requirements.txt`, `backend/main.py` (FastAPI + Socket.IO ASGI + CORS) y verificar arranque en `0.0.0.0:8000` | — | H1 | `/health` responde `200 OK` y cliente Socket.IO conecta en red local | MVP |
-| [ ] | RUB-02 | Implementar salas en memoria en `backend/game_manager.py`: `crear_sala` (PIN 6 chars), `unirse_sala` (máx. 4), `seleccionar_rol_mision` | RUB-01 | H3 | Hasta 4 clientes ven actualizado el Lobby sin colisión de roles | MVP |
-| [ ] | RUB-03 | Implementar relojes autoritativos (30 s Oleada 1, 5 s sync lineal, 30 s Oleada 2) y cierre automático al llegar a `0 s` o al bloquear todos los humanos | RUB-02, SCH-03 | H6 | Al terminar el timer, avanza solo sin quedarse trabado aunque alguien no haga clic | MVP |
-| [ ] | RUB-04 | Implementar pipeline de concurrencia en vivo: recibir `accion_parcial_minijuego`, llamar `physics_engine.py` y emitir `mutacion_en_vivo` a toda la sala | RUB-03, SCH-02 | H8 | Mover un parámetro en un cliente actualiza las barras y límites en otra pestaña al instante | MVP |
-| [ ] | RUB-05 | Orquestar la fase de Vuelo 60s en `game_manager.py`: 4 rondas × 15 s rotando turno entre jugadores conectados (`pregunta_vuelo_60s` $\rightarrow$ `resultado_turno_vuelo` $\rightarrow$ `reporte_final_mision`) | RUB-03, SCH-04, SCH-05 | H10 | Partida completa de 1 y 2 jugadores cierra ciclo hasta el reporte final | MVP |
+| [x] | RUB-01 | Completar `backend/requirements.txt`, `backend/main.py` (FastAPI + Socket.IO ASGI + CORS) y verificar arranque en `0.0.0.0:8000` | — | H1 | `/health` responde `200 OK` y cliente Socket.IO conecta en red local | MVP |
+| [x] | RUB-02 | Implementar salas en memoria en `backend/game_manager.py`: `crear_sala` (PIN 6 chars), `unirse_sala` (máx. 4), `seleccionar_rol_mision` | RUB-01 | H3 | Hasta 4 clientes ven actualizado el Lobby sin colisión de roles | MVP |
+| [x] | RUB-03 | Implementar relojes autoritativos (30 s Oleada 1, 5 s sync lineal, 30 s Oleada 2) y cierre automático al llegar a `0 s` o al bloquear todos los humanos | RUB-02, SCH-03 | H6 | Al terminar el timer, avanza solo sin quedarse trabado aunque alguien no haga clic | MVP |
+| [x] | RUB-04 | Implementar pipeline de concurrencia en vivo: recibir `accion_parcial_minijuego`, llamar `physics_engine.py` y emitir `mutacion_en_vivo` a toda la sala | RUB-03, SCH-02 | H8 | Mover un parámetro en un cliente actualiza las barras y límites en otra pestaña al instante | MVP |
+| [x] | RUB-05 | Orquestar la fase de Vuelo 60s en `game_manager.py`: 4 rondas × 15 s rotando turno entre jugadores conectados (`pregunta_vuelo_60s` $\rightarrow$ `resultado_turno_vuelo` $\rightarrow$ `reporte_final_mision`) | RUB-03, SCH-04, SCH-05 | H10 | Partida completa de 1 y 2 jugadores cierra ciclo hasta el reporte final | MVP |
 | [ ] | RUB-06 | Deploy público de Frontend + Backend WebSocket accesible desde fuera de la red del hackathon (`[ABIERTO A10]`) | LEO-09, RUB-05 | H18 | Juez o teléfono en datos móviles juega la partida completa sin cortes de WebSocket | MVP |
 
 ---
@@ -1450,10 +1450,10 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | ISM-01 | `Rol2A_TopologicalAssembly.tsx` (*Spacecraft Design*): armar la nave en orden (Cuerpo $\rightarrow$ Paneles $\rightarrow$ Escudo $\rightarrow$ Tornillos $\rightarrow$ Cables) | LEO-03 | H6 | Probado en `/dev-sandbox`; avisa qué piezas puso y entrega masa + escudo térmico | MVP |
-| [ ] | ISM-02 | `Rol1A_BudgetTable.tsx` (*Budgets*): repartir 10 monedas en 3 cajas + 2 cartas de gastos urgentes | LEO-03 | H8 | Emite en vivo el presupuesto de ciencia/energía y reserva; funciona en PC y celular | MVP |
-| [ ] | ISM-03 | `Rol1B_LauncherAuction.tsx` (*Launch Vehicles*): elegir cohete (*Electron*, *Falcon 9*, *Vulcan*, *Falcon Heavy*, *Rideshare*) viendo si cabe el peso | LEO-03, ABR-01 | H12 | Indica en verde/rojo en tiempo real si la masa del equipo cabe en el cohete elegido | MVP |
-| [ ] | ISM-04 | `Rol2B_MassBalanceTask.tsx` (*Mass & CG*): colocar las piezas de los compañeros en los cuadritos hasta centrar el punto en el círculo verde | LEO-03 | H14 | Actualiza el equilibrio en vivo y tiene el botón rojo para tirar peso extra | MVP |
+| [x] | ISM-01 | `Rol2A_TopologicalAssembly.tsx` (*Spacecraft Design*): armar la nave en orden (Cuerpo $\rightarrow$ Paneles $\rightarrow$ Escudo $\rightarrow$ Tornillos $\rightarrow$ Cables) | LEO-03 | H6 | Probado en `/dev-sandbox`; avisa qué piezas puso y entrega masa + escudo térmico | MVP |
+| [x] | ISM-02 | `Rol1A_BudgetTable.tsx` (*Budgets*): repartir 10 monedas en 3 cajas + 2 cartas de gastos urgentes | LEO-03 | H8 | Emite en vivo el presupuesto de ciencia/energía y reserva; funciona en PC y celular | MVP |
+| [x] | ISM-03 | `Rol1B_LauncherAuction.tsx` (*Launch Vehicles*): elegir cohete (*Electron*, *Falcon 9*, *Vulcan*, *Falcon Heavy*, *Rideshare*) viendo si cabe el peso | LEO-03, ABR-01 | H12 | Indica en verde/rojo en tiempo real si la masa del equipo cabe en el cohete elegido | MVP |
+| [x] | ISM-04 | `Rol2B_MassBalanceTask.tsx` (*Mass & CG*): colocar las piezas de los compañeros en los cuadritos hasta centrar el punto en el círculo verde | LEO-03 | H14 | Actualiza el equilibrio en vivo y tiene el botón rojo para tirar peso extra | MVP |
 
 ---
 

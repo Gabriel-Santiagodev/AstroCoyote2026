@@ -10,6 +10,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "build:frontend": "npm --prefix frontend run build",
     "dev:backend": "python -m uvicorn backend.main:socket_app --host 0.0.0.0 --port 8000 --reload",
+    "play": "node herramientas/jugar.mjs",
     "test:backend": "python -m pytest backend/tests",
     "combine-docs": "node herramientas/combinar.mjs"
   }

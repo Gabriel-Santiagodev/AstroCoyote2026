@@ -233,6 +233,8 @@ def test_sch04_all_four_nodes_failed_partial_and_full_success() -> None:
     assert 400 <= out_partial["total_score"] < 800
 
     # 5. FULL_SUCCESS: Nominal Mars Sample Return with RTG + 25% UFE + spectral_marks
+    # Marks must match the peaks of Abraham's real spectral generator (they are mission-specific).
+    mars_expected_peaks = adaptadores_web.generar_reto_oleada1("mars_sample_return")["expected_peaks"]
     out_full = decision_tree.evaluate_mission_deployment(
         "mars_sample_return",
         {
@@ -241,7 +243,7 @@ def test_sch04_all_four_nodes_failed_partial_and_full_success() -> None:
             "battery_reserve_pct": 30.0,
             "link_margin_db": 4.5,
             "downlink_efficiency": 1.0,
-            "spectral_marks": [1625.0, 1654.0, 1685.0],
+            "spectral_marks": [float(p) for p in mars_expected_peaks],
         },
     )
     assert out_full["outcome"] == "FULL_SUCCESS"

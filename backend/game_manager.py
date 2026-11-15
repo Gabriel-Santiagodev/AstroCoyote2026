@@ -36,12 +36,19 @@ class GameManager:
         sync_delay_sec: float = 5.0,
         flight_round_sec: float = 15.0,
         flight_feedback_sec: float = 2.0,
+        station_grace_sec: float = 2.0,
+        launch_transition_sec: float = 4.0,
     ) -> None:
         self.sio = sio
         self.wave_duration_sec = wave_duration_sec
         self.sync_delay_sec = sync_delay_sec
         self.flight_round_sec = flight_round_sec
         self.flight_feedback_sec = flight_feedback_sec
+        # Client-side walk animations start after the server emits; this grace keeps a player who
+        # locks in during the last second from being treated as timed out (docs/04 LinearStationTrack).
+        self.station_grace_sec = station_grace_sec
+        # Walk to the launchpad (1.5 s) + loading screen (2.5 s) in LinearStationTrack/App.tsx.
+        self.launch_transition_sec = launch_transition_sec
 
         self.rooms: dict[str, dict[str, Any]] = {}
         self.locks: dict[str, asyncio.Lock] = {}
@@ -106,19 +113,38 @@ class GameManager:
         elif advance_wave == 2:
             await self._transition_to_flight(pin)
 
-    def _normalize_state_aliases(self, state: dict[str, Any], mission_id: str) -> None:
-        """Keep state keys synchronized with ConsolidatedMissionState schema."""
+    @staticmethod
+    def _sync_alias_pair(
+        state: dict[str, Any], key_a: str, key_b: str, changed: dict[str, Any] | None
+    ) -> None:
+        """Keep two alias keys equal. The key a player just changed wins over a stale one."""
+        source: str | None = None
+        for key in (key_a, key_b):
+            if changed and changed.get(key) is not None:
+                source = key
+                break
+        if source is None:
+            source = next((k for k in (key_b, key_a) if state.get(k) is not None), None)
+        if source is None:
+            state.pop(key_a, None)
+            state.pop(key_b, None)
+            return
+        value = float(state[source])
+        state[key_a] = value
+        state[key_b] = value
+
+    def _normalize_state_aliases(
+        self, state: dict[str, Any], mission_id: str, changed: dict[str, Any] | None = None
+    ) -> None:
+        """Keep state keys synchronized with ConsolidatedMissionState schema.
+
+        `changed` is the partial payload that just arrived (if any): for alias pairs such as
+        dry_mass_kg / bus_dry_mass_kg the freshly changed key overrides the older one.
+        """
         mission = get_mission(mission_id)
         state.setdefault("budget_limit_usd", float(mission.get("budget_limit_usd", 800_000_000.0)))
-        if "bus_dry_mass_kg" in state:
-            state["dry_mass_kg"] = float(state["bus_dry_mass_kg"])
-        elif "dry_mass_kg" in state:
-            state["bus_dry_mass_kg"] = float(state["dry_mass_kg"])
-
-        if "power_generation_w" in state:
-            state["available_power_w"] = float(state["power_generation_w"])
-        elif "available_power_w" in state:
-            state["power_generation_w"] = float(state["available_power_w"])
+        self._sync_alias_pair(state, "dry_mass_kg", "bus_dry_mass_kg", changed)
+        self._sync_alias_pair(state, "available_power_w", "power_generation_w", changed)
 
         marks = state.get("spectral_marks")
         expected = state.get("_expected_spectral_peaks")
@@ -323,7 +349,7 @@ class GameManager:
 
     async def _wave1_timeout(self, pin: str) -> None:
         try:
-            await asyncio.sleep(self.wave_duration_sec)
+            await asyncio.sleep(self.wave_duration_sec + self.station_grace_sec)
             await self._transition_to_wave2(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
@@ -337,8 +363,10 @@ class GameManager:
             delta = data.get("partial_delta", {})
             prev_metrics = dict(room.get("last_metrics") or {})
             if isinstance(delta, dict):
-                room["live_state"].update(delta)
-            self._normalize_state_aliases(room["live_state"], room["mission_id"])
+                room["live_state"].update({k: v for k, v in delta.items() if v is not None})
+            self._normalize_state_aliases(
+                room["live_state"], room["mission_id"], delta if isinstance(delta, dict) else None
+            )
             metrics = physics_engine.compute_live_metrics(room["live_state"], room["mission_id"])
             room["last_metrics"] = dict(metrics)
             toast_alert = self._build_toast_alert(
@@ -373,8 +401,10 @@ class GameManager:
 
         async with self._get_lock(pin):
             if isinstance(payload, dict):
-                room["live_state"].update(payload)
-            self._normalize_state_aliases(room["live_state"], room["mission_id"])
+                room["live_state"].update({k: v for k, v in payload.items() if v is not None})
+            self._normalize_state_aliases(
+                room["live_state"], room["mission_id"], payload if isinstance(payload, dict) else None
+            )
             room["last_metrics"] = physics_engine.compute_live_metrics(
                 room["live_state"], room["mission_id"]
             )
@@ -453,7 +483,7 @@ class GameManager:
 
     async def _wave2_timeout(self, pin: str) -> None:
         try:
-            await asyncio.sleep(self.sync_delay_sec + self.wave_duration_sec)
+            await asyncio.sleep(self.sync_delay_sec + self.wave_duration_sec + self.station_grace_sec)
             await self._transition_to_flight(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
@@ -516,6 +546,8 @@ class GameManager:
                 room=pin,
             )
 
+        if self.launch_transition_sec > 0:
+            await asyncio.sleep(self.launch_transition_sec)
         await self._emit_flight_round_question(pin, 1)
 
     async def _emit_flight_round_question(self, pin: str, round_num: int) -> None:
@@ -650,13 +682,60 @@ class GameManager:
                 finish_mission = True
 
         if next_round is not None:
-            if self.flight_feedback_sec > 0 and timed_out:
+            if self.flight_feedback_sec > 0:
                 await asyncio.sleep(self.flight_feedback_sec)
             await self._emit_flight_round_question(pin, next_round)
         elif finish_mission:
-            if self.flight_feedback_sec > 0 and timed_out:
+            if self.flight_feedback_sec > 0:
                 await asyncio.sleep(self.flight_feedback_sec)
             await self._emit_final_report(pin)
+
+    @staticmethod
+    def _summarize_role_contribution(
+        role_id: str, wave1: dict[str, Any], wave2: dict[str, Any], is_ai: bool
+    ) -> str:
+        """Build the one-line English contribution text shown per role in the final report."""
+        take: dict[str, Any] = {**wave1, **wave2}
+
+        def num(key: str) -> float | None:
+            value = take.get(key)
+            return float(value) if isinstance(value, (int, float)) else None
+
+        parts: list[str] = []
+        if role_id == "finance_launch":
+            eng, sci = num("budget_engineering_usd"), num("budget_science_usd")
+            if eng is not None and sci is not None:
+                parts.append(f"Budget split ${eng / 1e6:.0f}M engineering / ${sci / 1e6:.0f}M science")
+            if num("ufe_reserve_pct") is not None:
+                parts.append(f"UFE vault {num('ufe_reserve_pct'):.0f}%")
+            if take.get("selected_launcher"):
+                parts.append(f"launcher {take['selected_launcher']}")
+        elif role_id == "spacecraft_mass":
+            mass = num("bus_dry_mass_kg") if num("bus_dry_mass_kg") is not None else num("dry_mass_kg")
+            if mass is not None:
+                parts.append(f"Bus dry mass {mass:.0f} kg")
+            if "has_thermal_protection" in take:
+                parts.append("heat shield fitted" if take["has_thermal_protection"] else "NO heat shield")
+            if "cg_balanced" in take:
+                parts.append("CG balanced" if take["cg_balanced"] else "CG UNBALANCED (1.5x fuel burn)")
+        elif role_id == "orbit_power":
+            if take.get("trajectory_choice"):
+                parts.append(f"Trajectory {take['trajectory_choice']}")
+            if num("isp_seconds") is not None:
+                parts.append(f"Isp {num('isp_seconds'):.0f} s")
+            if num("propellant_mass_kg") is not None:
+                parts.append(f"propellant {num('propellant_mass_kg'):.0f} kg")
+            if take.get("power_source"):
+                parts.append(f"power {take['power_source']}")
+        elif role_id == "science_comms":
+            if num("instruments_mass_kg") is not None:
+                parts.append(f"Instruments {num('instruments_mass_kg'):.0f} kg")
+            if num("science_calibration_f1") is not None:
+                parts.append(f"spectral F1 {num('science_calibration_f1'):.2f}")
+            if num("link_margin_db") is not None:
+                parts.append(f"DSN link margin {num('link_margin_db'):+.1f} dB")
+        text = ", ".join(parts) if parts else "No decisions recorded for this role"
+        return f"{text} (AI autopilot)" if is_ai else text
 
     async def _emit_final_report(self, pin: str) -> None:
         async with self._get_lock(pin):
@@ -671,8 +750,16 @@ class GameManager:
             human_roles = {p["role"] for p in room["players"].values() if p.get("role")}
             role_contributions = [
                 {
+                    "role": r,
                     "role_id": r,
+                    "is_ai": r not in human_roles,
                     "controlled_by": "human" if r in human_roles else "ai_randomizer",
+                    "summary": self._summarize_role_contribution(
+                        r,
+                        room["wave1_takes"].get(r, {}),
+                        room["wave2_takes"].get(r, {}),
+                        r not in human_roles,
+                    ),
                     "wave1": room["wave1_takes"].get(r, {}),
                     "wave2": room["wave2_takes"].get(r, {}),
                 }

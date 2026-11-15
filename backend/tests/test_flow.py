@@ -14,6 +14,8 @@ def make_manager(sio: FakeSio) -> GameManager:
         sync_delay_sec=0.05,
         flight_round_sec=0.1,
         flight_feedback_sec=0.0,
+        station_grace_sec=0.0,
+        launch_transition_sec=0.0,
     )
 
 
@@ -48,6 +50,8 @@ def test_multiplayer_lock_takes_advance_waves_and_live_mutation() -> None:
             sync_delay_sec=0,
             flight_round_sec=30,
             flight_feedback_sec=0.0,
+            station_grace_sec=0.0,
+            launch_transition_sec=0.0,
         )
         await gm.handle_create_room("s1", {"mode": "multi", "host_name": "A"})
         pin = sio.last("sala_creada")["pin"]
