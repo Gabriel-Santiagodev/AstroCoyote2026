@@ -13,6 +13,7 @@ import type { MissionIdType, RoleType } from "../types/game";
 import type { RandomEventSummary } from "../socket";
 import nasaCatalogForNames from "../data/nasa_catalog.json";
 
+import { t, ts } from "../i18n";
 export interface MissionOutcomeUI {
   outcome: "FAILED" | "PARTIAL_SUCCESS" | "FULL_SUCCESS";
   completion_pct: number;
@@ -62,7 +63,7 @@ const GATE_ROLE: Record<string, RoleType> = {
   NODE_4_DOWNLINK: "science_comms",
 };
 const GATE_DETAILS = [
-  { id: "NODE_1_LAUNCH", title: "Launch", focus: "Rocket capacity, nose-cone fit and budget" },
+  { id: "NODE_1_LAUNCH", title: "Liftoff", focus: "Rocket capacity, nose-cone fit and budget" },
   { id: "NODE_2_PROPULSION", title: "Engine & fuel", focus: "Enough fuel and push to reach the target, ship balance" },
   { id: "NODE_3_EVENT", title: "Space hazard", focus: "Heat shield, power reserve and hazard response" },
   { id: "NODE_4_DOWNLINK", title: "Call Earth", focus: "Instrument quality, radio signal and data sent home" },
@@ -277,12 +278,12 @@ export function MissionReportDashboard({
         <div className="flex flex-wrap items-end justify-between gap-3 p-4 sm:p-5">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-[0.25em] text-role-spacecraft">
-            Mission archive // Astro Squad debrief
+            {t("Mission archive // Astro Squad debrief")}
           </p>
-          <h1 className="font-display text-2xl font-black uppercase tracking-tight sm:text-4xl">Flight Report</h1>
+          <h1 className="font-display text-2xl font-black uppercase tracking-tight sm:text-4xl">{t("Flight Report")}</h1>
         </div>
         <p className="rounded-full border-2 border-paper-cream/60 px-3 py-1 font-mono text-xs uppercase tracking-wider">
-          Attempt #{attemptNumber} · 4 mission checkpoints
+          {t("Attempt #{n}", { n: attemptNumber })} · {t("4 mission checkpoints")}
         </p>
         </div>
       </header>
@@ -292,21 +293,21 @@ export function MissionReportDashboard({
         animate={{ opacity: 1, scale: 1, rotate: -1 }}
         transition={{ type: "spring", stiffness: 190, damping: 17 }}
         className={`paper-card relative overflow-hidden ${verdict.color} p-5 text-ink-black sm:p-8`}
-        aria-label={`Mission outcome: ${verdict.title}`}
+        aria-label={t("Mission outcome: {v}", { v: t(verdict.title) })}
       >
         <div className="hazard-stripe-bar -mx-5 -mt-5 mb-5 h-3 border-b-2 border-ink-black sm:-mx-8 sm:-mt-8" />
         <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rotate-12 rounded-full border-[10px] border-ink-black/15 sm:h-44 sm:w-44" />
         <div className="pointer-events-none absolute -bottom-10 left-1/2 h-24 w-24 -rotate-12 rounded-full border-[8px] border-ink-black/10" />
         <div className="relative flex flex-wrap items-center justify-between gap-5">
           <div>
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.24em]">Official mission verdict</p>
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.24em]">{t("Official mission verdict")}</p>
             <h2 className="mt-1 max-w-2xl font-display text-4xl font-black uppercase leading-none tracking-tight sm:text-6xl">
-              {verdict.title}
+              {t(verdict.title)}
             </h2>
-            <p className="mt-3 max-w-xl font-sans text-sm font-semibold sm:text-base">{verdict.note}</p>
+            <p className="mt-3 max-w-xl font-sans text-sm font-semibold sm:text-base">{t(verdict.note)}</p>
           </div>
           <div className="rotate-6 rounded-xl border-[3px] border-ink-black bg-paper-cream px-4 py-3 text-center shadow-paper">
-            <span className="block font-mono text-[10px] font-bold uppercase tracking-wider">Objectives complete</span>
+            <span className="block font-mono text-[10px] font-bold uppercase tracking-wider">{t("Objectives complete")}</span>
             <span className="font-mono text-2xl font-black tabular-nums">
               {completion.toFixed(completion % 1 === 0 ? 0 : 1)}%
             </span>
@@ -318,15 +319,15 @@ export function MissionReportDashboard({
         <div className="paper-card-light grid gap-6 p-4 sm:p-7 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
         <div className="flex flex-col justify-between">
           <div>
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-blueprint-navy">Mission score</p>
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-blueprint-navy">{t("Mission score")}</p>
             <div className="mt-2 flex max-w-full flex-wrap items-baseline gap-2 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-2 text-status-ok shadow-paper sm:px-4">
               <span className="font-mono text-5xl font-black tabular-nums sm:text-7xl" aria-label={`${score} points out of ${SCORE_MAX}`} aria-live="off">
                 {displayScore.toLocaleString("en-US")}
               </span>
-              <span className="font-mono text-sm font-bold text-paper-cream">/ 1,000 PTS</span>
+              <span className="font-mono text-sm font-bold text-paper-cream">{t("/ 1,000 PTS")}</span>
             </div>
             <p className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-blueprint-navy">
-              {displayScore < score ? "Arcade tally // counting" : "Arcade tally // final score"}
+              {displayScore < score ? t("Arcade tally // counting") : t("Arcade tally // final score")}
             </p>
           </div>
           <div className="mt-5 h-4 overflow-hidden rounded-full border-2 border-ink-black bg-slate-200">
@@ -340,15 +341,15 @@ export function MissionReportDashboard({
         </div>
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-black uppercase">Score weighting</h2>
+            <h2 className="font-display text-lg font-black uppercase">{t("Score weighting")}</h2>
             <span className="font-mono text-[10px] font-semibold uppercase text-blueprint-navy">
-              Where your points came from
+              {t("Where your points came from")}
             </span>
           </div>
           <div className="mt-3 flex h-5 overflow-hidden rounded-full border-2 border-ink-black">
             {SCORE_WEIGHTS.map((part) => (
               <div key={part.key} className={`${part.color} h-full border-r-2 border-ink-black last:border-r-0`}
-                style={{ width: `${part.weight}%` }} aria-label={`${part.label}: ${part.weight}% weight`} />
+                style={{ width: `${part.weight}%` }} aria-label={t("{label}: {w}% weight", { label: t(part.label), w: part.weight })} />
             ))}
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -360,12 +361,12 @@ export function MissionReportDashboard({
                     <span className={`grid h-8 w-8 place-items-center rounded-lg border-2 border-ink-black ${color}`}>
                       <Icon size={16} strokeWidth={2.5} aria-hidden="true" />
                     </span>
-                    <span className="font-display text-sm font-black">{label}</span>
+                    <span className="font-display text-sm font-black">{t(label)}</span>
                   </div>
                   <div className="mt-2 font-mono text-xs font-bold tabular-nums">
                     {weight}% · {typeof earned === "number" && Number.isFinite(earned)
-                      ? `${Math.round(earned)} / ${maximum} pts`
-                      : `up to ${maximum} pts`}
+                      ? t("{e} / {m} pts", { e: Math.round(earned), m: maximum })
+                      : t("up to {m} pts", { m: maximum })}
                   </div>
                 </div>
               );
@@ -373,15 +374,15 @@ export function MissionReportDashboard({
           </div>
           {(scoreBreakdown?.success_floor_points ?? 0) > 0 && (
             <p className="mt-2 font-mono text-[11px] font-bold text-blueprint-navy">
-              + {scoreBreakdown?.success_floor_points} pts mission-success floor
+              {t("+ {n} pts mission-success floor", { n: scoreBreakdown?.success_floor_points ?? 0 })}
             </p>
           )}
           {scoreBreakdown?.tips && scoreBreakdown.tips.length > 0 && score < SCORE_MAX && (
             <div className="mt-3 rounded-xl border-2 border-ink-black bg-white p-3">
-              <p className="font-display text-sm font-black">How to reach 1,000</p>
+              <p className="font-display text-sm font-black">{t("How to reach 1,000")}</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs font-semibold text-slate-700">
                 {scoreBreakdown.tips.map((tip) => (
-                  <li key={tip}>{tip}</li>
+                  <li key={tip}>{ts(tip)}</li>
                 ))}
               </ul>
             </div>
@@ -394,7 +395,7 @@ export function MissionReportDashboard({
       <CrewLeaderboard
         entries={leaderboard}
         collaboration={(report as unknown as { collaboration?: CollaborationSummary }).collaboration}
-        summaries={Object.fromEntries(contributions.map((c) => [c.role, c.summary?.trim() ?? ""]))}
+        summaries={Object.fromEntries(contributions.map((c) => [c.role, ts(c.summary?.trim() ?? "")]))}
         myRole={myRole}
         missionFailed={report.outcome === "FAILED"}
         compact={isMobileClient}
@@ -408,20 +409,20 @@ export function MissionReportDashboard({
         if (list.length === 0) return null;
         return list.map((ev) => (
           <section key={ev.event_id} className={`rounded-2xl border-[3px] border-ink-black p-4 text-ink-black shadow-paper ${ev.mitigated ? "bg-status-ok" : "bg-status-warn"}`}
-            aria-label="Survival event">
-            <p className="font-mono text-[11px] font-black uppercase tracking-widest">Survival event</p>
-            <h2 className="font-display text-2xl font-black">{ev.title}</h2>
-            <p className="mt-1 text-sm font-semibold">{ev.description}</p>
+            aria-label={t("Survival event")}>
+            <p className="font-mono text-[11px] font-black uppercase tracking-widest">{t("Survival event")}</p>
+            <h2 className="font-display text-2xl font-black">{ts(ev.title)}</h2>
+            <p className="mt-1 text-sm font-semibold">{ts(ev.description)}</p>
             <p className="mt-2 text-sm font-bold">
               {ev.mitigated
-                ? `Why it didn't hurt: ${ev.mitigation_text}`
-                : `It cost you: ${Object.entries(ev.applied_effects || {})
-                    .map(([k, v]) => `${k.replace(/_pct|_db/, "").replace(/_/g, " ")} ${v > 0 ? "+" : ""}${v}`)
-                    .join(", ")}. A different design choice could have blocked it.`}
+                ? `${t("Why it didn't hurt:")} ${ts(ev.mitigation_text)}`
+                : `${t("It cost you:")} ${Object.entries(ev.applied_effects || {})
+                    .map(([k, v]) => `${t(k.replace(/_pct|_db/, "").replace(/_/g, " "))} ${v > 0 ? "+" : ""}${v}`)
+                    .join(", ")}. ${t("A different design choice could have blocked it.")}`}
             </p>
             {ev.fuente && (
               <a href={ev.fuente} target="_blank" rel="noreferrer" className="mt-1 inline-block font-mono text-[11px] underline">
-                Real-world source
+                {t("Real-world source")}
               </a>
             )}
           </section>
@@ -435,17 +436,17 @@ export function MissionReportDashboard({
               <ArrowRight size={20} strokeWidth={3} aria-hidden="true" />
             </span>
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-status-warn">Decision → consequence</p>
-              <h2 className="font-display text-xl font-black">Causal Engineering Breakdown</h2>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-status-warn">{t("Decision → consequence")}</p>
+              <h2 className="font-display text-xl font-black">{t("Causal Engineering Breakdown")}</h2>
             </div>
           </div>
           {report.failed_or_degraded_gate && (
             <p className="mb-3 inline-block rounded-md border border-status-warn/60 bg-space-ink px-2 py-1 font-mono text-xs font-semibold text-status-warn">
-              Checkpoint to revisit: {GATE_LABEL[report.failed_or_degraded_gate.trim().toUpperCase()] ?? report.failed_or_degraded_gate}
+              {t("Checkpoint to revisit:")} {t(GATE_LABEL[report.failed_or_degraded_gate.trim().toUpperCase()] ?? report.failed_or_degraded_gate)}
             </p>
           )}
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
-            {report.causal_chain_explanation}
+            {ts(report.causal_chain_explanation)}
           </p>
         </section>
         <section className="flash-panel p-5 sm:p-6">
@@ -454,12 +455,12 @@ export function MissionReportDashboard({
               <FlaskConical size={20} strokeWidth={2.5} aria-hidden="true" />
             </span>
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-role-spacecraft">From mission data to real missions</p>
-              <h2 className="font-display text-xl font-black">Real NASA Mission Connection</h2>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-role-spacecraft">{t("From mission data to real missions")}</p>
+              <h2 className="font-display text-xl font-black">{t("Real NASA Mission Connection")}</h2>
             </div>
           </div>
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
-            {report.nasa_real_world_fact}
+            {ts(report.nasa_real_world_fact)}
           </p>
           {(() => {
             const spec = missionId
@@ -468,9 +469,9 @@ export function MissionReportDashboard({
             if (!spec?.budget_note) return null;
             return (
               <p className="mt-2 rounded-lg border border-slate-500/60 bg-space-ink/70 px-2 py-1.5 font-mono text-[11px] leading-snug text-slate-300">
-                {spec.budget_note}{" "}
+                {ts(spec.budget_note)}{" "}
                 {spec.budget_note_fuente && (
-                  <a href={spec.budget_note_fuente} target="_blank" rel="noreferrer" className="underline">Source</a>
+                  <a href={spec.budget_note_fuente} target="_blank" rel="noreferrer" className="underline">{t("Source")}</a>
                 )}
               </p>
             );
@@ -478,11 +479,11 @@ export function MissionReportDashboard({
         </section>
       </div>
 
-      <section className="flash-panel min-w-0 p-3 sm:p-5" aria-label="Flight node inspector">
+      <section className="flash-panel min-w-0 p-3 sm:p-5" aria-label={t("Flight node inspector")}>
         <div className="mb-3">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">Captain's flight archive</p>
-          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Inspect the four checkpoints</h2>
-          <p className="mt-1 text-xs text-slate-300">Open a checkpoint to see what it tests and what Mission Control measured.</p>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">{t("Captain's flight archive")}</p>
+          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">{t("Inspect the four checkpoints")}</h2>
+          <p className="mt-1 text-xs text-slate-300">{t("Open a checkpoint to see what it tests and what Mission Control measured.")}</p>
         </div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           {GATE_DETAILS.map((gate, index) => {
@@ -498,19 +499,19 @@ export function MissionReportDashboard({
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-mono text-[9px] font-bold uppercase text-blueprint-navy">Checkpoint {index + 1}</span>
-                    <span className="block font-display text-sm font-black">{gate.title}</span>
+                    <span className="block font-mono text-[9px] font-bold uppercase text-blueprint-navy">{t("Checkpoint {n}", { n: index + 1 })}</span>
+                    <span className="block font-display text-sm font-black">{t(gate.title)}</span>
                   </span>
                   <ChevronDown size={18} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="space-y-3 border-t-2 border-ink-black px-3 py-3 text-sm">
-                  <span className={"inline-block rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[10px] font-black " + statusColor}>{status}</span>
-                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">Engineering focus</p>
-                  <p className="-mt-2 text-slate-700">{gate.focus}</p>
-                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">Mission telemetry</p>
+                  <span className={"inline-block rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[10px] font-black " + statusColor}>{t(status)}</span>
+                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">{t("Engineering focus")}</p>
+                  <p className="-mt-2 text-slate-700">{t(gate.focus)}</p>
+                  <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">{t("Mission telemetry")}</p>
                   <p className="-mt-2 whitespace-pre-line break-words text-slate-700">
-                    {history?.feedback || (isFlagged ? report.causal_chain_explanation :
-                      "The final report did not include a separate finding for this gate.")}
+                    {ts(history?.feedback) || (isFlagged ? ts(report.causal_chain_explanation) :
+                      t("The final report did not include a separate finding for this gate."))}
                   </p>
                 </div>
               </details>
@@ -520,13 +521,13 @@ export function MissionReportDashboard({
       </section>
 
       {previousAttempt && scoreDelta !== null && (
-        <section className="flash-panel overflow-hidden" aria-label="Attempt comparison">
+        <section className="flash-panel overflow-hidden" aria-label={t("Attempt comparison")}>
           <div className="hazard-stripe-bar h-2" />
           <div className="space-y-3 p-4 sm:p-5">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">Redesign history · this browser session</p>
-                <h2 className="font-display text-xl font-black sm:text-2xl">Attempt #{attemptNumber - 1} → Attempt #{attemptNumber}</h2>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">{t("Redesign history · this browser session")}</p>
+                <h2 className="font-display text-xl font-black sm:text-2xl">{t("Attempt #{n}", { n: attemptNumber - 1 })} → {t("Attempt #{n}", { n: attemptNumber })}</h2>
               </div>
               <span className={"rounded-lg border-2 border-ink-black px-3 py-1 font-mono text-lg font-black tabular-nums text-ink-black " + (scoreDelta > 0 ? "bg-status-ok" : scoreDelta < 0 ? "bg-status-crit" : "bg-status-warn")}>
                 {scoreDelta > 0 ? "+" : ""}{scoreDelta.toLocaleString("en-US")} pts
@@ -534,16 +535,16 @@ export function MissionReportDashboard({
             </div>
             <div className="grid gap-2 text-center font-mono text-xs sm:grid-cols-3">
               <div className="rounded-lg border-2 border-ink-black bg-space-ink p-3">
-                <span className="block text-slate-400">PREVIOUS SCORE</span>
+                <span className="block text-slate-400">{t("PREVIOUS SCORE")}</span>
                 <strong className="text-xl tabular-nums text-paper-cream">{previousAttempt.score.toLocaleString("en-US")}</strong>
               </div>
               <div className="hidden items-center justify-center text-2xl text-role-finance sm:flex" aria-hidden="true">→</div>
               <div className="rounded-lg border-2 border-ink-black bg-space-ink p-3">
-                <span className="block text-slate-400">CURRENT SCORE</span>
+                <span className="block text-slate-400">{t("CURRENT SCORE")}</span>
                 <strong className="text-xl tabular-nums text-paper-cream">{score.toLocaleString("en-US")}</strong>
               </div>
             </div>
-            <p className="font-mono text-xs text-slate-300">Previous outcome: {VERDICTS[previousAttempt.outcome].title} · Current outcome: {verdict.title}</p>
+            <p className="font-mono text-xs text-slate-300">{t("Previous outcome:")} {t(VERDICTS[previousAttempt.outcome].title)} · {t("Current outcome:")} {t(verdict.title)}</p>
           </div>
         </section>
       )}
@@ -552,7 +553,7 @@ export function MissionReportDashboard({
         <button type="button" onClick={handleRetry}
           className="paper-btn flex w-full max-w-xl items-center justify-center gap-3 bg-status-ok px-6 py-4 text-center font-display text-lg font-black uppercase tracking-wide text-ink-black focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-paper-cream sm:text-xl">
           <RefreshCw size={23} strokeWidth={3} aria-hidden="true" />
-          REDESIGN & RETRY
+          {t("REDESIGN & RETRY")}
         </button>
       </div>
     </main>

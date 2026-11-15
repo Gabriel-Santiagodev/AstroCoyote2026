@@ -41,7 +41,7 @@ Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo 
 | **Reparto oficial de los 5 roles (`[DECIDIDO]`)** | **Rubén:** Backend Socket.IO, salas PIN, concurrencia en vivo, integración y deploy. **Ismael:** 4 minijuegos 2D de Nave/Masa/Lanzador/Presupuesto (`Rol2A`, `Rol1A`, `Rol1B`, `Rol2B`). **Abraham:** Datos NASA (`nasa_catalog.json`), motor espectral y 4 minijuegos de Ciencia/DSN/Órbita/3D (`Rol3A`, `Rol4A`, `Rol4B`, `Rol3B`). **Schoenstadt:** Física (`physics_engine.py`), `randomizer.py`, árbol de 4 Nodos (`decision_tree.py`) y **Árbol de Preguntas del Vuelo de 60s (`story_tree.json`)**. **Leonardo:** Menús, Lobby, Pista Lineal automática, Escena Vuelo 60s, Dashboard final, `MinigameShell` y arte *Paper Mario × Among Us*. | Rubén + Equipo |
 | **Mínimo de 1 a 4 jugadores** | Hay **4 Roles** en toda misión. Si juegan 1, 2 o 3 humanos, `randomizer.py` cubre los roles vacíos adaptándose a las decisiones humanas (*Constraint-Aware Clamping*). | Schoenstadt |
 | **Estructura del Vuelo de 60 s** | **4 rondas de 15 segundos** por turnos (4 × 15 s = 60 s exactos) ligadas a las 4 compuertas del árbol (`NODE_1_LAUNCH`, `NODE_2_PROPULSION`, `NODE_3_EVENT`, `NODE_4_DOWNLINK`) con eventos reales dinámicos según las decisiones previas de las estaciones. | Schoenstadt, Leonardo |
-| **Idioma del juego** | Interfaz visible del juego, tarjetas educativas, preguntas de 60 s, página de entrega y video de 30 s en **inglés** (regla de entrega global). Documentos de equipo en español. | Todos |
+| **Idioma del juego** | Interfaz visible del juego, tarjetas educativas, preguntas de 60 s, página de entrega y video de 30 s en **inglés** (regla de entrega global). Documentos de equipo en español. **Enmienda 2026-11-15 (aprobada por Leonardo):** el engranaje de *Options* permite cambiar la interfaz a **español**; el juego siempre abre en inglés para quien no lo eligió, y la elección se guarda por navegador. | Todos |
 
 ### Lo que sigue abierto `[ABIERTO]`
 
@@ -57,7 +57,7 @@ Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo 
 | A1 | Hora de inicio y entrega | **Cerrada:** Sábado 14 nov 15:00 h $\rightarrow$ Domingo 15 nov 15:00 h (24 h). |
 | A2 | Hardware armado antes | **Cerrada (N/A):** Ya no hay hardware físico. |
 | A3 | ¿Control de misión o astronautas? | **Cerrada:** Tripulantes/ingenieros estilizados tipo *Among Us* operando misiones espaciales reales (*Artemis*, *OSIRIS-REx*, *MRO/MSR*). |
-| A4 | Idioma | **Cerrada:** Inglés en el juego y entrega para evaluación global; español en `docs/`. |
+| A4 | Idioma | **Cerrada:** Inglés en el juego y entrega para evaluación global; español en `docs/`. **Enmienda 2026-11-15:** español opcional en la interfaz desde *Options* (inglés por defecto). |
 | A5 | Qué pasa al fallar un minijuego | **Cerrada:** Modalidad **1 Toma (30 s)** sin bloqueo: si falla o se acaba el tiempo, aplica degradación real (ej. sin escudo térmico, CG desbalanceado `1.5x`, menor $F_1$ espectral) que repercute en el árbol causal y se explica en la retroalimentación final. |
 | A7 | Presupuesto total | **Cerrada:** Parametrizado por misión en `nasa_catalog.json`: M1 Luna $\$800\text{M USD}$, M2 Asteroide $\$1,200\text{M USD}$, M3 Marte $\$2,500\text{M USD}$. |
 | A8 | Versión de Unity | **Cerrada (N/A):** Reemplazado por Node 20+ / Vite / React 18+ y Python 3.11+ / FastAPI. |

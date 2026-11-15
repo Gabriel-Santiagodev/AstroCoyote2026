@@ -4,6 +4,7 @@ import { Bot, Crown, Lock, Radio, ShieldCheck, Users } from "lucide-react";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "./CrewmateAvatar";
 import type { RoleType } from "../../types/game";
 
+import { t } from "../../i18n";
 /** One crew seat as ranked by the server (`reporte_final_mision.leaderboard`, docs/08). */
 export interface LeaderboardEntry {
   role: RoleType;
@@ -54,7 +55,7 @@ const SEAT_NAME: Record<RoleType, string> = {
   orbit_power: "Soldier",
   science_comms: "Defender",
 };
-const displayName = (e: LeaderboardEntry) => (e.is_ai ? `${SEAT_NAME[e.role]} · AI` : e.player_name);
+const displayName = (e: LeaderboardEntry) => (e.is_ai ? `${t(SEAT_NAME[e.role])} · ${t("AI")}` : e.player_name);
 /** Podium slots left-to-right: 2nd, 1st, 3rd (visual only). */
 const PODIUM_SLOTS: Array<{ rank: number; height: string }> = [
   { rank: 2, height: "h-16 sm:h-20" },
@@ -69,18 +70,18 @@ export function CrewLeaderboard({ entries, collaboration, summaries, myRole, mis
   const byRank = (rank: number) => ranked.find((e) => e.rank === rank);
 
   return (
-    <section className="flash-panel overflow-hidden" aria-label="Crew leaderboard">
+    <section className="flash-panel overflow-hidden" aria-label={t("Crew leaderboard")}>
       <div className="hazard-stripe-bar h-2" />
       <div className="p-3 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="font-mono text-[11px] font-black uppercase tracking-widest text-sky-glow">Crew leaderboard</p>
-            <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Who carried the mission</h2>
+            <p className="font-mono text-[11px] font-black uppercase tracking-widest text-sky-glow">{t("Crew leaderboard")}</p>
+            <h2 className="font-display text-xl font-black uppercase sm:text-2xl">{t("Who carried the mission")}</h2>
           </div>
           {collaboration && (
-            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-1.5" title="Team score: own locks 40%, flight calls answered 30%, checkpoints ready at liftoff 30%">
+            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-1.5" title={t("Team score: own locks 40%, flight calls answered 30%, checkpoints ready at liftoff 30%")}>
               <Users className="h-4 w-4 text-sky-glow" aria-hidden="true" />
-              <span className="font-mono text-[10px] font-bold uppercase text-slate-300">Teamwork</span>
+              <span className="font-mono text-[10px] font-bold uppercase text-slate-300">{t("Teamwork")}</span>
               <span className="font-display text-lg font-black tabular-nums text-paper-cream">{collaboration.score}/100</span>
             </div>
           )}
@@ -115,7 +116,7 @@ export function CrewLeaderboard({ entries, collaboration, summaries, myRole, mis
                 <p className="mt-1 w-full truncate text-center font-display text-xs font-black text-paper-cream sm:text-sm">
                   {displayName(entry)}
                 </p>
-                <p className="font-mono text-[10px] font-bold tabular-nums text-amber-300">{entry.points} pts</p>
+                <p className="font-mono text-[10px] font-bold tabular-nums text-amber-300">{t("{n} pts", { n: entry.points })}</p>
                 <div className={`metal-grate mt-1 flex w-full items-start justify-center rounded-t-lg border-[3px] border-b-0 border-ink-black pt-1 ${height}`}>
                   <span className="rounded border-2 border-ink-black px-1.5 font-mono text-xs font-black text-ink-black"
                     style={{ backgroundColor: profile.suit }}>
@@ -137,37 +138,37 @@ export function CrewLeaderboard({ entries, collaboration, summaries, myRole, mis
               <li key={entry.role}
                 className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border-[3px] border-ink-black p-2 sm:gap-3 sm:p-2.5 ${isMe ? "bg-paper-cream text-ink-black" : "bg-space-ink/80 text-paper-cream"}`}>
                 <span className="grid h-8 w-8 place-items-center rounded-lg border-2 border-ink-black font-mono text-sm font-black text-ink-black"
-                  style={{ backgroundColor: profile.suit }} aria-label={`Rank ${entry.rank}`}>
+                  style={{ backgroundColor: profile.suit }} aria-label={t("Rank {n}", { n: entry.rank })}>
                   {entry.rank}
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="truncate font-display text-sm font-black">{displayName(entry)}</span>
-                    {isMe && <span className="rounded border border-ink-black bg-status-ok px-1 font-mono text-[9px] font-black text-ink-black">YOU</span>}
+                    {isMe && <span className="rounded border border-ink-black bg-status-ok px-1 font-mono text-[9px] font-black text-ink-black">{t("YOU")}</span>}
                     {entry.is_ai && (
                       <span className="inline-flex items-center gap-0.5 rounded border border-ink-black bg-status-warn px-1 font-mono text-[9px] font-black text-ink-black">
-                        <Bot className="h-3 w-3" aria-hidden="true" /> AI
+                        <Bot className="h-3 w-3" aria-hidden="true" /> {t("AI")}
                       </span>
                     )}
-                    <span className={`font-mono text-[10px] font-bold uppercase ${isMe ? "text-blueprint-navy" : "text-slate-400"}`}>{profile.label}</span>
+                    <span className={`font-mono text-[10px] font-bold uppercase ${isMe ? "text-blueprint-navy" : "text-slate-400"}`}>{t(profile.label)}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     <span className={`inline-flex items-center gap-1 rounded-md border-2 border-ink-black px-1.5 py-0.5 font-mono text-[10px] font-black text-ink-black ${status.color}`}>
                       <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                      {CHECKPOINT_NAME[entry.gate] ?? entry.gate}: {status.word}
+                      {t(CHECKPOINT_NAME[entry.gate] ?? entry.gate)}: {t(status.word)}
                     </span>
                     {flaggedGate && flaggedGate.trim().toUpperCase() === entry.gate && (
                       <span className="inline-flex items-center rounded-md border-2 border-ink-black bg-status-crit px-1.5 py-0.5 font-mono text-[10px] font-black text-ink-black">
-                        {entry.gate_status === "PASS" ? "Revisit: hit in flight" : "Revisit"}
+                        {entry.gate_status === "PASS" ? t("Revisit: hit in flight") : t("Revisit")}
                       </span>
                     )}
                     {!entry.is_ai && (
                       <>
                         <span className="inline-flex items-center gap-1 rounded-md border-2 border-ink-black bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-black text-ink-black">
-                          <Lock className="h-3 w-3" aria-hidden="true" /> {entry.stations_locked}/2 stations
+                          <Lock className="h-3 w-3" aria-hidden="true" /> {t("{n}/2 stations", { n: entry.stations_locked })}
                         </span>
                         <span className="inline-flex items-center gap-1 rounded-md border-2 border-ink-black bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-black text-ink-black">
-                          <Radio className="h-3 w-3" aria-hidden="true" /> {entry.flight_calls} flight call{entry.flight_calls === 1 ? "" : "s"}
+                          <Radio className="h-3 w-3" aria-hidden="true" /> {entry.flight_calls === 1 ? t("1 flight call") : t("{n} flight calls", { n: entry.flight_calls })}
                         </span>
                       </>
                     )}
@@ -180,7 +181,7 @@ export function CrewLeaderboard({ entries, collaboration, summaries, myRole, mis
                 </div>
                 <div className="w-14 text-right sm:w-20">
                   <span className="block font-display text-lg font-black tabular-nums">{entry.points}</span>
-                  <span className="block font-mono text-[9px] font-bold uppercase opacity-70">pts</span>
+                  <span className="block font-mono text-[9px] font-bold uppercase opacity-70">{t("pts")}</span>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-ink-black bg-slate-700">
                     <div className="h-full bg-tank-orange" style={{ width: `${(entry.points / topPoints) * 100}%` }} />
                   </div>
@@ -191,8 +192,7 @@ export function CrewLeaderboard({ entries, collaboration, summaries, myRole, mis
         </ol>
 
         <p className="mt-2 font-mono text-[10px] leading-snug text-slate-400">
-          Points: your checkpoint as measured at liftoff (Ready 50 · Risky 25 · Failing 0) + 10 per station you locked yourself
-          + 5 per flight call you answered. Empty seats are flown by the AI and only earn checkpoint points.
+          {t("Points: your checkpoint as measured at liftoff (Ready 50 · Risky 25 · Failing 0) + 10 per station you locked yourself + 5 per flight call you answered. Empty seats are flown by the AI and only earn checkpoint points.")}
         </p>
       </div>
     </section>

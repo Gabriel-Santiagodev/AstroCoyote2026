@@ -4,6 +4,7 @@
 //   liftoff → per-mission launch: gantry, smoke, rocket climbing toward the mission's target
 // Background: AI-art nebula (falls back to the CSS hangar backdrop if the file is missing).
 import { useState } from "react";
+import { t } from "../../i18n";
 import { motion, useReducedMotion } from "framer-motion";
 import { CrewmateAvatar } from "./CrewmateAvatar";
 import { Flame, Gantry, Rocket, Smoke } from "./KeyArt";
@@ -130,7 +131,7 @@ export function MissionCutscene({
               >
                 {role === myRole && (
                   <span className="mb-1 rounded border-2 border-ink-black bg-paper-cream px-1.5 font-mono text-[10px] font-bold text-ink-black">
-                    YOU
+                    {t("YOU")}
                   </span>
                 )}
                 <CrewmateAvatar role={role} state="walk" actionEffect="thruster" size={role === myRole ? 96 : 80} />
@@ -149,11 +150,11 @@ export function MissionCutscene({
         >
           <div className="font-display text-3xl font-black uppercase sm:text-5xl">{title}</div>
           <div className="mt-0.5 font-mono text-xs font-bold uppercase tracking-widest text-slate-600 sm:text-sm">
-            {kind === "liftoff" ? `${dest.label} · ${subtitle}` : subtitle}
+            {kind === "liftoff" ? `${t(dest.label)} · ${subtitle}` : subtitle}
           </div>
         </motion.div>
       </div>
-      <span className="absolute bottom-2 right-3 font-mono text-[9px] uppercase tracking-widest text-slate-400/80">AI-generated art</span>
+      <span className="absolute bottom-2 right-3 font-mono text-[9px] uppercase tracking-widest text-slate-400/80">{t("AI-generated art")}</span>
     </motion.div>
   );
 }

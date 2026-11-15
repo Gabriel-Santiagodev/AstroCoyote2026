@@ -30,6 +30,14 @@ else:
 
 _STORY_PATH = Path(__file__).resolve().with_name("story_tree.json")
 
+# Player-facing names for the power_source values (naming only, no game numbers).
+POWER_NAMES = {
+    "rtg_nuclear": "nuclear battery (RTG)",
+    "solar_standard": "solar panels",
+    "fuel_cell": "fuel cells",
+    "battery_heavy": "big batteries",
+}
+
 _DEFAULT_FACTS = {
     "artemis_moon": (
         "NASA's Artemis I (2022) flew Orion to a distant retrograde orbit around the Moon and "
@@ -308,7 +316,7 @@ def evaluate_mission_deployment(
         event_survival = 0.60
         notes.append(
             f"A Mars dust storm and a jammed sample arm cut the samples collected "
-            f"(power: {s.power_source}, battery {s.battery_reserve_pct:.0f}%, reserve fund {s.ufe_reserve_pct:.0f}%)."
+            f"(power: {POWER_NAMES.get(str(s.power_source), s.power_source)}, battery {s.battery_reserve_pct:.0f}%, reserve fund {s.ufe_reserve_pct:.0f}%)."
         )
 
     # NODE 4: Science Calibration & DSN Downlink Gate

@@ -8,6 +8,7 @@ import {
   ClipboardList,
   KeyRound,
   LogIn,
+  Languages,
   Music,
   Settings,
   Users,
@@ -18,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { soundEngine } from "../components/paper/SoundEngine";
+import { t, useI18n } from "../i18n";
 import { MenuBackdrop, type FloatingSprite } from "../components/paper/MenuBackdrop";
 import { ART } from "../data/artManifest";
 
@@ -126,6 +128,7 @@ export function HomeMenu({
   const [showOptions, setShowOptions] = useState(false);
   const [muted, setMuted] = useState(() => soundEngine.isMuted());
   const [music, setMusic] = useState(() => soundEngine.isAmbientPlaying());
+  const { lang, setLang } = useI18n();
 
   useEffect(
     () =>
@@ -165,7 +168,7 @@ export function HomeMenu({
     const clean = pinInput.trim().toUpperCase();
     if (clean.length < MIN_PIN_LENGTH) {
       soundEngine.playError();
-      setNotice(`The game PIN has ${MIN_PIN_LENGTH}+ characters`);
+      setNotice(t("The game PIN has {n}+ characters", { n: MIN_PIN_LENGTH }));
       return;
     }
     soundEngine.playComplete();
@@ -187,7 +190,7 @@ export function HomeMenu({
       }`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-ink-black" />
-      {connectionStatus === "online" ? "Online" : connectionStatus === "checking" ? "Linking…" : "Offline demo"}
+      {connectionStatus === "online" ? t("Online") : connectionStatus === "checking" ? t("Linking…") : t("Offline demo")}
     </span>
   );
 
@@ -213,7 +216,7 @@ export function HomeMenu({
           Astro Squad
         </motion.h1>
         <p className="mt-2 font-mono text-xs font-bold uppercase tracking-[0.25em] text-sky-glow sm:text-sm">
-          Design · Launch · Survive
+          {t("Design · Launch · Survive")}
         </p>
         <div className="mt-3">{statusChip}</div>
 
@@ -222,13 +225,13 @@ export function HomeMenu({
             {view === "main" && (
               <motion.div key="main" {...panelMotion} className="flex flex-col items-center gap-4">
                 <MenuButton onClick={startSingle} disabled={isConnecting}>
-                  Single Player
+                  {t("Single Player")}
                 </MenuButton>
                 <MenuButton onClick={() => go("multi")} disabled={isConnecting}>
-                  Multi Player
+                  {t("Multi Player")}
                 </MenuButton>
                 <div className="w-1/2">
-                  <MenuButton onClick={() => setShowOptions(true)} label="Options" tone="steel">
+                  <MenuButton onClick={() => setShowOptions(true)} label={t("Options")} tone="steel">
                     <Settings className="h-8 w-8" strokeWidth={2.5} />
                   </MenuButton>
                 </div>
@@ -238,14 +241,14 @@ export function HomeMenu({
             {view === "multi" && (
               <motion.div key="multi" {...panelMotion} className="flex flex-col gap-4">
                 <MenuButton onClick={() => go("host_name")} disabled={isConnecting}>
-                  <Users className="h-7 w-7" /> Host match
+                  <Users className="h-7 w-7" /> {t("Host match")}
                 </MenuButton>
                 <MenuButton onClick={() => go("join_pin")} disabled={isConnecting}>
-                  <LogIn className="h-7 w-7" /> Join match
+                  <LogIn className="h-7 w-7" /> {t("Join match")}
                 </MenuButton>
                 <button type="button" onClick={() => go("main")}
                   className="mx-auto mt-1 inline-flex items-center gap-1.5 font-mono text-sm font-bold uppercase text-slate-300 hover:text-paper-cream">
-                  <ArrowLeft className="h-4 w-4" /> Back
+                  <ArrowLeft className="h-4 w-4" /> {t("Back")}
                 </button>
               </motion.div>
             )}
@@ -258,10 +261,10 @@ export function HomeMenu({
                 className="rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
               >
                 <div className="text-center font-display text-2xl font-black uppercase">
-                  {view === "host_name" ? "Host match" : `Join ${pinInput.trim().toUpperCase()}`}
+                  {view === "host_name" ? t("Host match") : t("Join {pin}", { pin: pinInput.trim().toUpperCase() })}
                 </div>
                 <label className="mt-3 block font-mono text-xs font-bold uppercase text-slate-600">
-                  Nickname
+                  {t("Nickname")}
                   <input
                     autoFocus
                     type="text"
@@ -273,11 +276,11 @@ export function HomeMenu({
                 </label>
                 <button type="submit" disabled={isConnecting}
                   className="plate-gold mt-4 w-full py-3 font-display text-xl font-black uppercase disabled:opacity-60">
-                  {isConnecting ? "Connecting…" : view === "host_name" ? "Create room" : "OK, go!"}
+                  {isConnecting ? t("Connecting…") : view === "host_name" ? t("Create room") : t("OK, go!")}
                 </button>
                 <button type="button" onClick={() => go(view === "host_name" ? "multi" : "join_pin")}
                   className="mt-3 inline-flex w-full items-center justify-center gap-1.5 font-mono text-xs font-bold uppercase text-slate-500">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                  <ArrowLeft className="h-3.5 w-3.5" /> {t("Back")}
                 </button>
               </motion.form>
             )}
@@ -289,7 +292,7 @@ export function HomeMenu({
                 onSubmit={submitPin}
                 className="rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
               >
-                <div className="text-center font-display text-3xl font-black uppercase">Join match</div>
+                <div className="text-center font-display text-3xl font-black uppercase">{t("Join match")}</div>
                 <div className="relative mt-4">
                   <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
                   <input
@@ -299,19 +302,19 @@ export function HomeMenu({
                     maxLength={MAX_PIN_LENGTH}
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value.toUpperCase())}
-                    placeholder="Game PIN"
-                    aria-label="Game PIN"
+                    placeholder={t("Game PIN")}
+                    aria-label={t("Game PIN")}
                     className="w-full rounded-lg border-[3px] border-ink-black bg-white py-4 pl-11 pr-3 text-center font-mono text-3xl font-bold uppercase tracking-[0.3em] text-ink-black placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-glow"
                   />
                 </div>
                 {notice && <p className="mt-2 text-center font-mono text-xs font-bold text-red-600">{notice}</p>}
                 <button type="submit"
                   className="plate-gold mt-4 w-full py-3 font-display text-xl font-black uppercase">
-                  Enter
+                  {t("Enter")}
                 </button>
                 <button type="button" onClick={() => go("multi")}
                   className="mt-3 inline-flex w-full items-center justify-center gap-1.5 font-mono text-xs font-bold uppercase text-slate-500">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                  <ArrowLeft className="h-3.5 w-3.5" /> {t("Back")}
                 </button>
               </motion.form>
             )}
@@ -346,15 +349,15 @@ export function HomeMenu({
               className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl border-[4px] border-ink-black bg-paper-cream p-5 text-ink-black shadow-[8px_8px_0_#0F172A]"
             >
               <div className="flex items-center justify-between">
-                <h2 id="options-title" className="font-display text-3xl font-black uppercase">Options</h2>
-                <button type="button" onClick={() => setShowOptions(false)} aria-label="Close options"
+                <h2 id="options-title" className="font-display text-3xl font-black uppercase">{t("Options")}</h2>
+                <button type="button" onClick={() => setShowOptions(false)} aria-label={t("Close options")}
                   className="rounded-lg border-[3px] border-ink-black bg-white p-1.5">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <label className="block font-mono text-xs font-bold uppercase text-slate-600">
-                Your name
+                {t("Your name")}
                 <input type="text" maxLength={MAX_CALLSIGN_LENGTH} value={callsign}
                   onChange={(e) => setCallsign(e.target.value)} onBlur={() => storeName(safeName)}
                   className="mt-1 w-full rounded-lg border-[3px] border-ink-black bg-white px-3 py-2 font-display text-lg font-bold" />
@@ -363,16 +366,31 @@ export function HomeMenu({
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => soundEngine.toggleMute()}
                   className={`flex items-center justify-center gap-2 rounded-lg border-[3px] border-ink-black py-2.5 font-bold ${muted ? "bg-slate-300" : "bg-status-ok"}`}>
-                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />} Sound {muted ? "off" : "on"}
+                  {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />} {muted ? t("Sound off") : t("Sound on")}
                 </button>
                 <button type="button" onClick={() => soundEngine.toggleAmbientPad()}
                   className={`flex items-center justify-center gap-2 rounded-lg border-[3px] border-ink-black py-2.5 font-bold ${music ? "bg-status-ok" : "bg-slate-300"}`}>
-                  <Music className="h-5 w-5" /> Music {music ? "on" : "off"}
+                  <Music className="h-5 w-5" /> {music ? t("Music on") : t("Music off")}
                 </button>
               </div>
 
               <div>
-                <div className="mb-2 font-display text-lg font-black uppercase">How to play</div>
+                <div className="mb-1.5 flex items-center gap-1.5 font-mono text-xs font-bold uppercase text-slate-600">
+                  <Languages className="h-4 w-4" /> {t("Language")}
+                </div>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("Language")}>
+                  {([["en", "English"], ["es", "Español"]] as const).map(([code, name]) => (
+                    <button key={code} type="button" role="radio" aria-checked={lang === code}
+                      onClick={() => { soundEngine.playClick(); setLang(code); }}
+                      className={`rounded-lg border-[3px] border-ink-black py-2.5 font-bold ${lang === code ? "bg-amber-400" : "bg-white"}`}>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 font-display text-lg font-black uppercase">{t("How to play")}</div>
                 <ol className="grid gap-2 sm:grid-cols-2">
                   {GUIDE_STEPS.map(({ icon: Icon, title, text }, i) => (
                     <li key={title} className="flex items-start gap-2 rounded-xl border-[3px] border-ink-black bg-white p-2.5">
@@ -380,8 +398,8 @@ export function HomeMenu({
                         <Icon className="h-4 w-4" />
                       </span>
                       <div>
-                        <div className="font-mono text-[11px] font-bold uppercase">{i + 1} · {title}</div>
-                        <p className="text-sm leading-snug text-slate-700">{text}</p>
+                        <div className="font-mono text-[11px] font-bold uppercase">{i + 1} · {t(title)}</div>
+                        <p className="text-sm leading-snug text-slate-700">{t(text)}</p>
                       </div>
                     </li>
                   ))}
@@ -389,10 +407,10 @@ export function HomeMenu({
               </div>
 
               <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-slate-300 pt-3">
-                <p className="font-mono text-[10px] text-slate-500">AI-generated art · real NASA mission data · no NASA logos</p>
+                <p className="font-mono text-[10px] text-slate-500">{t("AI-generated art · real NASA mission data · no NASA logos")}</p>
                 <button type="button" onClick={() => { setShowOptions(false); onOpenSandbox(); }}
                   className="inline-flex items-center gap-1 rounded-lg border-2 border-ink-black bg-white px-2 py-1 font-mono text-[11px] font-bold">
-                  <Wrench className="h-3.5 w-3.5" /> Sandbox
+                  <Wrench className="h-3.5 w-3.5" /> {t("Sandbox")}
                 </button>
               </div>
             </motion.div>

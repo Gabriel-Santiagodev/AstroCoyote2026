@@ -22,6 +22,7 @@ import { StationScenery } from "./paper/StationScenery";
 import { soundEngine } from "./paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
+import { t, useScreenTranslation } from "../i18n";
 // ---------------------------------------------------------------------------
 // UI constants (gameplay durations come from docs/04-juego.md: 30 s per station, 1 take)
 // ---------------------------------------------------------------------------
@@ -189,7 +190,7 @@ function LiveMutationToasts({ toasts }: { toasts: ToastItem[] }) {
             <Radio className="mt-0.5 h-4 w-4 shrink-0 animate-pulse" aria-hidden="true" />
             <div className="min-w-0">
               <div className="font-mono text-[10px] font-bold uppercase tracking-widest">
-                Live mutation
+                {t("Live mutation")}
               </div>
               <div className="font-display text-sm font-bold leading-snug">{toast.text}</div>
             </div>
@@ -262,6 +263,9 @@ export function MinigameShell({
   // --- Toast queue -------------------------------------------------------
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastSeq = useRef(0);
+  // Spanish mode: translate what the (untouched) minigame renders, on screen.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useScreenTranslation(bodyRef);
   const isFirstToastRender = useRef(true);
   useEffect(() => {
     // Skip the value already present on mount: a fresh Station 2 shell must not replay
@@ -355,7 +359,7 @@ export function MinigameShell({
           transition={{ type: "spring", stiffness: 520, damping: 17, delay: STAMP_HEADER_DELAY_SEC }}
           className="inline-flex items-center gap-1 rounded-md border-[3px] border-double border-status-ok bg-space-ink/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-status-ok"
         >
-          <Lock className="h-3 w-3" aria-hidden="true" /> {isHandheld ? "LOCKED" : "STATION LOCKED"}
+          <Lock className="h-3 w-3" aria-hidden="true" /> {isHandheld ? t("LOCKED") : t("STATION LOCKED")}
         </motion.span>
       )}
     </AnimatePresence>
@@ -424,14 +428,14 @@ export function MinigameShell({
                 isHandheld ? "text-sm" : "text-base sm:text-lg"
               }`}
             >
-              {station.title} · {stationTask}
+              {t(station.title)} · {t(stationTask)}
             </div>
             {!isHandheld && !fill && (
               <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
                 <span className="inline-flex items-center gap-1">
-                  <Wrench className="h-3 w-3" aria-hidden="true" /> {profile.gearLabel}
+                  <Wrench className="h-3 w-3" aria-hidden="true" /> {t(profile.gearLabel)}
                 </span>
-                {missionId && <span>· {MISSION_LABELS[missionId]}</span>}
+                {missionId && <span>· {t(MISSION_LABELS[missionId])}</span>}
                 {playerLabel && <span>· {playerLabel}</span>}
               </div>
             )}
@@ -439,7 +443,7 @@ export function MinigameShell({
         </div>
         {untimed ? (
           <span className="shrink-0 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-sky-glow shadow-paper">
-            {isLocked ? "Locked" : isHandheld ? "No timer" : "No timer · lock when ready"}
+            {isLocked ? t("Locked") : isHandheld ? t("No timer") : t("No timer · lock when ready")}
           </span>
         ) : (
           timer
@@ -481,6 +485,7 @@ export function MinigameShell({
       {/* Minigame body — pointer-events disabled once the single take is locked */}
       <div className={`relative min-w-0 ${fill ? "min-h-0 flex-1" : ""}`}>
         <div
+          ref={bodyRef}
           className={`min-w-0 overflow-x-hidden ${fill ? "h-full overflow-y-auto overscroll-contain" : ""} ${
             isLocked ? "pointer-events-none select-none opacity-60 transition-opacity" : ""
           }`}
@@ -507,7 +512,7 @@ export function MinigameShell({
           {isLocked && (
             <StationLockedStamp
               compact={isHandheld}
-              stationLabel={`${station.title} · ${stationTask}`}
+              stationLabel={`${t(station.title)} · ${t(stationTask)}`}
               codename={profile.codename}
             />
           )}
@@ -517,7 +522,7 @@ export function MinigameShell({
           <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center px-2">
             <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-1.5 font-mono text-xs font-bold text-ink-black shadow-paper">
               <TimerReset className="h-4 w-4" aria-hidden="true" />
-              TIME&apos;S UP — auto-submitting your take
+              {t("TIME'S UP — auto-submitting your take")}
             </div>
           </div>
         )}
@@ -526,9 +531,9 @@ export function MinigameShell({
       {isHandheld && (
         <footer className="flex items-center justify-between gap-2 border-t-2 border-ink-black pt-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
           <span className="inline-flex min-w-0 items-center gap-1 truncate">
-            <Wrench className="h-3 w-3 shrink-0" aria-hidden="true" /> {profile.gearLabel}
+            <Wrench className="h-3 w-3 shrink-0" aria-hidden="true" /> {t(profile.gearLabel)}
           </span>
-          {missionId && <span className="shrink-0">{MISSION_LABELS[missionId]}</span>}
+          {missionId && <span className="shrink-0">{t(MISSION_LABELS[missionId])}</span>}
         </footer>
       )}
     </motion.section>
@@ -577,7 +582,7 @@ function StationLockedStamp({
         <div className="pointer-events-none absolute inset-1 rounded-lg border-2 border-dashed border-status-ok/60" aria-hidden="true" />
         <div className={`flex items-center justify-center gap-2 font-display font-bold tracking-wider ${compact ? "text-xl" : "text-2xl sm:text-3xl"}`}>
           <CheckCircle2 className={compact ? "h-5 w-5" : "h-7 w-7"} aria-hidden="true" />
-          STATION LOCKED
+          {t("STATION LOCKED")}
         </div>
         <div className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-status-ok/90">
           {stationLabel}
@@ -619,7 +624,7 @@ function MinigameFallback({
     <div className="paper-card-light space-y-3 p-4" role="alert">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-status-crit" aria-hidden="true" />
-        <h3 className="font-display text-lg font-bold">Console glitch</h3>
+        <h3 className="font-display text-lg font-bold">{t("Console glitch")}</h3>
       </div>
       <p className="text-sm text-slate-700">
         Station {wave} hit an error. Lock a safe take and keep going.
@@ -636,7 +641,7 @@ function MinigameFallback({
           }}
           className="paper-btn bg-role-spacecraft px-3 py-1.5 text-sm text-ink-black"
         >
-          Retry minigame
+          {t("Retry minigame")}
         </button>
         {onFallbackSubmit && !isLocked && (
           <button
@@ -647,7 +652,7 @@ function MinigameFallback({
             }}
             className="paper-btn bg-status-ok px-3 py-1.5 text-sm text-ink-black"
           >
-            Lock fallback take
+            {t("Lock fallback take")}
           </button>
         )}
       </div>

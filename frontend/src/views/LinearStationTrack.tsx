@@ -34,6 +34,7 @@ import { MissionCutscene, type CutsceneKind } from "../components/paper/MissionC
 import { ART } from "../data/artManifest";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
 import { soundEngine } from "../components/paper/SoundEngine";
+import { t } from "../i18n";
 import nasaCatalog from "../data/nasa_catalog.json";
 import { Rol1A_BudgetTable } from "../components/minigames/Rol1A_BudgetTable";
 import { Rol1B_LauncherAuction } from "../components/minigames/Rol1B_LauncherAuction";
@@ -357,8 +358,8 @@ function MiniRadar({ sizePx, alert }: { sizePx: number; alert: boolean }) {
 /** Segmented green task bar (8 cells = 4 roles x 2 stations). */
 function TaskBar({ done, total }: { done: number; total: number }) {
   return (
-    <div className="flex items-center gap-2" aria-label={`Tasks ${done} of ${total}`}>
-      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">Tasks</span>
+    <div className="flex items-center gap-2" aria-label={t("Tasks {done} of {total}", { done, total })}>
+      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">{t("Tasks")}</span>
       <div className="flex flex-1 gap-1 rounded-md border-2 border-ink-black bg-space-ink p-1">
         {Array.from({ length: total }, (_, i) => (
           <motion.span
@@ -415,7 +416,7 @@ function ReadyBreather({ secondsLeft, task, suit }: { secondsLeft: number; task:
     >
       <div className="flex items-center gap-3 rounded-2xl border-4 border-ink-black bg-paper-cream px-4 py-2.5 text-ink-black shadow-paper-lg">
         <div className="text-left">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">Get ready</div>
+          <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">{t("Get ready")}</div>
           <div className="font-display text-lg font-bold leading-tight sm:text-2xl">{task}</div>
         </div>
         <motion.span
@@ -470,7 +471,7 @@ function FlightForecast({
 }) {
   if (Object.keys(forecast).length === 0) return null;
   return (
-    <div className="flash-panel flex shrink-0 items-center gap-2 px-2 py-1.5 sm:gap-3 sm:px-3" aria-label="Flight forecast">
+    <div className="flash-panel flex shrink-0 items-center gap-2 px-2 py-1.5 sm:gap-3 sm:px-3" aria-label={t("Flight forecast")}>
       {!compact && (
         <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
           If we launched now
@@ -481,6 +482,8 @@ function FlightForecast({
           const isDecided = Boolean(decided[g.id]);
           const status = forecast[g.id] ?? "PASS";
           const style = isDecided ? FORECAST_STYLE[status] : { chip: "bg-slate-500 text-paper-cream", word: "Not decided" };
+          const label = t(g.label);
+          const word = t(style.word);
           const owner = ROLE_CHARACTER_PROFILE[g.owner].short;
           return (
             <motion.div
@@ -492,11 +495,11 @@ function FlightForecast({
               className={`flex items-center justify-center gap-1 rounded-md border-2 border-ink-black px-1 py-1 ${
                 isDecided ? "text-ink-black" : ""
               } ${style.chip}`}
-              title={isDecided ? `${g.label}: ${style.word}` : `${g.label}: waiting on ${owner}`}
+              title={isDecided ? `${label}: ${word}` : t("{gate}: waiting on {role}", { gate: label, role: t(owner) })}
             >
-              <span className="truncate font-display text-[11px] font-bold sm:text-xs">{g.label}</span>
+              <span className="truncate font-display text-[11px] font-bold sm:text-xs">{label}</span>
               <span className="hidden font-mono text-[10px] font-bold uppercase sm:inline">
-                · {isDecided ? style.word : `waits ${owner}`}
+                · {isDecided ? word : t("waits {role}", { role: t(owner) })}
               </span>
             </motion.div>
           );
@@ -505,9 +508,9 @@ function FlightForecast({
       {!compact && (
         <span
           className="hidden shrink-0 rounded-md border-2 border-ink-black bg-tank-orange px-1.5 py-1 font-mono text-[10px] font-bold uppercase text-ink-black xl:inline"
-          title="Random space hazards hit after liftoff; harder missions get more and harsher ones."
+          title={t("Random space hazards hit after liftoff; harder missions get more and harsher ones.")}
         >
-          + hazards · {difficulty}
+          {t("+ hazards · {level}", { level: t(difficulty) })}
         </span>
       )}
     </div>
@@ -539,7 +542,7 @@ function StationBriefingCard({
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-label={`Station ${wave} briefing`}
+        aria-label={t("Station {n} briefing", { n: wave })}
         className="paper-card-light max-h-full w-full max-w-lg overflow-y-auto p-0"
         initial={{ scale: 0.9, y: 16, rotate: -1 }}
         animate={{ scale: 1, y: 0, rotate: 0 }}
@@ -553,13 +556,13 @@ function StationBriefingCard({
           </div>
           <div className="min-w-0">
             <div className="font-mono text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              Station {wave} · {profile.short}
+              {t("Station {n}", { n: wave })} · {t(profile.short)}
             </div>
-            <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{task}</h2>
+            <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{t(task)}</h2>
           </div>
         </div>
         <div className="space-y-3 px-4 pb-4">
-          <p className="text-sm leading-snug text-slate-700">{briefing.why}</p>
+          <p className="text-sm leading-snug text-slate-700">{t(briefing.why)}</p>
           <ul className="space-y-1.5">
             {briefing.goals.map((g, i) => (
               <li key={g} className="flex items-center gap-2 font-display text-sm font-bold">
@@ -569,12 +572,12 @@ function StationBriefingCard({
                 >
                   {i + 1}
                 </span>
-                {g}
+                {t(g)}
               </li>
             ))}
           </ul>
           <p className="rounded-lg border-2 border-dashed border-slate-400 px-3 py-1.5 font-mono text-[11px] text-slate-600">
-            {briefing.controls}
+            {t(briefing.controls)}
           </p>
           <button
             type="button"
@@ -582,7 +585,7 @@ function StationBriefingCard({
             autoFocus
             className="plate-gold flex w-full items-center justify-center gap-2 py-3 font-display text-xl font-black uppercase"
           >
-            Start
+            {t("Start")}
           </button>
         </div>
       </motion.div>
@@ -926,10 +929,10 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
 
   const headline =
     phase === "sync"
-      ? "SYNCING CREW"
+      ? t("SYNCING CREW")
       : phase === "launchpad" || phase === "walk_to_launchpad"
-      ? "LAUNCHPAD"
-      : `STATION ${activeWave} · ${activeWave === 1 ? "DESIGN" : "BUILD"}`;
+      ? t("LAUNCHPAD")
+      : `${t("STATION {n}", { n: activeWave })} · ${activeWave === 1 ? t("DESIGN") : t("BUILD")}`;
 
   const connectionBadge = connectionStatus && (
     <span
@@ -943,13 +946,13 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     >
       {connectionStatus === "online"
         ? isPhoneConsole
-          ? "ONLINE"
-          : "Mission Control: ONLINE"
+          ? t("ONLINE")
+          : t("Mission Control: ONLINE")
         : connectionStatus === "offline"
         ? isPhoneConsole
-          ? "PREVIEW"
-          : "Preview mode (offline)"
-        : "Connecting…"}
+          ? t("PREVIEW")
+          : t("Preview mode (offline)")
+        : t("Connecting…")}
     </span>
   );
 
@@ -981,7 +984,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                     }`}
                     style={isRoleLocked(role) ? undefined : { color: ROLE_CHARACTER_PROFILE[role].suit }}
                   >
-                    {isRoleLocked(role) ? <CheckCircle2 className="h-3.5 w-3.5" /> : ROLE_CHARACTER_PROFILE[role].short}
+                    {isRoleLocked(role) ? <CheckCircle2 className="h-3.5 w-3.5" /> : t(ROLE_CHARACTER_PROFILE[role].short)}
                   </span>
                 ))}
               </div>
@@ -997,7 +1000,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             role="alert"
           >
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
+            {criticalAlerts.map((a) => t(CRITICAL_ALERT_LABEL[a])).join(" · ")}
           </div>
         )}
 
@@ -1011,7 +1014,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             toastAlert={toastAlert}
             durationSec={stationDurationSec}
             missionId={missionId}
-            playerLabel={playerName ? `Crew: ${playerName}` : undefined}
+            playerLabel={playerName ? t("Crew: {name}", { name: playerName }) : undefined}
             onFallbackSubmit={() => onSubmitTake({})}
             layout={isPhoneConsole ? "handheld" : "stage"}
             criticalAlert={isCritical}
@@ -1057,7 +1060,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                   animate={{ opacity: [1, 0.2, 1] }}
                   transition={{ duration: 1, repeat: Infinity }}
                 />
-                Locked! Waiting for the crew · {crewLocked}/{ALL_ROLES.length}
+                {t("Locked! Waiting for the crew")} · {crewLocked}/{ALL_ROLES.length}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1076,20 +1079,20 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const cutKind: CutsceneKind = phase === "launchpad" ? "liftoff" : phase === "sync" ? "sync" : "walk";
   const cutTitle =
     phase === "walk_to_station_1"
-      ? "To station 1"
+      ? t("To station 1")
       : phase === "sync"
-      ? "Sharing your choices"
+      ? t("Sharing your choices")
       : phase === "walk_to_launchpad"
-      ? "Rolling to the pad"
-      : "Liftoff!";
+      ? t("Rolling to the pad")
+      : t("Liftoff!");
   const cutSubtitle =
     phase === "walk_to_station_1"
-      ? myProfile.wave1Task
+      ? t(myProfile.wave1Task)
       : phase === "sync"
-      ? `Next: ${myProfile.wave2Task}`
+      ? t("Next: {task}", { task: t(myProfile.wave2Task) })
       : phase === "walk_to_launchpad"
-      ? "Ship assembled"
-      : "Survival flight begins";
+      ? t("Ship assembled")
+      : t("Survival flight begins");
   const cutDurationSec =
     phase === "sync" ? syncDelaySec : phase === "launchpad" ? launchLoadingMs / 1000 : WALK_DURATION_SEC;
   return (

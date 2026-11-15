@@ -171,6 +171,16 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 - **Sandbox de prueba aislada:** Leonardo creará la ruta local `/dev-sandbox` (`DevSandboxView.tsx`) donde Ismael y Abraham pueden renderizar y probar cada uno de sus 8 minijuegos en solitario con `mockLiveMetrics` antes de conectar el Socket.IO real.
 - **`main` siempre compila y arranca:** Nunca hacer `git push` directo con código roto; usar ramas cortas por tarea (`feat/ism-rol2a`, `feat/sch-60s-tree`) y revisar que pase `npm run build` / `pytest` antes de integrar.
 
+### Idioma de la interfaz: `frontend/src/i18n/` (2026-11-15)
+
+- **Sin dependencias nuevas.** `t("English text", vars?)` devuelve la cadena en español si el jugador eligió español y existe la traducción en `i18n/es.ts`; si no, devuelve el inglés (la llave es el propio texto en inglés, estilo *gettext*). Los marcadores `{name}` se rellenan con `vars`.
+- `I18nProvider` (en `main.tsx`) guarda el idioma en `localStorage` (`astro-squad.lang.v1`, con `try/catch`) y en `<html lang>`. `App` lee `useI18n()` para que todo el árbol se vuelva a dibujar al cambiar de idioma (el proyecto no usa `React.memo`).
+- El selector *English / Español* vive en el modal *Options* del menú principal. **Inglés por defecto** (decisión A4, `docs/03`).
+- **Interfaz propia (`t()` + `es.ts`):** menú, opciones, sala, especialistas, misiones, recorrido e instrucciones de estaciones, panel de recursos, marco del minijuego, botones de sonido, escenas, marco del vuelo, reporte y leaderboard.
+- **Texto del servidor (`ts()` + `es_server.ts`):** el servidor sigue enviando inglés (en multijugador cada teléfono puede tener otro idioma) y cada cliente traduce en pantalla: bitácora de vuelo (`story_tree.json`, 295 textos exactos), eventos, datos NASA del catálogo y, con patrones `ES_PATTERNS`, las frases con números (explicación causal, consejos de puntaje, resúmenes por rol, nombres de rutas y motores). **Si cambias un texto del backend, actualiza su traducción** (exacta o patrón).
+- **Minijuegos (`useScreenTranslation` + `es_minigames.ts`):** `MinigameShell` traduce en pantalla el texto que renderiza cada minijuego (nodos de texto y `title`/`aria-label`/`placeholder`) con un `MutationObserver`, **sin modificar los 8 componentes** (contrato `MinigameProps` intacto). Las cadenas con números usan `ES_MINIGAME_PATTERNS`.
+- Para añadir una cadena nueva: en UI propia, envolverla en `t()` y traducirla en `es.ts`; en un minijuego basta con agregar el texto exacto a `es_minigames.ts`. Los nombres propios (cohetes, instrumentos, MRO) se quedan como están.
+
 ### Extensión opcional de `LiveMetrics` (2026-11-15)
 
 Campos **opcionales** añadidos (no se renombró ninguno) para los recursos del reto *Data* y *Time*, calculados en `backend/physics_engine.compute_live_metrics`:

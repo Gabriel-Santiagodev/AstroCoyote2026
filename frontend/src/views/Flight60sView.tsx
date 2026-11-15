@@ -13,6 +13,7 @@ import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 import type { RandomEventSummary } from "../socket";
 
+import { t, ts } from "../i18n";
 export interface FlightQuestionOptionUI {
   option_id: string;
   label: string;
@@ -266,7 +267,7 @@ function CabinScene({
   };
 
   return (
-    <section aria-label="Spacecraft cabin and station loadout" className="flash-panel min-w-0 overflow-hidden">
+    <section aria-label={t("Spacecraft cabin and station loadout")} className="flash-panel min-w-0 overflow-hidden">
       <motion.div className={"relative overflow-hidden " + (isPhoneConsole ? "h-[84px]" : "h-[430px] 2xl:h-[490px]")}
         animate={visibleResult && visibleResult.gate_status !== "PASS"
           ? { x: [0, -7, 6, -3, 0], y: [0, 2, -2, 1, 0] }
@@ -295,7 +296,7 @@ function CabinScene({
           </motion.div>
           <div className={"absolute left-[6%] top-[8%] font-mono font-bold text-role-spacecraft " +
             (isPhoneConsole ? "text-[8px]" : "text-[11px] tracking-widest")}>
-            DESTINATION // {TARGET_NAMES[missionId]}
+            {t("DESTINATION")} // {t(TARGET_NAMES[missionId])}
           </div>
           <div className="absolute bottom-[10%] left-[6%] right-[6%] h-2 overflow-hidden rounded-full border border-slate-300 bg-blueprint-navy">
             <motion.div className="h-full bg-role-spacecraft" animate={{ width: flightProgress + "%" }}
@@ -304,16 +305,16 @@ function CabinScene({
         </div>
         <div className={"absolute left-2 top-2 z-20 rounded-md border-2 border-ink-black bg-paper-cream px-1.5 py-0.5 font-mono font-black text-ink-black " +
           (isPhoneConsole ? "text-[8px]" : "text-[10px]")}>
-          CABIN // CH {String(activeGateIndex + 1).padStart(2, "0")}
+          {t("CABIN // CH")} {String(activeGateIndex + 1).padStart(2, "0")}
         </div>
         <div className={"absolute right-2 top-2 z-20 rounded-md border-2 border-ink-black px-1.5 py-0.5 font-mono font-black tabular-nums text-ink-black " +
           (alarm ? "bg-status-crit" : "bg-status-ok") + (isPhoneConsole ? " text-[8px]" : " text-[10px]")}>
-          HULL {healthValue === undefined ? "--" : Math.round(healthValue) + "%"}
+          {t("HULL")} {healthValue === undefined ? "--" : Math.round(healthValue) + "%"}
         </div>
         {alarm && (
           <motion.div className="absolute left-2 top-9 z-20 rounded-md border-2 border-ink-black bg-status-crit px-2 py-0.5 font-mono text-[9px] font-black text-ink-black"
             animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 0.6, repeat: Infinity }}>
-            HULL ALERT
+            {t("HULL ALERT")}
           </motion.div>
         )}
         <div className={"absolute bottom-1 left-1 right-1 z-20 grid grid-cols-4 gap-1 " +
@@ -333,7 +334,7 @@ function CabinScene({
                   size={isPhoneConsole ? 28 : 88} />
                 <span className={"block max-w-full truncate font-mono font-bold " +
                   (isPhoneConsole ? "text-[8px]" : "text-[10px]")}>
-                  {isPhoneConsole ? profile.short : profile.codename}
+                  {isPhoneConsole ? t(profile.short) : profile.codename}
                 </span>
                 {!isPhoneConsole && <span className="max-w-full truncate font-mono text-[9px] text-slate-300">
                   {profile.squadClass}
@@ -351,7 +352,7 @@ function CabinScene({
                 (isPhoneConsole ? " text-[10px]" : " text-sm")}
               initial={{ opacity: 0, y: 15, rotate: -3 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
               exit={{ opacity: 0, y: -10 }}>
-              {visibleResult.gate_status} // CHAPTER {String(visibleResult.round).padStart(2, "0")}
+              {t(visibleResult.gate_status)} // {t("CHAPTER")} {String(visibleResult.round).padStart(2, "0")}
             </motion.div>
           )}
         </AnimatePresence>
@@ -375,9 +376,9 @@ function CabinScene({
               className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center bg-space-ink/95 px-3 text-center"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}>
-              <button type="button" onClick={onSkipJump} aria-label="Skip chapter jump"
+              <button type="button" onClick={onSkipJump} aria-label={t("Skip chapter jump")}
                 className="paper-btn pointer-events-auto absolute right-2 top-2 bg-paper-cream px-2 py-1 font-mono text-[10px] text-ink-black">
-                SKIP &gt;&gt;
+                {t("SKIP")} &gt;&gt;
               </button>
               <div className="mb-2 h-10 w-10 rounded-full border-[5px] border-role-spacecraft border-t-transparent"
                 aria-hidden="true" />
@@ -388,7 +389,7 @@ function CabinScene({
                 ENTERING {GATES[sceneJump.toGateIndex].chapter}
               </h3>
               {!isPhoneConsole && <p className="mt-1 font-mono text-xs text-slate-300">
-                Cabin systems are moving to the next decision gate.
+                {t("Cabin systems are moving to the next decision gate.")}
               </p>}
               <div className="mt-3 h-2 w-3/4 max-w-xs overflow-hidden rounded-full border border-paper-cream bg-blueprint-navy">
                 <motion.div className="h-full bg-status-ok" initial={{ width: "0%" }}
@@ -401,10 +402,10 @@ function CabinScene({
       <div className={"border-t-[3px] border-ink-black bg-blueprint-navy " + (isPhoneConsole ? "p-1" : "p-3")}>
         <div className={"flex items-center justify-between gap-2 font-mono font-bold tracking-widest text-slate-300 " +
           (isPhoneConsole ? "mb-0.5 text-[7px]" : "mb-1.5 text-[9px]")}>
-          <span>STATION LOADOUT // CABIN SYSTEMS</span>
-          {!isPhoneConsole && <span>GATE-LINKED TELEMETRY</span>}
+          <span>{t("STATION LOADOUT // CABIN SYSTEMS")}</span>
+          {!isPhoneConsole && <span>{t("GATE-LINKED TELEMETRY")}</span>}
         </div>
-        <ul className="grid grid-cols-5 gap-1 sm:gap-2" aria-label="Cabin subsystem rack">
+        <ul className="grid grid-cols-5 gap-1 sm:gap-2" aria-label={t("Cabin subsystem rack")}>
           {RACK_ITEMS.map((item) => {
             const Icon = item.icon;
             const isRelevant = item.gateIndex === activeGateIndex;
@@ -412,12 +413,12 @@ function CabinScene({
               visibleResult && visibleResult.round === item.gateIndex + 1 &&
               visibleResult.gate_status !== "PASS",
             );
-            const status = isAlert ? "ALERT" : isRelevant ? "ARMED" : "NOMINAL";
+            const status = isAlert ? t("ALERT") : isRelevant ? t("ARMED") : t("NOMINAL");
             const provenance = stationLoadout
-              ? wasPackedByCrew(stationLoadout, item.packedFrom) ? "CREW PACKED" : "AI AUTOPILOT"
+              ? wasPackedByCrew(stationLoadout, item.packedFrom) ? t("CREW PACKED") : t("AI AUTOPILOT")
               : null;
             return (
-              <li key={item.id} aria-label={item.label + ": " + status + (provenance ? ", " + provenance : "")}
+              <li key={item.id} aria-label={t(item.label) + ": " + status + (provenance ? ", " + provenance : "")}
                 className={"min-w-0 rounded-md border-2 border-ink-black px-0.5 text-center " +
                   (isPhoneConsole ? "py-0 " : "py-1 ") +
                   (isAlert ? "bg-status-crit text-ink-black" :
@@ -425,7 +426,7 @@ function CabinScene({
                 <Icon size={isPhoneConsole ? 12 : 20} strokeWidth={2.5} aria-hidden="true" className="mx-auto" />
                 <span className={"mt-0.5 block truncate font-mono font-bold " +
                   (isPhoneConsole ? "text-[7px]" : "text-[10px]")}>
-                  {isPhoneConsole ? item.shortLabel : item.label}
+                  {isPhoneConsole ? t(item.shortLabel) : t(item.label)}
                 </span>
                 <span className={"block font-mono font-black " + (isPhoneConsole ? "text-[6px]" : "text-[9px]")}>
                   {status}
@@ -458,21 +459,21 @@ function SurvivalEventCard({ event, compact }: { event: RandomEventSummary; comp
       className={"flex shrink-0 items-start gap-3 rounded-xl border-[3px] border-ink-black p-2.5 text-ink-black shadow-paper " +
         (event.mitigated ? "bg-status-ok" : "bg-status-warn")}
       role="status"
-      aria-label={"Survival event: " + event.title}
+      aria-label={t("Survival event: {title}", { title: ts(event.title) })}
     >
       <span className="mt-0.5 shrink-0 rounded-md border-2 border-ink-black bg-paper-cream px-1.5 py-0.5 font-mono text-[10px] font-black uppercase">
-        Event
+        {t("Event")}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-display text-base font-black leading-tight sm:text-lg">{event.title}</p>
-        {open && !compact && <p className="text-sm leading-snug">{event.description}</p>}
+        <p className="font-display text-base font-black leading-tight sm:text-lg">{ts(event.title)}</p>
+        {open && !compact && <p className="text-sm leading-snug">{ts(event.description)}</p>}
         <div className="mt-1 flex flex-wrap gap-1.5 font-mono text-[11px] font-bold">
           {event.mitigated ? (
-            <span className="rounded border-2 border-ink-black bg-paper-cream px-1.5">Blocked · {event.mitigation_text}</span>
+            <span className="rounded border-2 border-ink-black bg-paper-cream px-1.5">{t("Blocked")} · {ts(event.mitigation_text)}</span>
           ) : (
             effects.map(([key, delta]) => (
               <span key={key} className="rounded border-2 border-ink-black bg-paper-cream px-1.5">
-                {(EVENT_EFFECT_LABEL[key] ?? key) + " " + (delta > 0 ? "+" : "") + delta + (key.endsWith("_db") ? " dB" : "%")}
+                {t(EVENT_EFFECT_LABEL[key] ?? key) + " " + (delta > 0 ? "+" : "") + delta + (key.endsWith("_db") ? " dB" : "%")}
               </span>
             ))
           )}
@@ -614,22 +615,22 @@ export function Flight60sView({
         <div className="mt-2 flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-role-spacecraft">
-              {isPhoneConsole ? "CREW PAD // CABIN" : "HOST MAIN STAGE // SURVIVAL FLIGHT"}
+              {isPhoneConsole ? t("CREW PAD // CABIN") : t("HOST MAIN STAGE // SURVIVAL FLIGHT")}
             </p>
             <h1 className={"font-display font-black leading-tight " +
               (isPhoneConsole ? "text-base" : "text-2xl sm:text-4xl")}>
-              {isPhoneConsole ? "Flight to " + TARGET_NAMES[missionId] : "Cabin Flight to " + TARGET_NAMES[missionId]}
+              {isPhoneConsole ? t("Flight to {target}", { target: t(TARGET_NAMES[missionId]) }) : t("Cabin Flight to {target}", { target: t(TARGET_NAMES[missionId]) })}
             </h1>
           </div>
           <div className="shrink-0 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 text-center font-mono font-black tabular-nums text-ink-black">
-            <span className="block text-[9px]">{untimed ? "CHAPTER" : "FLIGHT"}</span>
+            <span className="block text-[9px]">{untimed ? t("CHAPTER") : t("FLIGHT")}</span>
             <span className={isPhoneConsole ? "text-lg" : "text-2xl"}>
               {untimed ? `${Math.min(activeGateIndex + 1, GATES.length)}/${GATES.length}` : `${Math.ceil(globalLeft)}s`}
             </span>
           </div>
         </div>
         <ol className={(isPhoneConsole ? "mt-1" : "mt-2") + " grid grid-cols-4 gap-1 " + (isPhoneConsole ? "" : "sm:gap-2")}
-          aria-label="Four flight chapters">
+          aria-label={t("Four flight chapters")}>
           {GATES.map((gate, index) => {
             const latestStatus = lastTurnResult?.round === index + 1 ? lastTurnResult.gate_status : null;
             const complete = index < activeGateIndex || Boolean(latestStatus);
@@ -645,7 +646,7 @@ export function Flight60sView({
                 className={"min-w-0 rounded-md border-2 border-ink-black p-1 text-center font-mono font-black " +
                   (isPhoneConsole ? "text-[9px]" : "text-[11px]") + " " + color}>
                 <span className="tabular-nums">{String(index + 1).padStart(2, "0")}</span>
-                {!isPhoneConsole && <span className="ml-2">{gate.label}</span>}
+                {!isPhoneConsole && <span className="ml-2">{t(gate.label)}</span>}
               </li>
             );
           })}
@@ -667,7 +668,7 @@ export function Flight60sView({
           stationLoadout={stationLoadout}
           sceneJump={sceneJump} onSkipJump={skipJump} />
 
-        <section aria-label="Captain's survival log" className="flash-panel relative min-h-0 min-w-0 overflow-y-auto p-2 sm:p-3"
+        <section aria-label={t("Captain's survival log")} className="flash-panel relative min-h-0 min-w-0 overflow-y-auto p-2 sm:p-3"
           style={{ perspective: 1100 }}>
           <AnimatePresence mode="popLayout" initial={false}>
           <motion.div key={activeGateIndex} className="paper-card-light relative min-w-0 overflow-hidden p-3 sm:p-5"
@@ -682,29 +683,29 @@ export function Flight60sView({
             <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
               <div className="min-w-0">
                 <p className="font-mono text-[10px] font-black uppercase tracking-[0.14em] text-blueprint-navy">
-                  SURVIVAL LOG // DAY {String(clamp(Math.floor(round), 1, GATES.length)).padStart(2, "0")}
+                  {t("SURVIVAL LOG // DAY")} {String(clamp(Math.floor(round), 1, GATES.length)).padStart(2, "0")}
                 </p>
                 <h2 className="font-display text-xl font-black leading-tight sm:text-2xl">
-                  Captain's Logbook
+                  {t("Captain's Logbook")}
                 </h2>
               </div>
               {untimed ? (
                 <div className="shrink-0 rounded-lg border-[3px] border-ink-black bg-status-warn px-2 py-1 text-center font-mono font-black tabular-nums">
-                  <span className="block text-[9px]">CHAPTER</span>
+                  <span className="block text-[9px]">{t("CHAPTER")}</span>
                   <span className="text-2xl">{Math.min(activeGateIndex + 1, GATES.length)}/{GATES.length}</span>
                 </div>
               ) : (
                 <div role="timer" aria-label={Math.ceil(roundLeft) + " seconds left in decision round"}
                   className={"shrink-0 rounded-lg border-[3px] border-ink-black px-2 py-1 text-center font-mono font-black tabular-nums " +
                     (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
-                  <span className="block text-[9px]">DECIDE</span>
+                  <span className="block text-[9px]">{t("DECIDE")}</span>
                   <span className="text-2xl">{Math.ceil(roundLeft)}s</span>
                 </div>
               )}
             </div>
             {!untimed && (
               <div className="mt-2 h-2 overflow-hidden rounded-full border border-ink-black bg-slate-300"
-                aria-label="Decision time remaining">
+                aria-label={t("Decision time remaining")}>
                 <motion.div className={"h-full " + (roundLeft <= 5 ? "bg-status-crit" : "bg-role-finance")}
                   animate={{ width: (roundLeft / ROUND_DURATION_SEC) * 100 + "%" }}
                   transition={{ duration: 0.35 }} />
@@ -723,52 +724,52 @@ export function Flight60sView({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-[9px] font-bold text-blueprint-navy">
-                      {isPhoneConsole ? "LOGBOOK KEEPER" : "LOGBOOK KEEPER // " + activeProfile.squadClass}
+                      {isPhoneConsole ? t("LOGBOOK KEEPER") : t("LOGBOOK KEEPER") + " // " + t(activeProfile.squadClass)}
                     </p>
                     <p className="break-words font-display text-sm font-black leading-tight sm:text-base">
                       {activeProfile.codename}
                     </p>
                     <p className="truncate font-mono text-[10px] text-slate-600">
-                      {activePlayerName ? activePlayerName + " · " : ""}{activeProfile.gearLabel}
+                      {activePlayerName ? activePlayerName + " · " : ""}{t(activeProfile.gearLabel)}
                     </p>
                   </div>
                 </div>
                 <div role="status" className={"mt-2 rounded-lg border-2 border-ink-black px-2 py-1 text-center font-display text-sm font-black " +
                   (isMyTurn ? "bg-status-ok" : "bg-status-warn")}>
-                  {isMyTurn ? "YOUR TURN" :
-                    isPhoneConsole ? "LOGBOOK WITH " + playerLabel.toUpperCase() :
-                      playerLabel.toUpperCase() + "'S TURN"}
+                  {isMyTurn ? t("YOUR TURN") :
+                    isPhoneConsole ? t("LOGBOOK WITH {name}", { name: playerLabel.toUpperCase() }) :
+                      t("{name}'S TURN", { name: playerLabel.toUpperCase() })}
                 </div>
 
                 {isPhoneConsole && !isMyTurn ? (
                   <div className="mt-3 rounded-xl border-[3px] border-ink-black bg-blueprint-navy p-4 text-center text-paper-cream">
-                    <p className="font-mono text-xs font-bold text-status-warn">CREW DECISION IN PROGRESS</p>
-                    <p className="mt-2 break-words font-display text-lg font-black">{question.title}</p>
+                    <p className="font-mono text-xs font-bold text-status-warn">{t("CREW DECISION IN PROGRESS")}</p>
+                    <p className="mt-2 break-words font-display text-lg font-black">{ts(question.title)}</p>
                     <p className="mt-2 text-sm text-slate-200">
-                      Waiting for {playerLabel}…
+                      {t("Waiting for {name}…", { name: playerLabel })}
                     </p>
                   </div>
                 ) : (
                   <>
                     <div className="mt-3">
                       <span className="inline-block max-w-full break-words rounded-md border-2 border-ink-black bg-role-spacecraft px-2 py-0.5 font-mono text-[10px] font-black">
-                        {question.nasa_concept_badge}
+                        {ts(question.nasa_concept_badge)}
                       </span>
                       <p className="mt-2 font-mono text-[10px] font-bold tracking-wider text-blueprint-navy">
-                        ENTRY {String(activeGateIndex + 1).padStart(2, "0")} // {GATES[activeGateIndex].label}
+                        {t("ENTRY")} {String(activeGateIndex + 1).padStart(2, "0")} // {t(GATES[activeGateIndex].label)}
                       </p>
                       <h3 className="mt-1 break-words font-display text-lg font-black leading-tight sm:text-xl">
-                        {question.title}
+                        {ts(question.title)}
                       </h3>
                       <p className="mt-1 break-words text-sm leading-snug text-slate-700">
-                        {question.scenario_context}
+                        {ts(question.scenario_context)}
                       </p>
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2">
                       {question.options.slice(0, 4).map((option, index) => (
                         <button key={option.option_id} type="button" disabled={!canAnswer}
                           onClick={() => answer(option.option_id)}
-                          aria-label={"Option " + (index + 1) + ": " + option.label + ". " + option.engineering_tradeoff_hint}
+                          aria-label={t("Option {n}", { n: index + 1 }) + ": " + ts(option.label) + ". " + ts(option.engineering_tradeoff_hint)}
                           className={"paper-btn min-w-0 p-2.5 text-left text-ink-black " +
                             (isPhoneConsole ? "min-h-[78px] " : "min-h-[70px] ") +
                             (hasSubmitted && submittedAnswer?.optionId === option.option_id
@@ -779,10 +780,10 @@ export function Flight60sView({
                             </span>
                             <span className="min-w-0 break-words">
                               <span className="block font-display text-base font-black leading-tight">
-                                {option.label}
+                                {ts(option.label)}
                               </span>
                               <span className="mt-0.5 block font-mono text-[11px] font-normal leading-snug text-slate-700">
-                                {option.engineering_tradeoff_hint}
+                                {ts(option.engineering_tradeoff_hint)}
                               </span>
                             </span>
                           </span>
@@ -790,17 +791,17 @@ export function Flight60sView({
                       ))}
                     </div>
                     <p className="mt-3 font-mono text-[10px] font-bold text-slate-600">
-                      {hasSubmitted ? "Decision sent to Mission Control." :
-                        isMyTurn ? "Tap an entry or press 1-4." : "Crew decision in progress."}
+                      {hasSubmitted ? t("Decision sent to Mission Control.") :
+                        isMyTurn ? t("Tap an entry or press 1-4.") : t("Crew decision in progress.")}
                     </p>
                   </>
                 )}
               </>
             ) : (
               <div className="py-8 text-center">
-                <h3 className="font-display text-xl font-black">Awaiting flight telemetry</h3>
+                <h3 className="font-display text-xl font-black">{t("Awaiting flight telemetry")}</h3>
                 <p className="mt-2 font-mono text-xs text-slate-600">
-                  Mission Control is preparing the next log entry.
+                  {t("Mission Control is preparing the next log entry.")}
                 </p>
               </div>
             )}
@@ -813,9 +814,9 @@ export function Flight60sView({
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}>
                   <p className="font-mono text-xs font-black">
-                    {visibleResult.gate_status} // CHAPTER {String(visibleResult.round).padStart(2, "0")}
+                    {t(visibleResult.gate_status)} // {t("CHAPTER")} {String(visibleResult.round).padStart(2, "0")}
                   </p>
-                  <p className="mt-1 break-words text-sm font-semibold">{visibleResult.immediate_feedback}</p>
+                  <p className="mt-1 break-words text-sm font-semibold">{ts(visibleResult.immediate_feedback)}</p>
                 </motion.div>
               )}
             </AnimatePresence>

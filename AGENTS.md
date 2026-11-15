@@ -41,7 +41,7 @@ Documents tag statements **[DECIDIDO]** (decided), **[PROPUESTA]** (proposal) or
 
 ## Rules
 
-- **Language split.** Planning docs (`docs/`): Spanish. Game UI, submission page, video: English. Code, comments, commit messages: English (established domain identifiers like `juegos_espectrales/` or `AnalizadorFTIR` are preserved).
+- **Language split.** Planning docs (`docs/`): Spanish. Game UI, submission page, video: English (the UI also offers an optional Spanish switch in Options; English stays the default — `docs/03` A4 amendment, `frontend/src/i18n/`). Code, comments, commit messages: English (established domain identifiers like `juegos_espectrales/` or `AnalizadorFTIR` are preserved).
 - **Spanish must be correct UTF-8** with accents and `ñ`. Team names are exact: **Rubén, Ismael, Abraham, Schoenstadt, Leonardo**.
 - **No magic numbers in code.** Game constants, launchers, orbits, instruments, and mission parameters live in `frontend/src/data/nasa_catalog.json`, `backend/models/subsystems.py`, and `docs/06-datos-nasa.md` with their verified `fuente` (source). If a number is missing, stop and report; never invent one.
 - **Server Authority & Pure Simulation.** `backend/physics_engine.py`, `backend/decision_tree.py`, and `backend/randomizer.py` are deterministic and have unit tests (`pytest`). The frontend never decides final mission outcomes on its own; it emits Socket.IO actions and renders server state.
