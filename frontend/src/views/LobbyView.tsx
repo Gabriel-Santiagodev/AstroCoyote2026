@@ -22,6 +22,7 @@ import {
   ROLE_CHARACTER_PROFILE,
 } from "../components/paper/CrewmateAvatar";
 import { soundEngine } from "../components/paper/SoundEngine";
+import { t } from "../i18n";
 import { BACKEND_URL } from "../socket";
 import type { DifficultyType, MissionIdType, RoleType } from "../types/game";
 
@@ -270,7 +271,7 @@ export function LobbyView({
           <button
             type="button"
             onClick={() => (step === "mission" ? goToStep("role") : onBackToHome?.())}
-            aria-label={step === "mission" ? "Back to role" : "Back to home"}
+            aria-label={step === "mission" ? t("Back to role") : t("Back to home")}
             className="paper-btn shrink-0 bg-space-ink p-2.5 text-paper-cream"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -294,7 +295,7 @@ export function LobbyView({
                     }`}
                   >
                     {done ? <Check className="h-3 w-3" /> : <span>{i + 1}</span>}
-                    {s === "role" ? "Role" : "Mission"}
+                    {s === "role" ? t("Role") : t("Mission")}
                   </button>
                 </li>
               );
@@ -355,9 +356,9 @@ export function LobbyView({
               <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 rounded-2xl border-[4px] border-ink-black bg-paper-cream px-4 py-3 text-ink-black shadow-[6px_6px_0_#0F172A] sm:flex-row sm:justify-between">
                 <div className="text-center sm:text-left">
                   <div className="font-mono text-[11px] font-bold uppercase text-slate-500">
-                    {isHost ? "Join at" : "Room"} {joinHost}
+                    {isHost ? t("Join at") : t("Room")} {joinHost}
                   </div>
-                  <div className="font-display text-sm font-bold">Game PIN</div>
+                  <div className="font-display text-sm font-bold">{t("Game PIN")}</div>
                 </div>
                 <div className="font-mono text-4xl font-black tracking-[0.25em] sm:text-5xl">{pin}</div>
                 <div className="flex max-w-xs flex-wrap justify-center gap-1.5">
@@ -380,7 +381,7 @@ export function LobbyView({
               </div>
             )}
             <h2 className="text-center font-display text-2xl font-bold text-paper-cream sm:text-4xl">
-              Pick your specialist
+              {t("Pick your specialist")}
             </h2>
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -417,9 +418,9 @@ export function LobbyView({
                       className="rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[11px] font-bold text-ink-black"
                       style={{ backgroundColor: profile.suit }}
                     >
-                      {profile.short}
+                      {t(profile.short)}
                     </span>
-                    <span className="font-display text-sm font-bold leading-tight sm:text-base">{profile.label}</span>
+                    <span className="font-display text-sm font-bold leading-tight sm:text-base">{t(profile.label)}</span>
                     <span className="flex flex-wrap justify-center gap-1">
                       {profile.strengths.map((tag) => (
                         <span
@@ -428,7 +429,7 @@ export function LobbyView({
                             isSelected ? "border-ink-black/40 text-slate-700" : "border-slate-600 text-slate-300"
                           }`}
                         >
-                          {tag}
+                          {t(tag)}
                         </span>
                       ))}
                     </span>
@@ -467,7 +468,7 @@ export function LobbyView({
 
             {isMulti && (
               <p className="flex items-center justify-center gap-2 font-mono text-xs text-slate-300">
-                <span className="font-bold text-paper-cream">{humanCount}/4 crew</span>
+                <span className="font-bold text-paper-cream">{t("{n}/4 crew", { n: humanCount })}</span>
                 {aiSeats > 0 && (
                   <span className="inline-flex items-center gap-1">
                     · <Bot className="h-3.5 w-3.5 text-role-spacecraft" /> {aiSeats} AI
@@ -481,7 +482,7 @@ export function LobbyView({
               onClick={() => goToStep("mission")}
               className="plate-gold mx-auto flex w-full max-w-md items-center justify-center gap-2 py-3.5 font-display text-xl font-black uppercase"
             >
-              Next: mission
+              {t("Next: mission")}
               <ArrowRight className="h-5 w-5" />
             </button>
           </motion.section>
@@ -495,7 +496,7 @@ export function LobbyView({
             className="space-y-4"
           >
             <h2 className="text-center font-display text-2xl font-bold text-paper-cream sm:text-4xl">
-              {canControlMission ? "Pick your mission" : "Host picks the mission"}
+              {canControlMission ? t("Pick your mission") : t("Host picks the mission")}
             </h2>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -524,27 +525,27 @@ export function LobbyView({
                         <span
                           className={`rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-xs font-bold text-ink-black ${style.chip}`}
                         >
-                          {style.label}
+                          {t(style.label)}
                         </span>
                         <DifficultyPips level={level} />
                       </div>
-                      <div className="font-display text-base font-bold leading-tight sm:text-lg">{spec.name}</div>
-                      <p className={`line-clamp-2 text-[11px] leading-snug ${active ? "text-slate-700" : "text-slate-300"}`} title={spec.science_goal}>
-                        <span className="font-bold">Goal: </span>
-                        {spec.science_goal}
+                      <div className="font-display text-base font-bold leading-tight sm:text-lg">{t(spec.name)}</div>
+                      <p className={`line-clamp-2 text-[11px] leading-snug ${active ? "text-slate-700" : "text-slate-300"}`} title={t(spec.science_goal)}>
+                        <span className="font-bold">{t("Goal:")} </span>
+                        {t(spec.science_goal)}
                       </p>
                       <div
                         className={`flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] font-bold ${
                           active ? "text-slate-700" : "text-slate-300"
                         }`}
                       >
-                        <span className="inline-flex items-center gap-1" title="Budget">
+                        <span className="inline-flex items-center gap-1" title={t("Budget")}>
                           <Wallet className="h-3.5 w-3.5" />${budgetM}M
                         </span>
                         {spec.requires_thermal_protection && (
-                          <span className="inline-flex items-center gap-1" title="Needs a heat shield">
+                          <span className="inline-flex items-center gap-1" title={t("Needs a heat shield")}>
                             <Flame className="h-3.5 w-3.5" />
-                            Heat shield
+                            {t("Heat shield")}
                           </span>
                         )}
                       </div>
@@ -566,7 +567,7 @@ export function LobbyView({
                 className="plate-gold mx-auto flex w-full max-w-md items-center justify-center gap-2 py-4 font-display text-2xl font-black uppercase"
               >
                 <Rocket className="h-6 w-6" />
-                Launch
+                {t("Launch")}
               </button>
             ) : (
               <div className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-xl border-3 border-ink-black bg-blueprint-navy py-3.5 font-mono text-sm font-bold text-status-ok">
@@ -575,7 +576,7 @@ export function LobbyView({
                   animate={{ opacity: [1, 0.25, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
                 />
-                Waiting for host…
+                {t("Waiting for host…")}
               </div>
             )}
           </motion.section>

@@ -41,6 +41,7 @@ import {
   type ResultadoTurnoVueloPayload,
   type RoomPlayer,
 } from "./socket";
+import { t, useI18n } from "./i18n";
 import type {
   DifficultyType,
   LiveMetrics,
@@ -279,6 +280,8 @@ function mergeMetrics(prev: LiveMetrics, delta: Partial<LiveMetrics> | Record<st
 }
 
 export function App() {
+  // Reading the language makes the whole tree re-render when the player switches it.
+  useI18n();
   const isSandboxUrl =
     typeof window !== "undefined" && window.location.pathname.startsWith("/dev-sandbox");
 
@@ -558,7 +561,7 @@ export function App() {
         } else if (toast_alert) {
           pushToast(toast_alert);
         } else if (source_role && source_role in ROLE_META) {
-          pushToast(`${ROLE_META[source_role as RoleType].label} updated the shared constraints`);
+          pushToast(t("{role} updated the shared constraints", { role: t(ROLE_META[source_role as RoleType].label) }));
         }
       },
       jugador_bloqueo_toma: (payload) => {
@@ -650,7 +653,7 @@ export function App() {
     const onRoomError = (payload: { message?: string }) => {
       clearTimer(roomCreateTimer);
       setIsCreatingRoom(false);
-      setNotice(payload?.message || "Room error");
+      setNotice(payload?.message ? t(payload.message) : t("Room error"));
       soundEngine.playError();
     };
     socket.on("error_sala", onRoomError);
@@ -728,7 +731,7 @@ export function App() {
     clearTimer(roomCreateTimer);
     roomCreateTimer.current = window.setTimeout(() => {
       setIsCreatingRoom(false);
-      setNotice("Mission Control did not answer. Continuing in preview mode.");
+      setNotice(t("Mission Control did not answer. Continuing in preview mode."));
       setConnectionStatus("offline");
       enterPreviewLobby();
     }, ROOM_CREATE_TIMEOUT_MS);
@@ -755,7 +758,7 @@ export function App() {
     if (!(await ensureOnline())) {
       // Solo can still play the offline demo; a multiplayer room nobody can join is misleading.
       if (m === "multi") {
-        setNotice(OFFLINE_MULTI_NOTICE);
+        setNotice(t(OFFLINE_MULTI_NOTICE));
         soundEngine.playError();
         return;
       }
@@ -775,7 +778,7 @@ export function App() {
     if (name && name.trim()) setPlayerName(name.trim());
     // Joining someone else's room only works online: never fake it with the offline demo lobby.
     if (!(await ensureOnline())) {
-      setNotice(OFFLINE_MULTI_NOTICE);
+      setNotice(t(OFFLINE_MULTI_NOTICE));
       soundEngine.playError();
       return;
     }
@@ -863,7 +866,7 @@ export function App() {
       others.forEach((aiRole, i) => {
         schedulePreview(() => {
           setLockedTakes((prev) => [...prev, { role_id: aiRole, wave: w }]);
-          pushToast(`AI Autopilot locked ${ROLE_META[aiRole].label}`);
+          pushToast(t("AI Autopilot locked {role}", { role: t(ROLE_META[aiRole].label) }));
         }, PREVIEW_AI_LOCK_DELAY_MS + i * PREVIEW_AI_LOCK_STAGGER_MS);
       });
       const afterAi = PREVIEW_AI_LOCK_DELAY_MS + others.length * PREVIEW_AI_LOCK_STAGGER_MS;
@@ -1080,12 +1083,12 @@ export function App() {
             title={BACKEND_URL}
           >
             {isCreatingRoom
-              ? "Creating room…"
+              ? t("Creating room…")
               : connectionStatus === "online"
-              ? "Mission Control online"
+              ? t("Mission Control online")
               : connectionStatus === "offline"
-              ? "Preview mode · backend offline"
-              : "Contacting Mission Control…"}
+              ? t("Preview mode · backend offline")
+              : t("Contacting Mission Control…")}
           </div>
         </div>
       )}

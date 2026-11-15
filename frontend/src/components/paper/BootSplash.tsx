@@ -2,6 +2,7 @@
 // stations): the Python-generated nebula loop (herramientas/arte/procesar_arte.py →
 // /assets/art/anim/loading-loop.webp) with the title and a progress bar. Tap to skip.
 import { useEffect, useState } from "react";
+import { t } from "../../i18n";
 import { motion } from "framer-motion";
 import { ART } from "../../data/artManifest";
 
@@ -27,7 +28,7 @@ export function BootSplash({ ready, onDone }: { ready: boolean; onDone: () => vo
       exit={{ opacity: 0, transition: { duration: 0.5 } }}
       onClick={onDone}
       role="status"
-      aria-label="Loading Astro Squad"
+      aria-label={t("Loading Astro Squad")}
     >
       <img src={ART.anim.loadingLoop.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-space-ink via-transparent to-transparent" />
@@ -43,7 +44,7 @@ export function BootSplash({ ready, onDone }: { ready: boolean; onDone: () => vo
         <motion.div className="h-full bg-tank-orange" animate={{ width: `${pct}%` }} transition={{ duration: 0.15 }} />
       </div>
       <p className="relative mt-2 font-mono text-[11px] font-bold uppercase tracking-widest text-slate-300">
-        {ready ? "Mission Control ready · tap to start" : "Contacting Mission Control…"}
+        {ready ? t("Mission Control ready · tap to start") : t("Contacting Mission Control…")}
       </p>
     </motion.div>
   );

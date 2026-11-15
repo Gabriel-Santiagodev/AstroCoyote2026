@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Music, Volume2, VolumeX } from "lucide-react";
 
+import { t } from "../../i18n";
 const MUTE_STORAGE_KEY = "astro_sound_muted";
 
 export type VerdictType = "FULL_SUCCESS" | "PARTIAL_SUCCESS" | "FAILED";
@@ -441,14 +442,14 @@ export function SoundControlPill() {
           const nextMuted = soundEngine.toggleMute();
           if (!nextMuted) soundEngine.playClick();
         }}
-        aria-label={muted ? "Unmute game sound effects" : "Mute game sound effects"}
+        aria-label={muted ? t("Unmute game sound effects") : t("Mute game sound effects")}
         aria-pressed={muted}
         className={`paper-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase text-ink-black sm:text-[11px] ${
           muted ? "bg-status-warn" : "bg-paper-cream"
         }`}
       >
         {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5 text-status-ok" />}
-        <span>{muted ? "SFX MUTE" : "SFX ON"}</span>
+        <span>{muted ? t("SFX MUTE") : t("SFX ON")}</span>
       </button>
 
       <button
@@ -457,15 +458,15 @@ export function SoundControlPill() {
           soundEngine.toggleAmbientPad();
           soundEngine.playClick();
         }}
-        aria-label={ambientOn ? "Stop space ambient synth" : "Play space ambient synth"}
+        aria-label={ambientOn ? t("Stop space ambient synth") : t("Play space ambient synth")}
         aria-pressed={ambientOn}
         className={`paper-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase sm:text-[11px] ${
           ambientOn ? "bg-role-spacecraft text-ink-black" : "bg-space-ink text-paper-cream"
         }`}
       >
         <Music className={`h-3.5 w-3.5 ${ambientOn ? "animate-pulse" : "text-role-spacecraft"}`} />
-        <span className="hidden sm:inline">{ambientOn ? "AMBIENT SYNTH ON" : "AMBIENT SYNTH"}</span>
-        <span className="sm:hidden">{ambientOn ? "SYNTH" : "PAD"}</span>
+        <span className="hidden sm:inline">{ambientOn ? t("AMBIENT SYNTH ON") : t("AMBIENT SYNTH")}</span>
+        <span className="sm:hidden">{ambientOn ? t("SYNTH") : t("PAD")}</span>
       </button>
     </div>
   );

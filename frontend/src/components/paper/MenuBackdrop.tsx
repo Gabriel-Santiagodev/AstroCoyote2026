@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
+import { t } from "../../i18n";
 export interface FloatingSprite {
   src: string;
   alt: string;
@@ -48,7 +49,7 @@ export function MenuBackdrop({
         </motion.div>
       ))}
       <span className="absolute bottom-2 right-3 font-mono text-[9px] uppercase tracking-widest text-slate-400/80">
-        AI-generated art
+        {t("AI-generated art")}
       </span>
     </div>
   );

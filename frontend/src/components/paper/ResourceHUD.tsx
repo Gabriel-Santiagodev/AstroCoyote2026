@@ -20,6 +20,7 @@ import nasaCatalog from "../../data/nasa_catalog.json";
 import { ROLE_CHARACTER_PROFILE } from "./CrewmateAvatar";
 import type { LiveMetrics, MissionIdType, RoleType } from "../../types/game";
 
+import { t } from "../../i18n";
 interface ResourceHUDProps {
   liveMetrics: LiveMetrics;
   maxMassKg?: number;
@@ -43,7 +44,7 @@ function StatusPill({ level }: { level: StatusLevel }) {
     return (
       <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-ok px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
         <CheckCircle2 className="h-3 w-3" />
-        OK
+        {t("OK")}
       </span>
     );
   }
@@ -51,14 +52,14 @@ function StatusPill({ level }: { level: StatusLevel }) {
     return (
       <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-warn px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
         <AlertTriangle className="h-3 w-3" />
-        WARN
+        {t("WARN")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-crit px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
       <XOctagon className="h-3 w-3" />
-      RISK
+      {t("RISK")}
     </span>
   );
 }
@@ -175,7 +176,7 @@ export function ResourceHUD({
 
   return (
     <section
-      aria-label="Mission Resource HUD"
+      aria-label={t("Mission Resource HUD")}
       className="flash-panel px-3 py-2.5 font-mono text-xs tabular-nums sm:px-4 sm:py-3"
     >
       {/* Compact Handheld Header Bar (Always shown in compact mode & small phones) */}
@@ -207,12 +208,12 @@ export function ResourceHUD({
           {expandedMobile ? (
             <>
               <ChevronUp className="h-3.5 w-3.5" />
-              LESS
+              {t("LESS")}
             </>
           ) : (
             <>
               <ChevronDown className="h-3.5 w-3.5" />
-              MORE
+              {t("MORE")}
             </>
           )}
         </button>
@@ -229,12 +230,12 @@ export function ResourceHUD({
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
             "spacecraft_mass"
           )}`}
-          title={`Managed by ${ROLE_CHARACTER_PROFILE.spacecraft_mass.codename} & ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+          title={t("Managed by {who}", { who: `${ROLE_CHARACTER_PROFILE.spacecraft_mass.codename} & ${ROLE_CHARACTER_PROFILE.finance_launch.codename}` })}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Weight className="h-3.5 w-3.5 text-role-spacecraft" />
-              MASS
+              {t("MASS")}
             </span>
             <StatusPill level={massLevel} />
           </div>
@@ -247,10 +248,10 @@ export function ResourceHUD({
           <SegmentedBar pct={massPct} level={massLevel} />
           <div className="flex flex-wrap gap-x-2 text-[10px] font-bold">
             <span className={liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"}>
-              {liveMetrics.cg_balanced ? "Centered" : "Off-center"}
+              {liveMetrics.cg_balanced ? t("Centered") : t("Off-center")}
             </span>
             <span className={liveMetrics.has_thermal_protection ? "text-status-ok" : "text-status-crit"}>
-              {liveMetrics.has_thermal_protection ? "Shield" : "No shield"}
+              {liveMetrics.has_thermal_protection ? t("Shield") : t("No shield")}
             </span>
           </div>
         </div>
@@ -260,12 +261,12 @@ export function ResourceHUD({
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
             "finance_launch"
           )}`}
-          title={`Managed by ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+          title={t("Managed by {who}", { who: ROLE_CHARACTER_PROFILE.finance_launch.codename })}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Coins className="h-3.5 w-3.5 text-role-finance" />
-              BUDGET
+              {t("BUDGET")}
             </span>
             <StatusPill level={budgetLevel} />
           </div>
@@ -277,49 +278,49 @@ export function ResourceHUD({
           </div>
           <SegmentedBar pct={budgetPct} level={budgetLevel} />
           <div className={`text-[10px] font-bold ${ufeLevel === "OK" ? "text-status-ok" : ufeLevel === "WARN" ? "text-status-warn" : "text-status-crit"}`}>
-            Reserve {liveMetrics.ufe_reserve_pct.toFixed(0)}%
+            {t("Reserve")} {liveMetrics.ufe_reserve_pct.toFixed(0)}%
           </div>
         </div>
 
         {/* 3. DATA: science data per day vs what the link can send home (challenge resource) */}
         <div
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("science_comms")}`}
-          title="Science data made per day, and hours of radio contact per day needed to send it home"
+          title={t("Science data made per day, and hours of radio contact per day needed to send it home")}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Database className="h-3.5 w-3.5 text-role-science" />
-              DATA
+              {t("DATA")}
             </span>
             <StatusPill level={dataLevel} />
           </div>
           <div className="text-sm font-bold text-paper-cream">
             {dataGbitDay.toFixed(0)}
-            <span className="text-[11px] font-normal text-slate-400"> Gbit/day</span>
+            <span className="text-[11px] font-normal text-slate-400"> {t("Gbit/day")}</span>
           </div>
           <SegmentedBar pct={(linkHoursNeeded / DSN_DATA_HOURS_PER_DAY) * 100} level={dataLevel} />
           <div className="text-[10px] font-bold text-slate-300">
             {linkHoursNeeded > 0
-              ? `${linkHoursNeeded.toFixed(1)} / ${DSN_DATA_HOURS_PER_DAY} h DSN/day`
-              : "Link speed not set"}
+              ? t("{h} / {max} h DSN/day", { h: linkHoursNeeded.toFixed(1), max: DSN_DATA_HOURS_PER_DAY })
+              : t("Link speed not set")}
           </div>
         </div>
 
         {/* 4. TIME: how long the chosen route takes to reach the target (challenge resource) */}
         <div
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("orbit_power")}`}
-          title="Travel time of the chosen route (catalog transit days)"
+          title={t("Travel time of the chosen route (catalog transit days)")}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Clock className="h-3.5 w-3.5 text-role-orbit" />
-              TIME
+              {t("TIME")}
             </span>
             <StatusPill level={missionDays > 0 ? "OK" : "WARN"} />
           </div>
           <div className="text-sm font-bold text-paper-cream">
             {missionDays > 0 ? missionDays.toFixed(0) : "—"}
-            <span className="text-[11px] font-normal text-slate-400"> days to target</span>
+            <span className="text-[11px] font-normal text-slate-400"> {t("days to target")}</span>
           </div>
           <div className="text-[10px] font-bold text-slate-300">
             {missionDays > 0 ? "Route chosen" : "Waiting for a route"}
@@ -331,12 +332,12 @@ export function ResourceHUD({
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
             "orbit_power"
           )}`}
-          title={`Managed by ${ROLE_CHARACTER_PROFILE.orbit_power.codename}`}
+          title={t("Managed by {who}", { who: ROLE_CHARACTER_PROFILE.orbit_power.codename })}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <BatteryCharging className="h-3.5 w-3.5 text-role-orbit" />
-              POWER
+              {t("POWER")}
             </span>
             <StatusPill level={powerLevel} />
           </div>
@@ -351,12 +352,12 @@ export function ResourceHUD({
           className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
             "science_comms"
           )}`}
-          title={`Managed by ${ROLE_CHARACTER_PROFILE.science_comms.codename}`}
+          title={t("Managed by {who}", { who: ROLE_CHARACTER_PROFILE.science_comms.codename })}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Radio className="h-3.5 w-3.5 text-role-science" />
-              COMMS
+              {t("COMMS")}
             </span>
             <StatusPill level={fsplLevel} />
           </div>
@@ -366,7 +367,7 @@ export function ResourceHUD({
           <SegmentedBar pct={fsplPct} level={fsplLevel} />
           {earthLinkDb && (
             <div className="text-[10px] font-bold text-slate-300" title={earthLinkFuente}>
-              Earth link: {earthLinkDb[0] === earthLinkDb[1]
+              {t("Earth link:")} {earthLinkDb[0] === earthLinkDb[1]
                 ? `${earthLinkDb[0]} dB`
                 : `${earthLinkDb[0]}–${earthLinkDb[1]} dB`}
             </div>
