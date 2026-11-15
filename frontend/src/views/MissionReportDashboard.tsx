@@ -13,7 +13,7 @@ import type { MissionIdType, RoleType } from "../types/game";
 import type { RandomEventSummary } from "../socket";
 import nasaCatalogForNames from "../data/nasa_catalog.json";
 
-import { t } from "../i18n";
+import { t, ts } from "../i18n";
 export interface MissionOutcomeUI {
   outcome: "FAILED" | "PARTIAL_SUCCESS" | "FULL_SUCCESS";
   completion_pct: number;
@@ -382,7 +382,7 @@ export function MissionReportDashboard({
               <p className="font-display text-sm font-black">{t("How to reach 1,000")}</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs font-semibold text-slate-700">
                 {scoreBreakdown.tips.map((tip) => (
-                  <li key={tip}>{tip}</li>
+                  <li key={tip}>{ts(tip)}</li>
                 ))}
               </ul>
             </div>
@@ -395,7 +395,7 @@ export function MissionReportDashboard({
       <CrewLeaderboard
         entries={leaderboard}
         collaboration={(report as unknown as { collaboration?: CollaborationSummary }).collaboration}
-        summaries={Object.fromEntries(contributions.map((c) => [c.role, c.summary?.trim() ?? ""]))}
+        summaries={Object.fromEntries(contributions.map((c) => [c.role, ts(c.summary?.trim() ?? "")]))}
         myRole={myRole}
         missionFailed={report.outcome === "FAILED"}
         compact={isMobileClient}
@@ -411,13 +411,13 @@ export function MissionReportDashboard({
           <section key={ev.event_id} className={`rounded-2xl border-[3px] border-ink-black p-4 text-ink-black shadow-paper ${ev.mitigated ? "bg-status-ok" : "bg-status-warn"}`}
             aria-label={t("Survival event")}>
             <p className="font-mono text-[11px] font-black uppercase tracking-widest">{t("Survival event")}</p>
-            <h2 className="font-display text-2xl font-black">{ev.title}</h2>
-            <p className="mt-1 text-sm font-semibold">{ev.description}</p>
+            <h2 className="font-display text-2xl font-black">{ts(ev.title)}</h2>
+            <p className="mt-1 text-sm font-semibold">{ts(ev.description)}</p>
             <p className="mt-2 text-sm font-bold">
               {ev.mitigated
-                ? `${t("Why it didn't hurt:")} ${ev.mitigation_text}`
+                ? `${t("Why it didn't hurt:")} ${ts(ev.mitigation_text)}`
                 : `${t("It cost you:")} ${Object.entries(ev.applied_effects || {})
-                    .map(([k, v]) => `${k.replace(/_pct|_db/, "").replace(/_/g, " ")} ${v > 0 ? "+" : ""}${v}`)
+                    .map(([k, v]) => `${t(k.replace(/_pct|_db/, "").replace(/_/g, " "))} ${v > 0 ? "+" : ""}${v}`)
                     .join(", ")}. ${t("A different design choice could have blocked it.")}`}
             </p>
             {ev.fuente && (
@@ -446,7 +446,7 @@ export function MissionReportDashboard({
             </p>
           )}
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
-            {report.causal_chain_explanation}
+            {ts(report.causal_chain_explanation)}
           </p>
         </section>
         <section className="flash-panel p-5 sm:p-6">
@@ -460,7 +460,7 @@ export function MissionReportDashboard({
             </div>
           </div>
           <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-slate-100 sm:text-base">
-            {report.nasa_real_world_fact}
+            {ts(report.nasa_real_world_fact)}
           </p>
           {(() => {
             const spec = missionId
@@ -469,7 +469,7 @@ export function MissionReportDashboard({
             if (!spec?.budget_note) return null;
             return (
               <p className="mt-2 rounded-lg border border-slate-500/60 bg-space-ink/70 px-2 py-1.5 font-mono text-[11px] leading-snug text-slate-300">
-                {spec.budget_note}{" "}
+                {ts(spec.budget_note)}{" "}
                 {spec.budget_note_fuente && (
                   <a href={spec.budget_note_fuente} target="_blank" rel="noreferrer" className="underline">{t("Source")}</a>
                 )}
@@ -510,7 +510,7 @@ export function MissionReportDashboard({
                   <p className="-mt-2 text-slate-700">{t(gate.focus)}</p>
                   <p className="font-mono text-[10px] font-bold uppercase text-blueprint-navy">{t("Mission telemetry")}</p>
                   <p className="-mt-2 whitespace-pre-line break-words text-slate-700">
-                    {history?.feedback || (isFlagged ? report.causal_chain_explanation :
+                    {ts(history?.feedback) || (isFlagged ? ts(report.causal_chain_explanation) :
                       t("The final report did not include a separate finding for this gate."))}
                   </p>
                 </div>

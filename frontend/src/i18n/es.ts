@@ -35,8 +35,6 @@ export const ES: Record<string, string> = {
   "Music on": "Música activada",
   "Music off": "Música apagada",
   Language: "Idioma",
-  "Mission data and flight logbook stay in English for now.":
-    "Los datos de misión y la bitácora de vuelo siguen en inglés por ahora.",
   "How to play": "Cómo jugar",
   "Pick a role": "Elige un rol",
   "4 specialists. Empty seats fly on AI.": "4 especialistas. La IA ocupa los lugares vacíos.",
@@ -384,6 +382,9 @@ export const ES: Record<string, string> = {
   "+ {n} pts mission-success floor": "+ {n} pts por mínimo de misión exitosa",
   "How to reach 1,000": "Cómo llegar a 1,000",
   "Survival event": "Evento de supervivencia",
+  "battery reserve": "reserva de batería",
+  "ufe reserve": "fondo de reserva",
+  "link margin": "margen de señal",
   "Why it didn't hurt:": "Por qué no hizo daño:",
   "It cost you:": "Te costó:",
   "A different design choice could have blocked it.": "Otra decisión de diseño pudo haberlo bloqueado.",

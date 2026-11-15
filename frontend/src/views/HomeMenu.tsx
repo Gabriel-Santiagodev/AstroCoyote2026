@@ -387,7 +387,6 @@ export function HomeMenu({
                     </button>
                   ))}
                 </div>
-                <p className="mt-1 font-mono text-[10px] text-slate-500">{t("Mission data and flight logbook stay in English for now.")}</p>
               </div>
 
               <div>

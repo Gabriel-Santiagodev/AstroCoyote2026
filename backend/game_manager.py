@@ -36,13 +36,8 @@ _ROLE_GATE = {
     "science_comms": "NODE_4_DOWNLINK",
 }
 
-# Player-facing names for the power_source values (naming only, no game numbers).
-_POWER_NAMES = {
-    "rtg_nuclear": "nuclear battery (RTG)",
-    "solar_standard": "solar panels",
-    "fuel_cell": "fuel cells",
-    "battery_heavy": "big batteries",
-}
+# Player-facing names for the power_source values live in decision_tree.POWER_NAMES.
+_POWER_NAMES = decision_tree.POWER_NAMES
 
 
 class GameManager:

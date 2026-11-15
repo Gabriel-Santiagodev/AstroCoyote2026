@@ -13,7 +13,7 @@ import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 import type { RandomEventSummary } from "../socket";
 
-import { t } from "../i18n";
+import { t, ts } from "../i18n";
 export interface FlightQuestionOptionUI {
   option_id: string;
   label: string;
@@ -459,17 +459,17 @@ function SurvivalEventCard({ event, compact }: { event: RandomEventSummary; comp
       className={"flex shrink-0 items-start gap-3 rounded-xl border-[3px] border-ink-black p-2.5 text-ink-black shadow-paper " +
         (event.mitigated ? "bg-status-ok" : "bg-status-warn")}
       role="status"
-      aria-label={t("Survival event: {title}", { title: event.title })}
+      aria-label={t("Survival event: {title}", { title: ts(event.title) })}
     >
       <span className="mt-0.5 shrink-0 rounded-md border-2 border-ink-black bg-paper-cream px-1.5 py-0.5 font-mono text-[10px] font-black uppercase">
         {t("Event")}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-display text-base font-black leading-tight sm:text-lg">{event.title}</p>
-        {open && !compact && <p className="text-sm leading-snug">{event.description}</p>}
+        <p className="font-display text-base font-black leading-tight sm:text-lg">{ts(event.title)}</p>
+        {open && !compact && <p className="text-sm leading-snug">{ts(event.description)}</p>}
         <div className="mt-1 flex flex-wrap gap-1.5 font-mono text-[11px] font-bold">
           {event.mitigated ? (
-            <span className="rounded border-2 border-ink-black bg-paper-cream px-1.5">{t("Blocked")} · {event.mitigation_text}</span>
+            <span className="rounded border-2 border-ink-black bg-paper-cream px-1.5">{t("Blocked")} · {ts(event.mitigation_text)}</span>
           ) : (
             effects.map(([key, delta]) => (
               <span key={key} className="rounded border-2 border-ink-black bg-paper-cream px-1.5">
@@ -744,7 +744,7 @@ export function Flight60sView({
                 {isPhoneConsole && !isMyTurn ? (
                   <div className="mt-3 rounded-xl border-[3px] border-ink-black bg-blueprint-navy p-4 text-center text-paper-cream">
                     <p className="font-mono text-xs font-bold text-status-warn">{t("CREW DECISION IN PROGRESS")}</p>
-                    <p className="mt-2 break-words font-display text-lg font-black">{question.title}</p>
+                    <p className="mt-2 break-words font-display text-lg font-black">{ts(question.title)}</p>
                     <p className="mt-2 text-sm text-slate-200">
                       {t("Waiting for {name}…", { name: playerLabel })}
                     </p>
@@ -753,23 +753,23 @@ export function Flight60sView({
                   <>
                     <div className="mt-3">
                       <span className="inline-block max-w-full break-words rounded-md border-2 border-ink-black bg-role-spacecraft px-2 py-0.5 font-mono text-[10px] font-black">
-                        {question.nasa_concept_badge}
+                        {ts(question.nasa_concept_badge)}
                       </span>
                       <p className="mt-2 font-mono text-[10px] font-bold tracking-wider text-blueprint-navy">
                         {t("ENTRY")} {String(activeGateIndex + 1).padStart(2, "0")} // {t(GATES[activeGateIndex].label)}
                       </p>
                       <h3 className="mt-1 break-words font-display text-lg font-black leading-tight sm:text-xl">
-                        {question.title}
+                        {ts(question.title)}
                       </h3>
                       <p className="mt-1 break-words text-sm leading-snug text-slate-700">
-                        {question.scenario_context}
+                        {ts(question.scenario_context)}
                       </p>
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2">
                       {question.options.slice(0, 4).map((option, index) => (
                         <button key={option.option_id} type="button" disabled={!canAnswer}
                           onClick={() => answer(option.option_id)}
-                          aria-label={t("Option {n}", { n: index + 1 }) + ": " + option.label + ". " + option.engineering_tradeoff_hint}
+                          aria-label={t("Option {n}", { n: index + 1 }) + ": " + ts(option.label) + ". " + ts(option.engineering_tradeoff_hint)}
                           className={"paper-btn min-w-0 p-2.5 text-left text-ink-black " +
                             (isPhoneConsole ? "min-h-[78px] " : "min-h-[70px] ") +
                             (hasSubmitted && submittedAnswer?.optionId === option.option_id
@@ -780,10 +780,10 @@ export function Flight60sView({
                             </span>
                             <span className="min-w-0 break-words">
                               <span className="block font-display text-base font-black leading-tight">
-                                {option.label}
+                                {ts(option.label)}
                               </span>
                               <span className="mt-0.5 block font-mono text-[11px] font-normal leading-snug text-slate-700">
-                                {option.engineering_tradeoff_hint}
+                                {ts(option.engineering_tradeoff_hint)}
                               </span>
                             </span>
                           </span>
@@ -816,7 +816,7 @@ export function Flight60sView({
                   <p className="font-mono text-xs font-black">
                     {t(visibleResult.gate_status)} // {t("CHAPTER")} {String(visibleResult.round).padStart(2, "0")}
                   </p>
-                  <p className="mt-1 break-words text-sm font-semibold">{visibleResult.immediate_feedback}</p>
+                  <p className="mt-1 break-words text-sm font-semibold">{ts(visibleResult.immediate_feedback)}</p>
                 </motion.div>
               )}
             </AnimatePresence>

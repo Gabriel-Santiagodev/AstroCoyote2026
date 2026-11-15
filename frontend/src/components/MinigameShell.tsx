@@ -22,7 +22,7 @@ import { StationScenery } from "./paper/StationScenery";
 import { soundEngine } from "./paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
-import { t } from "../i18n";
+import { t, useScreenTranslation } from "../i18n";
 // ---------------------------------------------------------------------------
 // UI constants (gameplay durations come from docs/04-juego.md: 30 s per station, 1 take)
 // ---------------------------------------------------------------------------
@@ -263,6 +263,9 @@ export function MinigameShell({
   // --- Toast queue -------------------------------------------------------
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastSeq = useRef(0);
+  // Spanish mode: translate what the (untouched) minigame renders, on screen.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useScreenTranslation(bodyRef);
   const isFirstToastRender = useRef(true);
   useEffect(() => {
     // Skip the value already present on mount: a fresh Station 2 shell must not replay
@@ -482,6 +485,7 @@ export function MinigameShell({
       {/* Minigame body — pointer-events disabled once the single take is locked */}
       <div className={`relative min-w-0 ${fill ? "min-h-0 flex-1" : ""}`}>
         <div
+          ref={bodyRef}
           className={`min-w-0 overflow-x-hidden ${fill ? "h-full overflow-y-auto overscroll-contain" : ""} ${
             isLocked ? "pointer-events-none select-none opacity-60 transition-opacity" : ""
           }`}
