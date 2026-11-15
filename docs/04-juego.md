@@ -55,6 +55,7 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 ```
 
 - Al empezar cada oleada, el personaje estilo *Paper Mario × Among Us* **camina automáticamente** con animación de balanceo 2.5D hasta la estación correspondiente, abre la compuerta y lanza el minijuego en `MinigameShell`.
+- **Respiro inicial `READY` (3 s, 2026-11-15):** al abrirse cada estación, el minijuego ya es visible y explorable pero el reloj de la toma de 30 s (A5) arranca tras una cuenta `3 · 2 · 1` con el nombre de la tarea (`READY_BREATHER_SEC` en `LinearStationTrack.tsx`). El servidor lo cubre con `station_grace_sec = 6.0` en `backend/game_manager.py` (caminata 1.5 s + respiro 3 s + ~1.5 s de red), así nadie pierde su último segundo.
 - **Sincronización en Multiplayer:** Todos los jugadores ven su pista avanzar de forma sincronizada y trabajan en paralelo en sus respectivas consolas de estación.
 - **Concurrencia y afectación en cadena en vivo (`mutacion_en_vivo`):**
   - El HUD superior muestra en todo momento las **barras compartidas de la misión** (*Mass*, *Budget*, *Power*, *Data / Comms*, *UFE Reserve*).

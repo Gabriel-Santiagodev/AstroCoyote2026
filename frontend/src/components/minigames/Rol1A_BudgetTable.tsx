@@ -34,10 +34,10 @@ const SURPRISE_REQUESTS: SurpriseRequest[] = [
   {
     id: "card_20s",
     triggerSec: 20,
-    title: "Urgent Memo: Cryogenic Tank Reinforcement",
-    department: "Propulsion & R&D Division",
+    title: "Stronger fuel tanks?",
+    department: "Engine team",
     description:
-      "Propulsion asks for +$40M from the UFE Vault for composite overwrapped tanks. Boosts R&D Factor F (+0.12) for Rol 3B H2 Fuel Cells, but drains 10% UFE reserve.",
+      "+$40M from the vault. More fuel cells for Power, but -10% reserve.",
     extraCostUsd: 40_000_000,
     ufeDrainPct: 10,
     bonusF: 0.12,
@@ -45,10 +45,10 @@ const SURPRISE_REQUESTS: SurpriseRequest[] = [
   {
     id: "card_12s",
     triggerSec: 12,
-    title: "Urgent Memo: Flight-Spare Calibration Optics",
-    department: "Payload & DSN Telemetry Lab",
+    title: "Spare camera optics?",
+    department: "Science team",
     description:
-      "Science asks for +$25M from the UFE Vault to shield optical benches against radiation. Drains 5% UFE reserve.",
+      "+$25M from the vault to protect the cameras. -5% reserve.",
     extraCostUsd: 25_000_000,
     ufeDrainPct: 5,
     bonusF: 0.05,
@@ -225,20 +225,20 @@ export function Rol1A_BudgetTable({
   const ufeStatus =
     computed.ufeReservePct >= 25
       ? {
-          label: "SAFE (>= 25% NASA NPR 7120.5)",
+          label: "SAFE",
           color: "text-emerald-300",
           bg: "bg-emerald-500/20 border-emerald-400",
           barColor: "bg-emerald-400",
         }
       : computed.ufeReservePct >= 15
       ? {
-          label: "CAUTION (15–24% Thin Reserve)",
+          label: "THIN",
           color: "text-amber-300",
           bg: "bg-amber-500/20 border-amber-400",
           barColor: "bg-amber-400",
         }
       : {
-          label: "CRITICAL (< 15% Nunn-McCurdy Risk!)",
+          label: "DANGER",
           color: "text-rose-300",
           bg: "bg-rose-500/25 border-rose-400",
           barColor: "bg-rose-500",
@@ -257,27 +257,22 @@ export function Rol1A_BudgetTable({
           </div>
           <div>
             <h3 className="font-display text-base font-bold text-white">
-              Mission Budget Table & UFE Vault ({missionCfg.name})
+              Budget coins
             </h3>
             <p className="text-xs text-slate-300">
-              Distribute <b>10 Golden Coins</b> (1 coin ={" "}
-              <b className="font-mono text-amber-300">${Math.round(coinValueUsd / 1e6)}M</b> of{" "}
-              <b className="font-mono text-amber-300">${Math.round(totalBudgetUsd / 1e6)}M</b> cap).
-              Keep UFE Vault ≥ 25% per NASA NPR 7120.5!
+              1 coin = <b className="font-mono text-amber-300">${Math.round(coinValueUsd / 1e6)}M</b>.
+              Keep <b>25%+</b> in the vault.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 font-mono text-xs">
           <div className="rounded-lg border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <span className="text-slate-400">R&D Factor F: </span>
-            <strong className="text-amber-300">{computed.fundingFactorF.toFixed(2)}</strong>
-            <span className="ml-1.5 text-[11px] text-emerald-300">
-              ({computed.h2ProbPct}% H2 spawn in 3B)
-            </span>
+            <span className="text-slate-400">Fuel cells: </span>
+            <strong className="text-amber-300">{computed.h2ProbPct}%</strong>
           </div>
           <div className="rounded-lg border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <span className="text-slate-400">Committed: </span>
+            <span className="text-slate-400">Spent: </span>
             <strong className="text-white">
               ${Math.round(computed.subsystemsCostUsd / 1e6)}M
             </strong>
@@ -292,15 +287,14 @@ export function Rol1A_BudgetTable({
           <div>
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-display text-sm font-bold text-cyan-300">
-                <Wrench className="h-4 w-4" /> 1. Engineering & R&D
+                <Wrench className="h-4 w-4" /> 1. Engineering
               </span>
               <span className="paper-badge bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-200">
                 {coins.eng * 10}% (${Math.round(computed.budgetEngineeringUsd / 1e6)}M)
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-300">
-              Drives <b>Funding Factor F = {computed.fundingFactorF.toFixed(2)}</b>. Higher F spawns
-              more 100 MJ H2 Fuel Cells for your Power teammate in Station 3B.
+              More coins = more fuel cells for Power.
             </p>
 
             {/* Visual Coin Stack */}
@@ -346,15 +340,14 @@ export function Rol1A_BudgetTable({
           <div>
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-display text-sm font-bold text-violet-300">
-                <FlaskConical className="h-4 w-4" /> 2. Science & Comms
+                <FlaskConical className="h-4 w-4" /> 2. Science
               </span>
               <span className="paper-badge bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">
                 {coins.sci * 10}% (${Math.round(computed.budgetScienceUsd / 1e6)}M)
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-300">
-              Funds NASA payload instruments (HiRISE, CRISM, OVIRS) and Deep Space Network X-Band
-              transponders in Stations 4A & 4B.
+              Pays for instruments and the radio.
             </p>
 
             <div className="my-3 flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2">
@@ -398,7 +391,7 @@ export function Rol1A_BudgetTable({
           <div>
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 font-display text-sm font-bold text-amber-300">
-                <Gauge className="h-4 w-4" /> 3. Emergency Vault (UFE)
+                <Gauge className="h-4 w-4" /> 3. Safety vault
               </span>
               <span className={`paper-badge px-2 py-0.5 text-xs ${ufeStatus.bg} ${ufeStatus.color}`}>
                 {computed.ufeReservePct}% Reserve
@@ -503,7 +496,7 @@ export function Rol1A_BudgetTable({
               >
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-amber-400" />
-                  Incoming Engineering Memo at <b>T-{req.triggerSec}s</b>...
+                  Request at <b>{req.triggerSec}s</b>
                 </span>
                 <span className="font-mono">STANDBY</span>
               </div>
@@ -568,11 +561,11 @@ export function Rol1A_BudgetTable({
             <Coins className="h-4 w-4 text-amber-300" />
           )}
           <span>
-            Remaining for Wave 2 Launcher Auction:{" "}
+            Left for rocket:{" "}
             <b className="font-mono text-emerald-300">
               ${Math.round((totalBudgetUsd - computed.subsystemsCostUsd) / 1e6)}M
             </b>{" "}
-            · Live Wet Mass:{" "}
+            · Weight:{" "}
             <b className="font-mono text-cyan-300">
               {Math.round(liveMetrics.estimated_wet_mass_kg)} kg
             </b>
@@ -585,7 +578,7 @@ export function Rol1A_BudgetTable({
           onClick={() => onSubmitTake(buildPayload())}
           className="paper-btn bg-status-ok px-6 py-2.5 text-sm text-ink-black"
         >
-          {isLocked ? "BUDGET LOCKED ✓" : "CONFIRM BUDGET ALLOCATION"}
+          {isLocked ? "LOCKED ✓" : "LOCK BUDGET"}
         </button>
       </div>
     </div>

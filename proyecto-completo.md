@@ -516,6 +516,7 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 ```
 
 - Al empezar cada oleada, el personaje estilo *Paper Mario × Among Us* **camina automáticamente** con animación de balanceo 2.5D hasta la estación correspondiente, abre la compuerta y lanza el minijuego en `MinigameShell`.
+- **Respiro inicial `READY` (3 s, 2026-11-15):** al abrirse cada estación, el minijuego ya es visible y explorable pero el reloj de la toma de 30 s (A5) arranca tras una cuenta `3 · 2 · 1` con el nombre de la tarea (`READY_BREATHER_SEC` en `LinearStationTrack.tsx`). El servidor lo cubre con `station_grace_sec = 6.0` en `backend/game_manager.py` (caminata 1.5 s + respiro 3 s + ~1.5 s de red), así nadie pierde su último segundo.
 - **Sincronización en Multiplayer:** Todos los jugadores ven su pista avanzar de forma sincronizada y trabajan en paralelo en sus respectivas consolas de estación.
 - **Concurrencia y afectación en cadena en vivo (`mutacion_en_vivo`):**
   - El HUD superior muestra en todo momento las **barras compartidas de la misión** (*Mass*, *Budget*, *Power*, *Data / Comms*, *UFE Reserve*).
@@ -940,7 +941,7 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 | `iniciar_oleada_2` | `{ "sync_delay_sec": 5, "duration_sec": 30, "consolidated_wave1": dict, "spectral_challenge"?: dict }` | Anima la caminata automática de Estación 1 $\rightarrow$ Estación 2 (5 s) y abre `1B/2B/3B/4B` con las salidas exactas de Oleada 1. |
 | `iniciar_vuelo_60s` | `{ "total_duration_sec": 60, "consolidated_state": dict, "preliminary_gates": dict }` | Cambia de la Pista Lineal a `Flight60sView` (despegue animado del cohete). |
 | `pregunta_vuelo_60s` | `{ "round": 1 \| 2 \| 3 \| 4, "duration_sec": 15, "gate": str, "active_role": RoleType, "active_player_name": str, "question": FlightQuestionNode }` | Muestra la crisis espacial, activa los botones de respuesta solo para el jugador en turno (o único jugador) y corre el cronómetro de 15 s. |
-| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 2 s antes de la siguiente pregunta. |
+| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). |
 | `reporte_final_mision` | `MissionResolutionOutcome` + `{ "role_contributions": [...], "decision_history": [...] }` | Transiciona a `MissionReportDashboard` mostrando siempre resultado, puntaje (0–1,000), explicación causal y dato real NASA. |
 
 ---

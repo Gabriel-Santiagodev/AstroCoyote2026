@@ -49,7 +49,7 @@ function StatusPill({ level }: { level: StatusLevel }) {
   return (
     <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-crit px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
       <XOctagon className="h-3 w-3" />
-      CRIT
+      RISK
     </span>
   );
 }
@@ -188,12 +188,12 @@ export function ResourceHUD({
           {expandedMobile ? (
             <>
               <ChevronUp className="h-3.5 w-3.5" />
-              COMPACT HUD
+              LESS
             </>
           ) : (
             <>
               <ChevronDown className="h-3.5 w-3.5" />
-              6-GAUGE HUD
+              MORE
             </>
           )}
         </button>
@@ -258,14 +258,14 @@ export function ResourceHUD({
           )}`}
         >
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-            <span className="font-bold">UFE VAULT</span>
+            <span className="inline-flex items-center gap-1 font-bold">
+              <ShieldCheck className="h-3.5 w-3.5 text-role-finance" />
+              RESERVE
+            </span>
             <StatusPill level={ufeLevel} />
           </div>
           <div className="text-sm font-bold text-paper-cream">
             {liveMetrics.ufe_reserve_pct.toFixed(0)}%
-            <span className="ml-1.5 text-[11px] font-normal text-role-orbit">
-              F={liveMetrics.funding_factor_F.toFixed(2)}
-            </span>
           </div>
           <SegmentedBar pct={liveMetrics.ufe_reserve_pct * 2} level={ufeLevel} />
         </div>
@@ -279,7 +279,7 @@ export function ResourceHUD({
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Scale className="h-3.5 w-3.5 text-role-spacecraft" />
-              CG / TPS
+              BALANCE
             </span>
             <StatusPill level={cgLevel} />
           </div>
@@ -289,9 +289,7 @@ export function ResourceHUD({
                 liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"
               }
             >
-              {liveMetrics.cg_balanced
-                ? `CG ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`
-                : `DRIFT ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`}
+              {liveMetrics.cg_balanced ? "Centered" : "Off-center"}
             </span>
             <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-200">
               {liveMetrics.has_thermal_protection ? (
@@ -299,12 +297,8 @@ export function ResourceHUD({
               ) : (
                 <ShieldAlert className="h-3.5 w-3.5 text-status-crit" />
               )}
-              {liveMetrics.has_thermal_protection ? "TPS" : "NO TPS"}
+              {liveMetrics.has_thermal_protection ? "Shield" : "No shield"}
             </span>
-          </div>
-          <div className="text-[10px] text-slate-400">
-            Δv {liveMetrics.required_dv_ms.toFixed(0)} m/s · Payload{" "}
-            {liveMetrics.instruments_mass_kg.toFixed(0)} kg
           </div>
         </div>
 
@@ -338,7 +332,7 @@ export function ResourceHUD({
           <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
             <span className="inline-flex items-center gap-1 font-bold">
               <Radio className="h-3.5 w-3.5 text-role-science" />
-              DSN FSPL
+              SIGNAL
             </span>
             <StatusPill level={fsplLevel} />
           </div>

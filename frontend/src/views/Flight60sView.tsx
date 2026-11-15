@@ -393,7 +393,7 @@ function CabinScene({
           )}
         </AnimatePresence>
       </motion.div>
-      <div className={"border-t-[3px] border-ink-black bg-[#111C34] " + (isPhoneConsole ? "p-1" : "p-3")}>
+      <div className={"border-t-[3px] border-ink-black bg-blueprint-navy " + (isPhoneConsole ? "p-1" : "p-3")}>
         <div className={"flex items-center justify-between gap-2 font-mono font-bold tracking-widest text-slate-300 " +
           (isPhoneConsole ? "mb-0.5 text-[7px]" : "mb-1.5 text-[9px]")}>
           <span>STATION LOADOUT // CABIN SYSTEMS</span>
@@ -664,9 +664,9 @@ export function Flight60sView({
                 </div>
                 <div role="status" className={"mt-2 rounded-lg border-2 border-ink-black px-2 py-1 text-center font-display text-sm font-black " +
                   (isMyTurn ? "bg-status-ok" : "bg-status-warn")}>
-                  {isMyTurn ? "YOUR TURN! OPEN THE LOGBOOK" :
+                  {isMyTurn ? "YOUR TURN" :
                     isPhoneConsole ? "LOGBOOK WITH " + playerLabel.toUpperCase() :
-                      playerLabel.toUpperCase() + " HAS THE LOGBOOK ON THEIR PHONE"}
+                      playerLabel.toUpperCase() + "'S TURN"}
                 </div>
 
                 {isPhoneConsole && !isMyTurn ? (
@@ -674,7 +674,7 @@ export function Flight60sView({
                     <p className="font-mono text-xs font-bold text-status-warn">CREW DECISION IN PROGRESS</p>
                     <p className="mt-2 break-words font-display text-lg font-black">{question.title}</p>
                     <p className="mt-2 text-sm text-slate-200">
-                      {playerLabel} is resolving this chapter on their handheld console.
+                      Waiting for {playerLabel}…
                     </p>
                   </div>
                 ) : (

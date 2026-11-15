@@ -39,54 +39,34 @@ const VARIANT_DEFAULTS: Record<
   { title: string; subtitle: string; badge: string; steps: string[] }
 > = {
   boot: {
-    badge: "STAGE 01 · HANGAR LINK",
-    title: "INITIALIZING MISSION CONTROL",
-    subtitle: "Synchronizing Astro Squad loadouts, physics catalog, and room telemetry...",
-    steps: [
-      "Checking NIMA WGS84 constants & NASA mission tolerances",
-      "Loading 2D Astro Squad consoles & handheld PIN router",
-      "Preparing AI Autopilot contingency controllers",
-    ],
+    badge: "HANGAR",
+    title: "BOOTING MISSION CONTROL",
+    subtitle: "Warming up the hangar…",
+    steps: ["Loading crew", "Loading NASA data", "AI crew on standby"],
   },
   lobby_to_wave1: {
-    badge: "WAVE 1 · DESIGN STATIONS",
-    title: "DEPLOYING ASTRO SQUAD TO STATION 1",
-    subtitle: "Opening individual subsystem consoles on each player's handheld screen...",
-    steps: [
-      "Locking room PIN & crew role assignments",
-      "Mounting Station 1 instruments & budget constraints",
-      "Activating live mutacion_en_vivo telemetry bus",
-    ],
+    badge: "STATION 1",
+    title: "TO STATION 1",
+    subtitle: "Design your part of the ship.",
+    steps: ["Roles locked", "Consoles on", "Crew links live"],
   },
   wave1_to_wave2: {
-    badge: "TELEMETRY SYNC · 5S GATE",
-    title: "CROSS-LINKING WAVE 1 CONSTRAINTS",
-    subtitle: "Propagating launcher mass, UFE factor F, CG drift, and FSPL to Station 2...",
-    steps: [
-      "Collecting locked Wave 1 payloads from squad terminals",
-      "Recomputing delta-v envelope & Center-of-Gravity offset",
-      "Streaming Station 2 spectral & structural challenges",
-    ],
+    badge: "SYNC",
+    title: "SHARING YOUR CHOICES",
+    subtitle: "Every choice changes the next station.",
+    steps: ["Collecting designs", "Updating weight & cash", "Opening Station 2"],
   },
   wave2_to_flight: {
-    badge: "LAUNCHPAD · 60S FLIGHT",
-    title: "ROLLOUT TO LAUNCHPAD & TRAJECTORY LOCK",
-    subtitle: "Assembling consolidated spacecraft configuration for the 4-node flight crisis...",
-    steps: [
-      "Verifying wet mass vs fairing capacity & thermal shield",
-      "Arming 4 turn-based flight engineering gates (15s/round)",
-      "Syncing Host Main Stage flight monitor + crew mobile pads",
-    ],
+    badge: "LAUNCHPAD",
+    title: "ROLLING TO THE PAD",
+    subtitle: "4 crisis calls ahead.",
+    steps: ["Checking weight", "Checking heat shield", "Ready for liftoff"],
   },
   flight_to_report: {
-    badge: "DEBRIEF · NASA CAUSAL ENGINE",
-    title: "DECODING DEEP SPACE TELEMETRY",
-    subtitle: "Evaluating deterministic 4-node decision tree & computing science F1 return...",
-    steps: [
-      "Auditing NODE_1_LAUNCH through NODE_4_DOWNLINK gates",
-      "Calculating Objective 50% + Science F1 30% + Efficiency 20%",
-      "Preparing Mission Control causal engineering breakdown",
-    ],
+    badge: "DEBRIEF",
+    title: "READING THE FLIGHT LOG",
+    subtitle: "Why did it work — or not?",
+    steps: ["Checking 4 flight calls", "Scoring science", "Writing the debrief"],
   },
 };
 
@@ -302,7 +282,7 @@ export function MissionLoadingScreen({
           <div className="flex items-center justify-between font-mono text-xs font-bold">
             <span className="inline-flex items-center gap-1.5 text-slate-300">
               <Radio className="h-3.5 w-3.5 animate-pulse text-role-spacecraft" />
-              LOADING TELEMETRY CONSOLE...
+              LOADING…
             </span>
             <span className="tabular-nums text-status-ok">{effectivePct}%</span>
           </div>

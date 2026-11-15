@@ -402,7 +402,7 @@ export function Rol3B_AstroLogistics3D({
             STATION 2 · 3D POWER LOGISTICS ROVER
           </span>
           <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Harvest Energy Crates &amp; Charge Bus
+            Collect power crates
           </h3>
         </div>
         <button

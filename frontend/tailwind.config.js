@@ -8,17 +8,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        "space-ink": "#0B1021",
-        "blueprint-navy": "#162347",
+        "space-ink": "#0F172A",
+        "blueprint-navy": "#1E293B",
         "paper-cream": "#F8FAFC",
         "ink-black": "#0F172A",
         "role-finance": "#F59E0B",
         "role-spacecraft": "#06B6D4",
         "role-orbit": "#10B981",
         "role-science": "#A855F7",
-        "status-ok": "#3DDC84",
-        "status-warn": "#F2C94C",
-        "status-crit": "#FF5A4E",
+        "status-ok": "#22C55E",
+        "status-warn": "#FACC15",
+        "status-crit": "#EF4444",
+        // Art direction 2026-11-15: aerospace workshop accents
+        "hangar-slate": "#334155",
+        "tank-orange": "#F97316",
+        "electric-blue": "#2563EB",
+        "sky-glow": "#38BDF8",
       },
       fontFamily: {
         display: ['"Space Grotesk"', "system-ui", "sans-serif"],

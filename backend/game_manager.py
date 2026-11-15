@@ -35,8 +35,8 @@ class GameManager:
         wave_duration_sec: float = 30.0,
         sync_delay_sec: float = 5.0,
         flight_round_sec: float = 15.0,
-        flight_feedback_sec: float = 2.0,
-        station_grace_sec: float = 2.0,
+        flight_feedback_sec: float = 4.0,
+        station_grace_sec: float = 6.0,
         launch_transition_sec: float = 4.0,
     ) -> None:
         self.sio = sio
@@ -44,8 +44,9 @@ class GameManager:
         self.sync_delay_sec = sync_delay_sec
         self.flight_round_sec = flight_round_sec
         self.flight_feedback_sec = flight_feedback_sec
-        # Client-side walk animations start after the server emits; this grace keeps a player who
-        # locks in during the last second from being treated as timed out (docs/04 LinearStationTrack).
+        # The client clock starts after the walk (1.5 s) and the READY breather (3 s) in
+        # LinearStationTrack.tsx, so the server waits that long plus ~1.5 s of network slack before
+        # forcing a timeout; a player who locks in during their last second is never cut off (docs/04).
         self.station_grace_sec = station_grace_sec
         # Walk to the launchpad (1.5 s) + loading screen (2.5 s) in LinearStationTrack/App.tsx.
         self.launch_transition_sec = launch_transition_sec
@@ -316,7 +317,12 @@ class GameManager:
                 "required_dv_ms": float(mission_cfg.get("default_required_dv_ms", 1803.6)),
             }
 
+            # 1-4 players: a connected human who never claimed a role gets the first free one, so
+            # every human plays a unique station and only truly empty seats go to the AI autopilot.
+            roles_assigned = self._assign_free_roles(room)
             human_roles = {p["role"] for p in room["players"].values() if p.get("role")}
+            if roles_assigned:
+                await self._emit_room_state(pin)
             ai_wave1 = {
                 r: randomizer.synthesize_ai_role_wave1(r, difficulty, mission_id)
                 for r in ALL_ROLES
@@ -487,6 +493,19 @@ class GameManager:
             await self._transition_to_flight(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
+
+    @staticmethod
+    def _assign_free_roles(room: dict[str, Any]) -> bool:
+        """Give role-less players the first free roles (ALL_ROLES order). Returns True if any changed."""
+        taken = {p["role"] for p in room["players"].values() if p.get("role")}
+        free = [r for r in ALL_ROLES if r not in taken]
+        changed = False
+        for player in room["players"].values():
+            if player.get("role") or not free:
+                continue
+            player["role"] = free.pop(0)
+            changed = True
+        return changed
 
     def _select_active_player_for_round(
         self, room: dict[str, Any], round_num: int, assigned_role: str

@@ -327,7 +327,7 @@ export function Rol4A_SpectralLabTask({
   const handleCropStep = () => {
     if (!baselineCleaned) {
       setWorkflowToast(
-        "Order penalty (-3 pts): Apply Baseline Correction BEFORE cropping the region!"
+        "Wrong order (-3 pts): flatten the baseline first!"
       );
       return;
     }
@@ -344,7 +344,7 @@ export function Rol4A_SpectralLabTask({
             STATION 1 · PAYLOAD &amp; SPECTRAL LAB
           </span>
           <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Select NASA Instruments &amp; Calibrate Spectrum
+            Pick the science
           </h3>
         </div>
         <button
@@ -435,7 +435,7 @@ export function Rol4A_SpectralLabTask({
                   Visual Autopilot (Natural Feature Tracking)
                 </div>
                 <div className="text-xs text-slate-300">
-                  Essential for asteroid/precision descent without ground lag (+10 Science).
+                  Self-driving landing (+10 science).
                 </div>
               </div>
             </div>

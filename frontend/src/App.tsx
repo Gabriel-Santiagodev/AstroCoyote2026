@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SoundControlPill, soundEngine } from "./components/paper/SoundEngine";
 import { Starfield } from "./components/paper/Starfield";
+import nasaCatalog from "./data/nasa_catalog.json";
 import { ROLE_META } from "./components/MinigameShell";
 import { DevSandboxView } from "./views/DevSandboxView";
 import { Flight60sView, type FlightQuestionUI } from "./views/Flight60sView";
@@ -55,8 +56,8 @@ const STATION_SEC = 30;
 const FLIGHT_ROUNDS = 4;
 const FLIGHT_ROUND_SEC = 15;
 const FLIGHT_TOTAL_SEC = FLIGHT_ROUNDS * FLIGHT_ROUND_SEC;
-/** `resultado_turno_vuelo` feedback is shown ~2 s before the next question (docs/08 §2.B). */
-const TURN_FEEDBACK_MS = 2000;
+/** `resultado_turno_vuelo` feedback is shown ~4 s before the next question (docs/08 §2.B). */
+const TURN_FEEDBACK_MS = 4000;
 
 // UI-only timings for the offline preview simulation.
 const PREVIEW_PIN = "PREVIEW";
@@ -476,11 +477,14 @@ export function App() {
         if (payload.difficulty) setDifficulty(payload.difficulty);
         if (payload.pin) setPin(payload.pin);
         // Guests (`unirse_sala`) get no `sala_creada`; resolve our player_id by name and enter the lobby.
-        const { playerId: myId, playerName: myName, screen: current } = latest.current;
-        if (!myId) {
-          const mine = [...roster].reverse().find((p) => p.player_name === myName);
-          if (mine) setPlayerId(mine.player_id);
-        }
+        const { playerId: myId, playerName: myName, screen: current, role: myRole } = latest.current;
+        const mine = myId
+          ? roster.find((p) => p.player_id === myId)
+          : [...roster].reverse().find((p) => p.player_name === myName);
+        if (!myId && mine) setPlayerId(mine.player_id);
+        // Server authority (1-4 players): the backend hands each joiner a free seat, so the local
+        // role follows the roster and two humans never end up playing the same station.
+        if (mine?.role_id && mine.role_id !== myRole) setRole(mine.role_id);
         if (current === "home") {
           clearTimer(roomCreateTimer);
           setIsCreatingRoom(false);
@@ -725,8 +729,11 @@ export function App() {
     setScreen("home");
   };
   const handleChangeMission = (m: MissionIdType) => {
+    // Difficulty is part of the mission card (catalog `difficulty_default`), so both travel together.
+    const d = nasaCatalog.missions[m].difficulty_default as DifficultyType;
     setMission(m);
-    if (isOnline && playerId) gameClient.selectRoleMission({ pin, player_id: playerId, mission_id: m });
+    setDifficulty(d);
+    if (isOnline && playerId) gameClient.selectRoleMission({ pin, player_id: playerId, mission_id: m, difficulty: d });
   };
   const handleChangeDifficulty = (d: DifficultyType) => {
     setDifficulty(d);
@@ -867,6 +874,10 @@ export function App() {
     stationLoadout,
   };
 
+  // The "60 s" flight clock counts decision time only: it pauses while the logbook shows a turn's
+  // feedback, so reading the result never eats into the remaining crisis calls.
+  const flightDecisionTimeLeft = Math.max(0, (FLIGHT_ROUNDS - flightRound) * FLIGHT_ROUND_SEC + flightTimeLeft);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -946,7 +957,7 @@ export function App() {
           question={flightQuestionForMe}
           onAnswerOption={handleAnswerOption}
           activePlayerName={activePlayerName}
-          globalTimeLeftSec={globalFlightLeft}
+          globalTimeLeftSec={flightDecisionTimeLeft}
           rocketHealthPct={rocketHealthPct}
           lastTurnResult={lastTurnResult}
           missionId={mission}

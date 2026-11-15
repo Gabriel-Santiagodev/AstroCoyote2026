@@ -274,11 +274,10 @@ export function Rol1B_LauncherAuction({
           </div>
           <div>
             <h3 className="font-display text-base font-bold text-white">
-              VAB Launcher Auction & Fairing Integration ({missionId})
+              Pick the rocket
             </h3>
             <p className="text-xs text-slate-300">
-              Pick a NASA-verified launch vehicle that fits your team&apos;s total wet mass and
-              remaining budget, then seal the payload fairing.
+              Strong enough + cheap enough. Then seal the nose.
             </p>
           </div>
         </div>
@@ -491,7 +490,7 @@ export function Rol1B_LauncherAuction({
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="font-display text-sm font-bold text-white">
-                Select Launch Vehicle ({visibleLaunchers.length} Options)
+                Rockets ({visibleLaunchers.length})
               </span>
               <button
                 type="button"
@@ -531,8 +530,7 @@ export function Rol1B_LauncherAuction({
                         )}
                       </div>
                       <p className="mt-0.5 font-mono text-[11px] text-slate-300">
-                        Max Capacity: <b>{launcher.max_mass_kg.toLocaleString()} kg</b> · Fairing:{" "}
-                        {launcher.fairing_m}
+                        Lifts <b>{launcher.max_mass_kg.toLocaleString()} kg</b>
                       </p>
                     </div>
 
@@ -575,14 +573,12 @@ export function Rol1B_LauncherAuction({
                 />
                 <div>
                   <span className="block font-display text-xs font-bold text-white">
-                    Confirm Payload Fairing Encapsulation ({selectedLauncher.fairing_m})
+                    Seal the nose cone
                   </span>
                   <span className="text-[11px] text-slate-400">
                     {selectedFits
-                      ? `Margin: +${massMarginKg.toLocaleString()} kg spare capacity`
-                      : `WARNING: Wet mass exceeds ${selectedLauncher.name} by ${Math.abs(
-                          massMarginKg
-                        ).toLocaleString()} kg (Node 1 failure risk!)`}
+                      ? `+${massMarginKg.toLocaleString()} kg spare`
+                      : `${Math.abs(massMarginKg).toLocaleString()} kg too heavy`}
                   </span>
                 </div>
               </div>
@@ -598,7 +594,7 @@ export function Rol1B_LauncherAuction({
                 }`}
               >
                 <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
-                {fairingOk ? "Fairing Sealed ✓" : "Fairing UNSEALED!"}
+                {fairingOk ? "Sealed ✓" : "Open!"}
               </button>
             </div>
 
@@ -607,8 +603,8 @@ export function Rol1B_LauncherAuction({
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
                 <span>
                   {!selectedFits
-                    ? `${selectedLauncher.name} cannot lift ${wetMassKg} kg! Pick a heavier launcher or ask Role 2B to Jettison Ballast (-40 kg).`
-                    : `${selectedLauncher.name} exceeds your remaining budget!`}
+                    ? `Too heavy for ${selectedLauncher.name}. Pick a bigger rocket.`
+                    : `${selectedLauncher.name} costs too much.`}
                 </span>
               </div>
             ) : null}
@@ -621,8 +617,8 @@ export function Rol1B_LauncherAuction({
             >
               <Rocket className="h-4 w-4" />
               {isLocked
-                ? "LAUNCHER CONTRACT LOCKED ✓"
-                : `CONFIRM ${selectedLauncher.name.toUpperCase()} ($${(
+                ? "LOCKED ✓"
+                : `LOCK ${selectedLauncher.name.toUpperCase()} ($${(
                     selectedLauncher.cost_usd / 1e6
                   ).toFixed(1)}M)`}
             </button>

@@ -59,6 +59,12 @@ export const WALK_DURATION_SEC = 1.5;
 export const SYNC_DELAY_SEC = 5;
 /** UI-only: how long the Launchpad -> 60s Flight loading screen stays up after the walk. */
 export const LAUNCH_LOADING_MS = 2500;
+/**
+ * "Get ready" breather when a station opens: the minigame is visible and explorable, but the
+ * 30 s take clock (docs/03 A5) only starts once this countdown ends. Keeps the 1-shot take
+ * while giving players time to read the task. Covered server-side by `station_grace_sec`.
+ */
+export const READY_BREATHER_SEC = 3;
 /** Phone console breakpoint (STATE.md Fase 5: phones are `< 768px`). */
 export const PHONE_BREAKPOINT_PX = 768;
 /** UI-only refresh rate for loading-screen progress bars. */
@@ -102,10 +108,10 @@ export function getCriticalAlerts(metrics: LiveMetrics, missionId: MissionIdType
 }
 
 const CRITICAL_ALERT_LABEL: Record<CriticalAlertId, string> = {
-  overweight: "Wet mass over launcher capacity",
-  budget_depleted: "Budget depleted",
-  ufe_below_minimum: "UFE reserve below mission minimum",
-  no_thermal_protection: "Thermal protection missing",
+  overweight: "Too heavy for the rocket",
+  budget_depleted: "Out of money",
+  ufe_below_minimum: "Safety reserve too low",
+  no_thermal_protection: "No heat shield",
 };
 
 export const ALL_ROLES: RoleType[] = [
@@ -182,7 +188,7 @@ const TRACK_NODES: Array<{
   { id: "base", label: "BASE", sub: "Squad ready", Icon: Home },
   { id: "station_1", label: "STATION 1", sub: "DESIGN", Icon: Wrench },
   { id: "sync", label: "SYNC", sub: `${SYNC_DELAY_SEC}s`, Icon: RefreshCw },
-  { id: "station_2", label: "STATION 2", sub: "INTEGRATION", Icon: Cpu },
+  { id: "station_2", label: "STATION 2", sub: "BUILD", Icon: Cpu },
   { id: "launchpad", label: "LAUNCHPAD", sub: "60s flight", Icon: Rocket },
 ];
 
@@ -307,6 +313,115 @@ function PaperWipe({ label, onDone }: { label: string; onDone: () => void }) {
   );
 }
 
+/** Total station takes in a match: 4 roles x 2 waves (segmented task bar). */
+const TOTAL_TASKS = 8;
+const PORTHOLE_COUNT = 7;
+
+/** Bottom-left style sweep radar for the ship interior HUD. */
+function MiniRadar({ sizePx, alert }: { sizePx: number; alert: boolean }) {
+  return (
+    <div
+      className="relative shrink-0 overflow-hidden rounded-full border-[3px] border-ink-black shadow-paper-sm"
+      style={{
+        width: sizePx,
+        height: sizePx,
+        background:
+          "radial-gradient(circle, rgba(34,197,94,0.25) 0 18%, transparent 19% 38%, rgba(34,197,94,0.18) 39% 40%, transparent 41% 68%, rgba(34,197,94,0.18) 69% 70%, transparent 71%), #0F172A",
+      }}
+      aria-hidden="true"
+    >
+      <motion.span
+        className="absolute inset-0"
+        style={{
+          background: `conic-gradient(from 0deg, ${alert ? "rgba(239,68,68,0.65)" : "rgba(34,197,94,0.65)"}, transparent 70deg)`,
+        }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+      />
+      <span className="absolute left-[62%] top-[30%] h-1.5 w-1.5 rounded-full bg-sky-glow" />
+      <span className="absolute left-[30%] top-[64%] h-1.5 w-1.5 rounded-full bg-status-warn" />
+    </div>
+  );
+}
+
+/** Segmented green task bar (8 cells = 4 roles x 2 stations). */
+function TaskBar({ done, total }: { done: number; total: number }) {
+  return (
+    <div className="flex items-center gap-2" aria-label={`Tasks ${done} of ${total}`}>
+      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">Tasks</span>
+      <div className="flex flex-1 gap-1 rounded-md border-2 border-ink-black bg-space-ink p-1">
+        {Array.from({ length: total }, (_, i) => (
+          <motion.span
+            key={i}
+            className="h-2.5 flex-1 rounded-sm"
+            initial={false}
+            animate={{ backgroundColor: i < done ? "#22C55E" : "#334155" }}
+            transition={{ duration: 0.3 }}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-[11px] font-bold tabular-nums text-status-ok">
+        {done}/{total}
+      </span>
+    </div>
+  );
+}
+
+/** Sliding bulkhead door drawn behind a station node; slides open once the squad reaches it. */
+function BulkheadDoor({ open }: { open: boolean }) {
+  return (
+    <div className="relative h-[5.6rem] w-14 overflow-hidden rounded-t-lg border-[3px] border-b-0 border-ink-black bg-space-ink" aria-hidden="true">
+      <div className="absolute inset-x-0 top-0 h-2 bg-status-warn/80" />
+      {[0, 1].map((side) => (
+        <motion.div
+          key={side}
+          className="absolute top-2 h-full w-1/2 border-ink-black bg-hangar-slate"
+          style={{
+            left: side === 0 ? 0 : "50%",
+            borderRightWidth: side === 0 ? 2 : 0,
+            borderLeftWidth: side === 1 ? 2 : 0,
+            backgroundImage: "linear-gradient(180deg, rgba(248,250,252,0.12), rgba(248,250,252,0))",
+          }}
+          initial={false}
+          animate={{ x: open ? (side === 0 ? "-85%" : "85%") : "0%" }}
+          transition={{ duration: 0.45, ease: "easeInOut" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Non-blocking "get ready" banner shown over the station while the take clock is paused. */
+function ReadyBreather({ secondsLeft, task, suit }: { secondsLeft: number; task: string; suit: string }) {
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-x-0 top-16 z-[55] flex justify-center px-3"
+      initial={{ opacity: 0, y: -12, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 320, damping: 22 }}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex items-center gap-3 rounded-2xl border-4 border-ink-black bg-paper-cream px-4 py-2.5 text-ink-black shadow-paper-lg">
+        <div className="text-left">
+          <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">Get ready</div>
+          <div className="font-display text-lg font-bold leading-tight sm:text-2xl">{task}</div>
+        </div>
+        <motion.span
+          key={secondsLeft}
+          initial={{ scale: 1.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="flex h-12 w-12 items-center justify-center rounded-xl border-3 border-ink-black font-mono text-3xl font-bold tabular-nums sm:h-14 sm:w-14 sm:text-4xl"
+          style={{ backgroundColor: suit }}
+        >
+          {secondsLeft}
+        </motion.span>
+      </div>
+    </motion.div>
+  );
+}
+
 type TrackPhase =
   | "walk_to_station_1"
   | "station_1"
@@ -406,19 +521,53 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const prevWave = useRef<1 | 2>(wave);
   const openedRef = useRef(onStationOpened);
   openedRef.current = onStationOpened;
+  const [readyLeft, setReadyLeft] = useState<number | null>(null);
+  const stationRef = useRef<HTMLDivElement | null>(null);
+  const readyTimer = useRef<number | null>(null);
+
+  const clearReadyTimer = () => {
+    if (readyTimer.current !== null) window.clearInterval(readyTimer.current);
+    readyTimer.current = null;
+  };
+
+  /** Show the station, run the READY breather, then start the take clock. */
+  const openStation = (n: 1 | 2) => {
+    setPhase(n === 1 ? "station_1" : "station_2");
+    clearReadyTimer();
+    if (READY_BREATHER_SEC <= 0) {
+      setReadyLeft(null);
+      openedRef.current?.(n);
+      return;
+    }
+    let left = READY_BREATHER_SEC;
+    setReadyLeft(left);
+    // Bring the console into view while the clock is still paused.
+    window.setTimeout(() => stationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    soundEngine.playCountdownTick(false);
+    readyTimer.current = window.setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearReadyTimer();
+        setReadyLeft(null);
+        soundEngine.playComplete();
+        openedRef.current?.(n);
+        return;
+      }
+      setReadyLeft(left);
+      soundEngine.playCountdownTick(false);
+    }, 1000);
+  };
+
+  useEffect(() => clearReadyTimer, []);
 
   // Mount: walk BASE -> STATION 1, then open the minigame (or jump to Station 2 if mounted mid-match).
   useEffect(() => {
     if (prevWave.current === 2) {
-      setPhase("station_2");
-      openedRef.current?.(2);
+      openStation(2);
       return undefined;
     }
     setPhase("walk_to_station_1");
-    const t = window.setTimeout(() => {
-      setPhase("station_1");
-      openedRef.current?.(1);
-    }, WALK_DURATION_SEC * 1000);
+    const t = window.setTimeout(() => openStation(1), WALK_DURATION_SEC * 1000);
     return () => window.clearTimeout(t);
     // Runs once per mount; App.tsx remounts the track (key) for every new match.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -438,8 +587,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
       soundEngine.playComplete();
       const done = window.setTimeout(() => {
         window.clearInterval(tick);
-        setPhase("station_2");
-        openedRef.current?.(2);
+        openStation(2);
       }, syncDelaySec * 1000);
       return () => {
         window.clearInterval(tick);
@@ -491,6 +639,11 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const isRoleLocked = (role: RoleType) =>
     lockedTakes.some((t) => t.role_id === role && t.wave === activeWave) || (role === roleId && isLocked);
 
+  const tasksDone =
+    phase === "walk_to_launchpad" || phase === "launchpad"
+      ? TOTAL_TASKS
+      : Math.min(TOTAL_TASKS, (activeWave - 1) * ALL_ROLES.length + ALL_ROLES.filter(isRoleLocked).length);
+
   // --- Critical metrics: red alert + error buzz when a new alert appears ----
   const criticalAlerts = getCriticalAlerts(liveMetrics, missionId);
   const isCritical = criticalAlerts.length > 0;
@@ -540,8 +693,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     setPaperWipe({
       key: wipeSeq.current,
       label: showMinigame
-        ? `OPENING STATION ${activeWave} · ${activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}`
-        : "STATION SEALED · ROLLING OUT",
+        ? `STATION ${activeWave} · ${activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}`
+        : "DONE · ROLLING OUT",
     });
     soundEngine.playSceneJump();
     // activeWave/myProfile are read at transition time only.
@@ -560,10 +713,10 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
 
   const headline =
     phase === "sync"
-      ? "SYNCHRONIZING SUBSYSTEMS"
+      ? "SYNCING CREW"
       : phase === "launchpad" || phase === "walk_to_launchpad"
-      ? "LAUNCHPAD · AWAITING CLEARANCE"
-      : `STATION ${activeWave} · ${activeWave === 1 ? "DESIGN" : "INTEGRATION"}`;
+      ? "LAUNCHPAD"
+      : `STATION ${activeWave} · ${activeWave === 1 ? "DESIGN" : "BUILD"}`;
 
   const connectionBadge = connectionStatus && (
     <span
@@ -676,6 +829,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             </div>
           )}
 
+          <TaskBar done={tasksDone} total={TOTAL_TASKS} />
           {/* squad lock status (4 mini chips) */}
           <ul className="grid grid-cols-4 gap-1.5" aria-label="Squad status">
             {ALL_ROLES.map((role) => {
@@ -719,19 +873,52 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
             aria-hidden="true"
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-role-spacecraft">
-                <Tv className="h-3.5 w-3.5" aria-hidden="true" />
-                Host main stage · Astro squad hangar · {MISSION_LABELS[missionId]} · {difficulty.toUpperCase()}
-              </p>
-              <h2 className="font-display text-xl font-bold sm:text-2xl">{headline}</h2>
+            <div className="flex items-center gap-3">
+              <MiniRadar sizePx={48} alert={isCritical} />
+              <div>
+                <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-sky-glow">
+                  <Tv className="h-3.5 w-3.5" aria-hidden="true" />
+                  {MISSION_LABELS[missionId]} · {difficulty.toUpperCase()}
+                </p>
+                <h2 className="font-display text-xl font-bold sm:text-2xl">{headline}</h2>
+              </div>
             </div>
             {connectionBadge}
           </div>
+          <TaskBar done={tasksDone} total={TOTAL_TASKS} />
 
           {/* Hangar rail: node columns are w-28, so the rail is inset by half (3.5rem) to line up */}
-          <div className="relative rounded-xl border-[3px] border-ink-black bg-space-ink/80 pb-3 pt-[6.75rem]">
-            <div className="blueprint-grid pointer-events-none absolute inset-0 rounded-xl opacity-40" aria-hidden="true" />
+          <div
+            className="relative overflow-hidden rounded-[1.6rem] border-[4px] border-ink-black pb-3 pt-[6.75rem] shadow-paper"
+            style={{ background: "linear-gradient(180deg, #334155 0%, #1E293B 62%, #0F172A 100%)" }}
+          >
+            {/* hull cross-section: portholes onto the starfield */}
+            <div className="pointer-events-none absolute inset-x-6 top-2 flex justify-between" aria-hidden="true">
+              {Array.from({ length: PORTHOLE_COUNT }, (_, i) => (
+                <span
+                  key={i}
+                  className="h-5 w-5 rounded-full border-[3px] border-ink-black"
+                  style={{
+                    background:
+                      "radial-gradient(circle at 35% 35%, rgba(56,189,248,0.55), transparent 55%), radial-gradient(#F8FAFC 1px, transparent 1.5px) 0 0 / 6px 6px, #0F172A",
+                  }}
+                />
+              ))}
+            </div>
+            <div className="blueprint-grid pointer-events-none absolute inset-0 opacity-30" aria-hidden="true" />
+            {/* sliding bulkhead doors behind the two stations and the launchpad */}
+            <div className="pointer-events-none absolute left-14 right-14 top-[2.2rem]" aria-hidden="true">
+              {(["station_1", "station_2", "launchpad"] as TrackNodeId[]).map((id) => (
+                <div key={id} className="absolute -translate-x-1/2" style={{ left: `${NODE_POSITION_PCT[id]}%` }}>
+                  <BulkheadDoor open={NODE_POSITION_PCT[id] <= NODE_POSITION_PCT[avatarNode]} />
+                </div>
+              ))}
+            </div>
+            {/* metal grated deck */}
+            <div
+              className="metal-grate pointer-events-none absolute inset-x-0 top-[7.6rem] h-7 border-y-[3px] border-ink-black"
+              aria-hidden="true"
+            />
 
             <div className="absolute left-14 right-14 top-[7.85rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
               <motion.div
@@ -922,7 +1109,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
           variant="wave1_to_wave2"
           missionId={missionId}
           roleId={roleId}
-          title="Synchronizing Subsystem Constraints..."
+          title="Syncing the crew…"
           progressPct={Math.round(syncProgressPct)}
           isMobileClient={isPhoneConsole}
         />
@@ -974,7 +1161,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
         {showMinigame && (
           <motion.div
             key={`station-${activeWave}`}
-            className="min-w-0"
+            ref={stationRef}
+            className="relative min-w-0 scroll-mt-16"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
@@ -1007,6 +1195,16 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
                 isLocked={isLocked}
               />
             </MinigameShell>
+            <AnimatePresence>
+              {readyLeft !== null && (
+                <ReadyBreather
+                  key="ready"
+                  secondsLeft={readyLeft}
+                  task={activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}
+                  suit={myProfile.suit}
+                />
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1013,15 +1013,14 @@ export function Rol2A_TopologicalAssembly({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-display text-base font-bold text-white">
-                Spacecraft & Lunar Rover Assembly ({missionCfg.name})
+                Build the ship
               </h3>
               <span className="paper-badge bg-cyan-400/20 px-2 py-0.5 text-[11px] text-cyan-300">
                 {roleCfg.name} · {roleCfg.bonusText}
               </span>
             </div>
             <p className="text-xs text-slate-300">
-              Follow the 4-step DAG order: <b>1. Chassis</b> → <b>2. Power, Heat Shield & Deorbit</b> →{" "}
-              <b>3. Torque (T1)</b> → <b>4. Wiring (T2)</b>
+              <b>Frame</b> → <b>Power + shield</b> → <b>Bolt</b> → <b>Wire</b>
             </p>
           </div>
         </div>
@@ -1055,11 +1054,9 @@ export function Rol2A_TopologicalAssembly({
 
       {showGuide && (
         <div className="paper-card border-cyan-400 bg-slate-900/95 p-3 text-xs text-slate-200">
-          <p className="font-bold text-cyan-300">NASA Topological Assembly Rules (NPR 7120.5):</p>
+          <p className="font-bold text-cyan-300">Build order matters</p>
           <p className="mt-1">
-            Installing subsystems before the primary structure (Chassis) or connecting electrical harnesses
-            before mechanical torque causes a <b>-5% structural integrity penalty</b>. Omitting the{" "}
-            <b>Heat Shield (TPS)</b> risks catastrophic loss during Node 3 atmospheric entry!
+            Wrong order = <b>-5% strength</b>. No <b>heat shield</b> = big risk on reentry.
           </p>
         </div>
       )}

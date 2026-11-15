@@ -101,3 +101,24 @@ def test_select_role_blocks_duplicates_and_updates_mission() -> None:
         assert gm.rooms[pin]["mission_id"] == "mars_sample_return"
 
     run(scenario())
+
+
+def test_two_humans_get_unique_roles_and_ai_fills_the_rest() -> None:
+    """1-4 players: role-less humans get a free seat at start; only empty seats go to the AI."""
+
+    async def scenario() -> None:
+        sio = FakeSio()
+        gm = GameManager(sio, wave_duration_sec=0)  # type: ignore[arg-type]
+        await gm.handle_create_room("s1", {"mode": "multi", "host_name": "A"})
+        pin = sio.last("sala_creada")["pin"]
+        await gm.handle_join_room("s2", {"pin": pin, "player_name": "B"})
+        gm.rooms[pin]["players"]["s2"]["role"] = None  # guest never claimed a seat
+
+        await gm.handle_start_game("s1", {"pin": pin})
+
+        roles = [p["role"] for p in gm.rooms[pin]["players"].values()]
+        assert all(roles) and len(set(roles)) == 2
+        ai_roles = set(sio.last("iniciar_oleada_1")["ai_wave1_state"].keys())
+        assert ai_roles == set(ALL_ROLES) - set(roles)
+
+    run(scenario())

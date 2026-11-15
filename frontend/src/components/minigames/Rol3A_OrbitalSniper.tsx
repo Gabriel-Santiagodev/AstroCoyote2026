@@ -166,7 +166,7 @@ export function Rol3A_OrbitalSniper({
             STATION 1 · ORBITAL SNIPER
           </span>
           <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Lock Trajectory, Orbit &amp; Propulsion
+            Aim the orbit
           </h3>
         </div>
         <button
@@ -317,7 +317,7 @@ export function Rol3A_OrbitalSniper({
           ) : (
             <div className="space-y-2.5">
               <p className="font-mono text-xs font-bold uppercase text-slate-300">
-                Select Thruster (Specific Impulse Isp vs. Electrical Power)
+                Pick an engine
               </p>
               {ENGINES.map((e) => {
                 const active = e.id === engine.id;

@@ -18,6 +18,7 @@ import {
   type ActionEffect,
   type AvatarState,
 } from "./paper/CrewmateAvatar";
+import { StationScenery } from "./paper/StationScenery";
 import { soundEngine } from "./paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
@@ -113,7 +114,7 @@ export const ROLE_META: Record<
 
 export const STATION_META: Record<1 | 2, { title: string; subtitle: string }> = {
   1: { title: "STATION 1", subtitle: "DESIGN" },
-  2: { title: "STATION 2", subtitle: "INTEGRATION" },
+  2: { title: "STATION 2", subtitle: "BUILD" },
 };
 
 export const MISSION_LABELS: Record<MissionIdType, string> = {
@@ -456,6 +457,9 @@ export function MinigameShell({
         />
       </div>
 
+      {/* Phase scenery (VAB hangar / ascent / orbital base / rover) — art only, no logic */}
+      <StationScenery roleId={roleId} wave={wave} missionId={missionId ?? "artemis_moon"} compact={isHandheld} />
+
       {/* Minigame body — pointer-events disabled once the single take is locked */}
       <div className="relative min-w-0">
         <div
@@ -597,11 +601,10 @@ function MinigameFallback({
     <div className="paper-card-light space-y-3 p-4" role="alert">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-status-crit" aria-hidden="true" />
-        <h3 className="font-display text-lg font-bold">Console offline — safe fallback</h3>
+        <h3 className="font-display text-lg font-bold">Console glitch</h3>
       </div>
       <p className="text-sm text-slate-700">
-        {profile.codename}&apos;s Station {wave} console ({profile.label}) hit an error and was
-        isolated so your mission can continue. Lock a fallback take to keep the squad on schedule.
+        Station {wave} hit an error. Lock a safe take and keep going.
       </p>
       <pre className="max-h-24 overflow-auto rounded-lg border-2 border-ink-black bg-space-ink p-2 font-mono text-[11px] text-status-warn">
         {error.message || String(error)}

@@ -62,11 +62,13 @@ export function Starfield() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-space-ink"
+      className="hangar-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden"
       aria-hidden="true"
     >
+      {/* Soft workshop light pools: no screen ever reads as a dark, switched-off panel */}
+      <div className="hangar-light absolute inset-0" />
       {/* Subtle NASA blueprint grid */}
-      <div className="blueprint-grid absolute inset-0 opacity-45" />
+      <div className="blueprint-grid absolute inset-0 opacity-70" />
 
       {/* Immediate CSS star layer (frame-0 fallback & far depth) */}
       <div

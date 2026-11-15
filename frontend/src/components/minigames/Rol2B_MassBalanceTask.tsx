@@ -304,11 +304,10 @@ export function Rol2B_MassBalanceTask({
           </div>
           <div>
             <h3 className="font-display text-base font-bold text-white">
-              2D Center of Gravity (CG) & Mass Trim ({missionCfg.name})
+              Balance the weight
             </h3>
             <p className="text-xs text-slate-300">
-              Select a module on the left, then click one of the <b>8 Mounting Bays</b> so the red
-              CG dot stays inside the green tolerance circle (<b>R ≤ {rTolM.toFixed(2)} m</b>).
+              Tap a part, then a bay. Keep the <b>red dot</b> in the <b>green circle</b>.
             </p>
           </div>
         </div>
@@ -391,8 +390,7 @@ export function Rol2B_MassBalanceTask({
                 <span className="font-mono">-{ballastJettisonedKg} kg Jettisoned</span>
               </div>
               <p className="mt-0.5 text-[11px] text-slate-300">
-                If your spacecraft is too heavy for Role 1B&apos;s rocket, jettison structural
-                ballast (-40 kg per click, up to -80 kg).
+                Too heavy? Drop ballast (-40 kg).
               </p>
               <button
                 type="button"
@@ -528,8 +526,7 @@ export function Rol2B_MassBalanceTask({
           </div>
 
           <div className="text-center font-mono text-[11px] text-slate-300">
-            Tip: Balance heavy modules on opposite bays (e.g., <b>Bay N</b> vs <b>Bay S</b>, or{" "}
-            <b>Bay W</b> vs <b>Bay E</b>).
+            Tip: put heavy parts on <b>opposite</b> bays.
           </div>
         </div>
 
@@ -566,10 +563,8 @@ export function Rol2B_MassBalanceTask({
             </div>
 
             <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-2.5 text-[11px] leading-relaxed text-slate-300">
-              <strong className="block text-cyan-300">Why CG Matters (NASA JPL):</strong>
-              If the Center of Gravity is offset from the main thruster axis, attitude control
-              thrusters must fire continuously during orbital insertion (Node 2), burning{" "}
-              <b>1.5× propellant</b> and shaking the High-Gain Antenna in Role 4B.
+              <strong className="block text-cyan-300">Why it matters</strong>
+              Off-center = <b>1.5× fuel</b> and a shaky antenna.
             </div>
           </div>
 

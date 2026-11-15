@@ -104,6 +104,14 @@ const VERDICTS = {
   FAILED: { title: "MISSION FAILED", color: "bg-status-crit", note: "Review the engineering chain and redesign." },
 } as const;
 
+/** Podium layout: stepped pedestal heights (visual only), highest in the middle. */
+const PODIUM_ORDER: Array<{ role: RoleType; heightClass: string; place: string }> = [
+  { role: "spacecraft_mass", heightClass: "h-14 sm:h-20", place: "2" },
+  { role: "finance_launch", heightClass: "h-20 sm:h-28", place: "1" },
+  { role: "orbit_power", heightClass: "h-11 sm:h-16", place: "3" },
+  { role: "science_comms", heightClass: "h-8 sm:h-12", place: "4" },
+];
+
 export function MissionReportDashboard({
   report,
   onRetry,
@@ -246,6 +254,45 @@ export function MissionReportDashboard({
           </div>
         </div>
       </motion.section>
+
+      {/* Final podium: the 4 Astro Sprites on stepped pedestals under a soft hangar light */}
+      <section className="flash-panel relative overflow-hidden px-3 pb-0 pt-4" aria-label="Crew podium">
+        <div className="hangar-glow pointer-events-none absolute inset-x-0 top-0 h-48" aria-hidden="true" />
+        <div className="relative mx-auto grid max-w-3xl grid-cols-4 items-end gap-2 sm:gap-4">
+          {PODIUM_ORDER.map(({ role, heightClass, place }, i) => {
+            const failedRole = report.failed_or_degraded_gate
+              ? GATE_ROLE[report.failed_or_degraded_gate.trim().toUpperCase()]
+              : undefined;
+            const down = report.outcome === "FAILED" || failedRole === role;
+            return (
+              <div key={role} className="flex flex-col items-center">
+                <motion.div
+                  initial={reduceMotion ? false : { y: 24, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.15 + i * 0.12, type: "spring", stiffness: 240, damping: 18 }}
+                >
+                  <CrewmateAvatar
+                    role={role}
+                    state={down ? "panic" : "cheer"}
+                    actionEffect={down ? "error" : "complete"}
+                    size={isMobileClient ? 52 : 78}
+                  />
+                </motion.div>
+                <div
+                  className={`metal-grate mt-1 flex w-full items-start justify-center rounded-t-lg border-[3px] border-b-0 border-ink-black pt-1 ${heightClass}`}
+                >
+                  <span
+                    className="rounded border-2 border-ink-black px-1.5 font-mono text-xs font-black text-ink-black"
+                    style={{ backgroundColor: ROLE_CHARACTER_PROFILE[role].suit }}
+                  >
+                    {place}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="flash-panel p-2 sm:p-3">
         <div className="paper-card-light grid gap-6 p-4 sm:p-7 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">

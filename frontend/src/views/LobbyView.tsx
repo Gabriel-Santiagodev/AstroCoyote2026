@@ -1,19 +1,19 @@
-// Owner: Leonardo (Task LEO-04) — 2D Flash-Game Briefing Lobby: Host Main Stage vs Phone Crew Handheld Pad
+// Owner: Leonardo (Task LEO-04) — Two-step briefing lobby: 1) pick your specialist, 2) pick the mission.
+// Each step is its own screen. Mission cards carry their difficulty; nothing else sits below them.
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   Bot,
   Check,
   Copy,
-  Cpu,
   Flame,
+  MonitorSmartphone,
   Rocket,
-  Scale,
-  Shield,
   Smartphone,
   Tv,
-  UserCheck,
+  Wallet,
 } from "lucide-react";
 import nasaCatalog from "../data/nasa_catalog.json";
 import {
@@ -51,6 +51,8 @@ interface LobbyViewProps {
   onChangePerspective?: (perspective: ConsolePerspective) => void;
 }
 
+type LobbyStep = "role" | "mission";
+
 const ROLE_ORDER: RoleType[] = [
   "finance_launch",
   "spacecraft_mass",
@@ -58,11 +60,76 @@ const ROLE_ORDER: RoleType[] = [
   "science_comms",
 ];
 
-const MISSION_ORDER: Array<{ id: MissionIdType; badge: string; accent: string }> = [
-  { id: "artemis_moon", badge: "EASY", accent: "bg-status-ok" },
-  { id: "asteroid_hunter", badge: "MEDIUM", accent: "bg-status-warn" },
-  { id: "mars_sample_return", badge: "HARD", accent: "bg-status-crit" },
-];
+const MISSION_ORDER: MissionIdType[] = ["artemis_moon", "asteroid_hunter", "mars_sample_return"];
+
+/** Visual difficulty language: one color + filled pips, so the level reads without words. */
+const DIFFICULTY_STYLE: Record<DifficultyType, { label: string; pips: number; chip: string; ring: string }> = {
+  easy: { label: "EASY", pips: 1, chip: "bg-status-ok", ring: "ring-status-ok" },
+  medium: { label: "MEDIUM", pips: 2, chip: "bg-status-warn", ring: "ring-status-warn" },
+  hard: { label: "HARD", pips: 3, chip: "bg-status-crit", ring: "ring-status-crit" },
+};
+const MAX_DIFFICULTY_PIPS = 3;
+
+/** Flat Flash-style planet drawn per mission (no external art). */
+const MISSION_PLANET: Record<MissionIdType, { body: string; spots: string; shape: string }> = {
+  artemis_moon: { body: "#CBD5E1", spots: "#94A3B8", shape: "50%" },
+  asteroid_hunter: { body: "#A8825A", spots: "#6B4F35", shape: "58% 42% 55% 45% / 48% 60% 40% 52%" },
+  mars_sample_return: { body: "#E4572E", spots: "#9A3412", shape: "50%" },
+};
+
+function missionDifficulty(id: MissionIdType): DifficultyType {
+  return nasaCatalog.missions[id].difficulty_default as DifficultyType;
+}
+
+function MissionPlanet({ id, size }: { id: MissionIdType; size: number }) {
+  const planet = MISSION_PLANET[id];
+  return (
+    <div aria-hidden className="relative flex shrink-0 items-center justify-center" style={{ width: size * 1.5, height: size * 1.15 }}>
+      <span className="hangar-glow absolute inset-0" />
+      <span
+        className="absolute rounded-[50%] border-2 border-dashed border-sky-glow/60"
+        style={{ width: size * 1.45, height: size * 0.5, transform: "rotate(-14deg)" }}
+      />
+    <div
+      className="relative shrink-0 border-3 border-ink-black shadow-paper-sm"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: planet.shape,
+        backgroundColor: planet.body,
+        backgroundImage: "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.45), rgba(255,255,255,0) 45%), radial-gradient(circle at 75% 80%, rgba(15,23,42,0.35), rgba(15,23,42,0) 55%)",
+      }}
+    >
+      <span
+        className="absolute rounded-full"
+        style={{ width: size * 0.26, height: size * 0.22, left: "18%", top: "22%", backgroundColor: planet.spots }}
+      />
+      <span
+        className="absolute rounded-full"
+        style={{ width: size * 0.16, height: size * 0.16, right: "20%", top: "48%", backgroundColor: planet.spots }}
+      />
+      <span
+        className="absolute rounded-full"
+        style={{ width: size * 0.12, height: size * 0.1, left: "40%", bottom: "14%", backgroundColor: planet.spots }}
+      />
+    </div>
+    </div>
+  );
+}
+
+function DifficultyPips({ level }: { level: DifficultyType }) {
+  const style = DIFFICULTY_STYLE[level];
+  return (
+    <span className="inline-flex items-center gap-1" aria-label={`${style.label} difficulty`}>
+      {Array.from({ length: MAX_DIFFICULTY_PIPS }, (_, i) => (
+        <span
+          key={i}
+          className={`h-2.5 w-2.5 rotate-45 border-2 ${i < style.pips ? `border-ink-black ${style.chip}` : "border-slate-500 bg-transparent"}`}
+        />
+      ))}
+    </span>
+  );
+}
 
 export function LobbyView({
   pin,
@@ -81,6 +148,7 @@ export function LobbyView({
   onBackToHome,
   onChangePerspective,
 }: LobbyViewProps) {
+  const [step, setStep] = useState<LobbyStep>("role");
   const [copiedPin, setCopiedPin] = useState(false);
   const [perspective, setPerspective] = useState<ConsolePerspective>("auto");
   const [isNarrowScreen, setIsNarrowScreen] = useState(() =>
@@ -98,6 +166,15 @@ export function LobbyView({
   const isMobilePad =
     perspective === "mobile" ||
     (perspective === "auto" && (isNarrowScreen || (mode === "multi" && !isHost)));
+  const canControlMission = mode === "single" || isHost;
+  const isMulti = mode === "multi";
+
+  // The mission card is the only difficulty control: keep the pair in sync.
+  useEffect(() => {
+    if (!canControlMission) return;
+    const expected = missionDifficulty(selectedMission);
+    if (difficulty !== expected) onChangeDifficulty(expected);
+  }, [canControlMission, selectedMission, difficulty, onChangeDifficulty]);
 
   const handleCopyPin = () => {
     soundEngine.playClick();
@@ -108,17 +185,10 @@ export function LobbyView({
     window.setTimeout(() => setCopiedPin(false), 1800);
   };
 
-  const getSlotOccupant = (roleId: RoleType) => {
-    if (players && players.length > 0) {
-      return players.find((p) => p.role_id === roleId) ?? null;
-    }
+  const occupantOf = (roleId: RoleType): LobbyPlayer | null => {
+    if (players && players.length > 0) return players.find((p) => p.role_id === roleId) ?? null;
     if (roleId === selectedRole) {
-      return {
-        player_id: "local",
-        player_name: playerName,
-        role_id: selectedRole,
-        is_host: true,
-      };
+      return { player_id: "local", player_name: playerName, role_id: selectedRole, is_host: true };
     }
     return null;
   };
@@ -129,17 +199,27 @@ export function LobbyView({
     return Boolean(takenRoles && takenRoles.includes(roleId));
   };
 
-  const canControlMission = mode === "single" || isHost;
-  const activeMission = nasaCatalog.missions[selectedMission];
-  const myProfile = ROLE_CHARACTER_PROFILE[selectedRole];
+  const goToStep = (next: LobbyStep) => {
+    soundEngine.playClick();
+    setStep(next);
+  };
+
+  const pickMission = (id: MissionIdType) => {
+    if (!canControlMission) return;
+    soundEngine.playClick();
+    onChangeMission(id);
+  };
 
   const triggerLaunch = () => {
     soundEngine.playComplete();
     setIsLaunchingWave1(true);
   };
 
+  const humanCount = players && players.length > 0 ? players.length : 1;
+  const aiSeats = Math.max(0, ROLE_ORDER.length - humanCount);
+
   return (
-    <main className="mx-auto max-w-6xl space-y-4 px-3 pb-5 pt-12 sm:px-5 sm:pb-7 sm:pt-14">
+    <main className="mx-auto max-w-6xl space-y-4 px-3 pb-6 pt-14 sm:px-5 sm:pt-16">
       {isLaunchingWave1 && (
         <MissionLoadingScreen
           variant="lobby_to_wave1"
@@ -155,510 +235,291 @@ export function LobbyView({
         />
       )}
 
-      {/* Top Hangar Room Header + PIN + Screen Mode Switcher */}
-      <div className="flash-panel overflow-hidden p-4 sm:p-5">
-        <div className="hazard-stripe-bar -mx-4 -mt-4 mb-4 h-2.5 border-b-2 border-ink-black sm:-mx-5 sm:-mt-5" />
+      {/* Header: back · step tracker · room PIN */}
+      <header className="flash-panel flex flex-wrap items-center justify-between gap-3 overflow-hidden px-3 py-3 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => (step === "mission" ? goToStep("role") : onBackToHome?.())}
+            aria-label={step === "mission" ? "Back to role" : "Back to home"}
+            className="paper-btn shrink-0 bg-space-ink p-2.5 text-paper-cream"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <ol className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase">
+            {(["role", "mission"] as LobbyStep[]).map((s, i) => {
+              const active = step === s;
+              const done = s === "role" && step === "mission";
+              return (
+                <li key={s} className="flex items-center gap-1.5">
+                  {i > 0 && <span className="h-0.5 w-4 bg-slate-500 sm:w-8" />}
+                  <button
+                    type="button"
+                    onClick={() => goToStep(s)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black px-2.5 py-1 ${
+                      active
+                        ? "bg-paper-cream text-ink-black"
+                        : done
+                        ? "bg-status-ok text-ink-black"
+                        : "bg-space-ink text-slate-300"
+                    }`}
+                  >
+                    {done ? <Check className="h-3 w-3" /> : <span>{i + 1}</span>}
+                    {s === "role" ? "Role" : "Mission"}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {onBackToHome && (
-              <button
-                type="button"
-                onClick={onBackToHome}
-                aria-label="Back to Home Menu"
-                className="paper-btn bg-space-ink p-2.5 text-paper-cream"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            )}
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="paper-badge bg-role-spacecraft px-2 py-0.5 text-[10px] text-ink-black">
-                  {mode === "single" ? "SINGLEPLAYER" : "MULTIPLAYER ROOM"}
-                </span>
-                <span className="paper-badge bg-space-ink px-2 py-0.5 text-[10px] text-paper-cream">
-                  {isMobilePad ? (
-                    <>
-                      <Smartphone className="h-3 w-3 text-role-spacecraft" />
-                      PHONE HANDHELD CONSOLE
-                    </>
-                  ) : (
-                    <>
-                      <Tv className="h-3 w-3 text-status-ok" />
-                      HOST MAIN STAGE
-                    </>
-                  )}
-                </span>
-                {mode === "multi" && (
-                  <span className="font-mono text-xs text-slate-300">
-                    {players?.length ?? 1}/4 CREW CONNECTED
-                  </span>
-                )}
-              </div>
-              <h2 className="mt-1 font-display text-xl font-bold sm:text-3xl">
-                {isMobilePad ? "CREW HANDHELD TERMINAL" : "MISSION BRIEFING HANGAR"}
-              </h2>
-            </div>
-          </div>
-
-          {/* Room PIN & Perspective Preview Switcher */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="hidden items-center rounded-xl border-2 border-ink-black bg-space-ink p-1 font-mono text-[10px] sm:inline-flex">
-              {(["auto", "host", "mobile"] as ConsolePerspective[]).map((viewMode) => (
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center rounded-xl border-2 border-ink-black bg-space-ink p-1 sm:inline-flex">
+            {(["auto", "host", "mobile"] as ConsolePerspective[]).map((viewMode) => {
+              const Icon = viewMode === "auto" ? MonitorSmartphone : viewMode === "host" ? Tv : Smartphone;
+              return (
                 <button
                   key={viewMode}
                   type="button"
+                  title={viewMode === "auto" ? "Auto layout" : viewMode === "host" ? "Big screen" : "Phone"}
+                  aria-label={viewMode === "auto" ? "Auto layout" : viewMode === "host" ? "Big screen layout" : "Phone layout"}
                   onClick={() => {
                     soundEngine.playClick();
                     setPerspective(viewMode);
                     onChangePerspective?.(viewMode);
                   }}
-                  className={`rounded-lg px-2 py-1 font-bold uppercase transition-colors ${
-                    perspective === viewMode
-                      ? "bg-role-spacecraft text-ink-black"
-                      : "text-slate-300 hover:text-paper-cream"
+                  className={`rounded-lg p-1.5 transition-colors ${
+                    perspective === viewMode ? "bg-role-spacecraft text-ink-black" : "text-slate-300 hover:text-paper-cream"
                   }`}
                 >
-                  {viewMode === "auto"
-                    ? "AUTO"
-                    : viewMode === "host"
-                    ? "STAGE"
-                    : "PHONE PAD"}
+                  <Icon className="h-4 w-4" />
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
-            <div className="rounded-xl border-3 border-ink-black bg-paper-cream px-3.5 py-1.5 text-ink-black shadow-paper-sm">
-              <div className="font-mono text-[9px] font-bold uppercase text-slate-500">
-                ROOM PIN
-              </div>
-              <div className="font-mono text-lg font-bold tracking-widest sm:text-xl">
-                {pin}
-              </div>
-            </div>
+          {isMulti && (
             <button
               type="button"
               onClick={handleCopyPin}
-              className="paper-btn inline-flex items-center gap-1.5 bg-role-finance px-3 py-2.5 text-xs text-ink-black"
+              className="paper-btn inline-flex items-center gap-2 bg-paper-cream px-3 py-1.5 text-ink-black"
+              aria-label={`Copy room PIN ${pin}`}
             >
-              {copiedPin ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copiedPin ? "COPIED" : "COPY"}
+              <span className="font-mono text-lg font-bold tracking-widest">{pin}</span>
+              {copiedPin ? <Check className="h-4 w-4 text-status-ok" /> : <Copy className="h-4 w-4" />}
             </button>
-          </div>
-        </div>
-      </div>
-
-      {isMobilePad ? (
-        /* =================================================================
-           MOBILE CREW HANDHELD CONSOLE (Personal Role Selector & Ready Card)
-           ================================================================= */
-        <div className="handheld-console-frame mx-auto max-w-xl space-y-4 p-4">
-          <div className="flex items-center justify-between border-b-2 border-ink-black pb-2.5">
-            <div>
-              <div className="font-mono text-[10px] uppercase text-role-spacecraft">
-                CREW OPERATOR
-              </div>
-              <div className="font-display text-lg font-bold text-paper-cream">
-                {playerName} {isHost ? "(HOST)" : "(PHONE UNIT)"}
-              </div>
-            </div>
-            <span
-              className="paper-badge px-2.5 py-1 text-[10px] text-ink-black"
-              style={{ backgroundColor: myProfile.suit }}
-            >
-              {myProfile.codename}
-            </span>
-          </div>
-
-          {/* 4 Astro Squad Units Picker for Phone */}
-          <div className="space-y-2">
-            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-slate-300">
-              1. Tap Your Astro Specialist
-            </h3>
-            <div className="grid grid-cols-2 gap-2.5">
-              {ROLE_ORDER.map((r) => {
-                const profile = ROLE_CHARACTER_PROFILE[r];
-                const isSelected = selectedRole === r;
-                const takenOther = isRoleTakenByOther(r);
-                const taker = players?.find((p) => p.role_id === r)?.player_name;
-
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    disabled={takenOther}
-                    onClick={() => {
-                      soundEngine.playClick();
-                      onChangeRole(r);
-                    }}
-                    className={`paper-btn flex flex-col items-center gap-1 p-2.5 text-center ${
-                      isSelected
-                        ? "bg-paper-cream text-ink-black"
-                        : "bg-space-ink text-paper-cream"
-                    }`}
-                  >
-                    <CrewmateAvatar
-                      role={r}
-                      state={isSelected ? "cheer" : "idle"}
-                      size={66}
-                    />
-                    <span className="font-mono text-[10px] font-bold uppercase">
-                      {profile.codename}
-                    </span>
-                    <span
-                      className={`text-[11px] font-bold ${
-                        isSelected ? "text-slate-700" : "text-slate-300"
-                      }`}
-                    >
-                      {profile.label}
-                    </span>
-                    {takenOther && (
-                      <span className="rounded bg-status-warn px-1.5 py-0.5 font-mono text-[9px] font-bold text-ink-black">
-                        TAKEN: {taker || "CREW"}
-                      </span>
-                    )}
-                    {isSelected && (
-                      <span className="rounded bg-status-ok px-1.5 py-0.5 font-mono text-[9px] font-bold text-ink-black">
-                        LOCKED TO YOU
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Personal Role Definition Briefing on Phone */}
-          <div className="rounded-xl border-3 border-ink-black bg-space-ink p-3.5">
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-role-finance">
-              <Cpu className="h-4 w-4" />
-              YOUR CONSOLE BRIEFING · {myProfile.squadClass}
-            </div>
-            <p className="mt-1 text-xs text-slate-200">{myProfile.briefing}</p>
-            <div className="mt-2.5 grid gap-1.5 font-mono text-[11px]">
-              <div className="rounded-lg border border-slate-700 bg-blueprint-navy px-2.5 py-1.5">
-                <span className="text-slate-400">GEAR: </span>
-                <span className="font-bold text-paper-cream">{myProfile.gearLabel}</span>
-              </div>
-              <div className="rounded-lg border border-slate-700 bg-blueprint-navy px-2.5 py-1.5">
-                <span className="text-slate-400">WAVE 1: </span>
-                <span className="font-bold text-role-spacecraft">{myProfile.wave1Task}</span>
-              </div>
-              <div className="rounded-lg border border-slate-700 bg-blueprint-navy px-2.5 py-1.5">
-                <span className="text-slate-400">WAVE 2: </span>
-                <span className="font-bold text-role-orbit">{myProfile.wave2Task}</span>
-              </div>
-              <div className="rounded-lg border border-slate-700 bg-blueprint-navy px-2.5 py-1.5">
-                <span className="text-slate-400">60S CRISIS: </span>
-                <span className="font-bold text-role-finance">{myProfile.flightGate}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Mission Assigned by Host */}
-          <div className="rounded-xl border-2 border-ink-black bg-space-ink/80 p-3 font-mono text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-300">HOST TARGET:</span>
-              <span className="paper-badge bg-role-finance px-2 py-0.5 text-[10px] uppercase text-ink-black">
-                {difficulty}
-              </span>
-            </div>
-            <div className="mt-1 font-display text-base font-bold text-paper-cream">
-              {activeMission.name}
-            </div>
-          </div>
-
-          {canControlMission ? (
-            <button
-              type="button"
-              onClick={triggerLaunch}
-              className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-3.5 text-lg text-ink-black"
-            >
-              <Rocket className="h-5 w-5" />
-              LAUNCH MISSION SEQUENCE
-            </button>
-          ) : (
-            <div className="rounded-xl border-3 border-ink-black bg-blueprint-navy px-4 py-3 text-center font-mono text-xs font-bold text-status-ok">
-              HANDHELD LINK READY — YOUR MINIGAMES &amp; DECISIONS APPEAR HERE WHEN HOST LAUNCHES!
-            </div>
           )}
         </div>
-      ) : (
-        /* =================================================================
-           HOST MAIN STAGE HANGAR (Big Screen 4-Bay Squad + Mission Control)
-           ================================================================= */
-        <>
-          {/* Live Astro Squad Hangar Bays */}
-          <section className="flash-panel space-y-3 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="font-display text-base font-bold uppercase tracking-wide text-paper-cream">
-                  Astro Squad Hangar Bays (Main Screen Overview)
-                </h3>
-                <p className="font-mono text-[11px] text-slate-300">
-                  Teammates join via Room PIN <strong className="text-role-finance">{pin}</strong>{" "}
-                  on their phones. Empty bays activate Constraint AI Autopilot automatically.
-                </p>
-              </div>
-              <span className="paper-badge bg-space-ink px-2.5 py-1 text-[10px] text-role-spacecraft">
-                2D FLASH SQUAD · READY
-              </span>
-            </div>
+      </header>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {ROLE_ORDER.map((roleId) => {
-                const profile = ROLE_CHARACTER_PROFILE[roleId];
-                const occupant = getSlotOccupant(roleId);
-                const isMine = roleId === selectedRole;
-                return (
-                  <motion.div
-                    key={roleId}
-                    layout
-                    className={`flex flex-col items-center rounded-xl border-3 p-3 text-center ${
-                      occupant
-                        ? "border-ink-black bg-space-ink shadow-paper-sm"
-                        : "border-dashed border-slate-600 bg-space-ink/55 opacity-90"
-                    }`}
-                  >
-                    <span
-                      className="mb-1 rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-ink-black"
-                      style={{ backgroundColor: profile.suit }}
-                    >
-                      {profile.codename}
-                    </span>
-                    <CrewmateAvatar
-                      role={roleId}
-                      state={isMine ? "cheer" : occupant ? "idle" : "work"}
-                      size={74}
-                    />
-                    <div className="mt-1 font-display text-xs font-bold text-paper-cream">
-                      {profile.label}
-                    </div>
-                    <div className="font-mono text-[10px] text-slate-400">
-                      {profile.flightGate}
-                    </div>
-                    {occupant ? (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded bg-paper-cream px-2 py-0.5 font-mono text-[10px] font-bold text-ink-black">
-                        <UserCheck className="h-3 w-3 text-status-ok" />
-                        {isMine ? `${occupant.player_name} (YOU)` : occupant.player_name}
-                      </span>
-                    ) : (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded border border-slate-600 bg-blueprint-navy px-2 py-0.5 font-mono text-[10px] text-slate-300">
-                        <Bot className="h-3 w-3 text-role-spacecraft" />
-                        AI Autopilot Ready
-                      </span>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
+      <AnimatePresence mode="wait">
+        {step === "role" ? (
+          <motion.section
+            key="role"
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+            className="space-y-4"
+          >
+            <h2 className="text-center font-display text-2xl font-bold text-paper-cream sm:text-4xl">
+              Pick your specialist
+            </h2>
 
-            {players && players.some((p) => !p.role_id) && (
-              <div className="rounded-xl border-2 border-ink-black bg-space-ink/85 px-3 py-2 font-mono text-xs text-slate-300">
-                <span className="font-bold text-status-warn">Picking specialist on phone: </span>
-                {players
-                  .filter((p) => !p.role_id)
-                  .map((p) => p.player_name)
-                  .join(", ")}
-              </div>
-            )}
-          </section>
-
-          {/* 1. Claim Specialist Role + View Full Frontend Definition */}
-          <section className="flash-panel space-y-3 p-4 sm:p-5">
-            <h3 className="font-display text-lg font-bold text-paper-cream">
-              1. Select Your Astro Squad Role &amp; Frontend Station Loadout
-            </h3>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {ROLE_ORDER.map((roleId) => {
                 const profile = ROLE_CHARACTER_PROFILE[roleId];
                 const isSelected = selectedRole === roleId;
                 const takenOther = isRoleTakenByOther(roleId);
-                const taker = players?.find((p) => p.role_id === roleId)?.player_name;
-
+                const occupant = occupantOf(roleId);
                 return (
-                  <button
+                  <motion.button
                     key={roleId}
                     type="button"
                     disabled={takenOther}
+                    whileTap={takenOther ? undefined : { scale: 0.97 }}
                     onClick={() => {
                       soundEngine.playClick();
                       onChangeRole(roleId);
                     }}
-                    className={`paper-btn flex items-center justify-between gap-3 px-4 py-3 text-left ${
-                      isSelected
-                        ? "bg-paper-cream text-ink-black"
-                        : "bg-space-ink text-paper-cream"
-                    }`}
+                    className={`paper-btn relative flex flex-col items-center gap-2 px-2 pb-3 pt-4 text-center ${
+                      isSelected ? "bg-paper-cream text-ink-black" : "bg-space-ink text-paper-cream"
+                    } ${takenOther ? "opacity-60" : ""}`}
+                    style={isSelected ? { boxShadow: `0 0 0 4px ${profile.suit}, 5px 5px 0 4px #0F172A` } : undefined}
                   >
-                    <div className="flex items-center gap-3">
+                    <span className="relative flex items-center justify-center">
+                      <span className="hangar-glow absolute -inset-4 rounded-full" />
                       <CrewmateAvatar
                         role={roleId}
                         state={isSelected ? "cheer" : "idle"}
-                        size={54}
+                        actionEffect={isSelected ? "complete" : "none"}
+                        size={isMobilePad ? 70 : 96}
                       />
-                      <div className="space-y-0.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span
-                            className="rounded border border-ink-black px-1.5 py-0.5 font-mono text-[9px] font-bold text-ink-black"
-                            style={{ backgroundColor: profile.suit }}
-                          >
-                            {profile.codename}
-                          </span>
-                          <span className="font-display text-sm font-bold sm:text-base">
-                            {profile.label}
-                          </span>
-                        </div>
-                        <div
-                          className={`font-mono text-[10px] ${
-                            isSelected ? "text-slate-700" : "text-slate-300"
+                    </span>
+                    <span
+                      className="rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[11px] font-bold text-ink-black"
+                      style={{ backgroundColor: profile.suit }}
+                    >
+                      {profile.short}
+                    </span>
+                    <span className="font-display text-sm font-bold leading-tight sm:text-base">{profile.label}</span>
+                    <span className="flex flex-wrap justify-center gap-1">
+                      {profile.strengths.map((tag) => (
+                        <span
+                          key={tag}
+                          className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold ${
+                            isSelected ? "border-ink-black/40 text-slate-700" : "border-slate-600 text-slate-300"
                           }`}
                         >
-                          {profile.wave1Task} · {profile.wave2Task}
-                        </div>
-                        <div
-                          className={`text-[11px] ${
-                            isSelected ? "text-slate-600" : "text-slate-400"
-                          }`}
-                        >
-                          {profile.gearLabel}
-                        </div>
-                        {takenOther && (
-                          <div className="font-mono text-[11px] font-bold text-status-warn">
-                            Claimed on phone by {taker || "Teammate"}
-                          </div>
+                          {tag}
+                        </span>
+                      ))}
+                    </span>
+                    {isMulti && (
+                      <span
+                        className={`mt-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${
+                          isSelected
+                            ? "bg-status-ok text-ink-black"
+                            : occupant
+                            ? "bg-status-warn text-ink-black"
+                            : "bg-blueprint-navy text-slate-300"
+                        }`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="h-3 w-3" /> YOU
+                          </>
+                        ) : occupant ? (
+                          occupant.player_name
+                        ) : (
+                          <>
+                            <Bot className="h-3 w-3" /> AI
+                          </>
                         )}
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <span className="paper-badge shrink-0 bg-status-ok px-2 py-0.5 text-[10px] text-ink-black">
-                        ACTIVE
                       </span>
                     )}
-                  </button>
+                    {isSelected && (
+                      <span className="absolute right-2 top-2 rounded-full border-2 border-ink-black bg-status-ok p-0.5">
+                        <Check className="h-3 w-3 text-ink-black" />
+                      </span>
+                    )}
+                  </motion.button>
                 );
               })}
             </div>
-          </section>
 
-          {/* 2. NASA Mission & Difficulty Picker */}
-          <section className="flash-panel space-y-4 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-display text-lg font-bold text-paper-cream">
-                2. Select NASA Mission &amp; Difficulty
-              </h3>
-              {!canControlMission && (
-                <span className="paper-badge bg-status-warn px-2.5 py-1 text-[10px] text-ink-black">
-                  HOST CONTROLS MISSION
-                </span>
-              )}
-            </div>
+            {isMulti && (
+              <p className="flex items-center justify-center gap-2 font-mono text-xs text-slate-300">
+                <span className="font-bold text-paper-cream">{humanCount}/4 crew</span>
+                {aiSeats > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    · <Bot className="h-3.5 w-3.5 text-role-spacecraft" /> {aiSeats} AI
+                  </span>
+                )}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => goToStep("mission")}
+              className="paper-btn mx-auto flex w-full max-w-md items-center justify-center gap-2 bg-status-ok py-3.5 text-lg text-ink-black"
+            >
+              Next: mission
+              <ArrowRight className="h-5 w-5" />
+            </button>
+          </motion.section>
+        ) : (
+          <motion.section
+            key="mission"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: 0.22 }}
+            className="space-y-4"
+          >
+            <h2 className="text-center font-display text-2xl font-bold text-paper-cream sm:text-4xl">
+              {canControlMission ? "Pick your mission" : "Host picks the mission"}
+            </h2>
 
             <div className="grid gap-3 md:grid-cols-3">
-              {MISSION_ORDER.map(({ id, badge, accent }) => {
+              {MISSION_ORDER.map((id) => {
                 const spec = nasaCatalog.missions[id];
+                const level = missionDifficulty(id);
+                const style = DIFFICULTY_STYLE[level];
                 const active = selectedMission === id;
-                const budgetM = (spec.budget_limit_usd / 1_000_000).toFixed(0);
+                const budgetM = Math.round(spec.budget_limit_usd / 1_000_000);
                 return (
-                  <button
+                  <motion.button
                     key={id}
                     type="button"
                     disabled={!canControlMission}
-                    onClick={() => {
-                      soundEngine.playClick();
-                      onChangeMission(id);
-                    }}
-                    className={`paper-btn flex flex-col justify-between gap-2 p-4 text-left ${
-                      active
-                        ? "bg-paper-cream text-ink-black"
-                        : "bg-space-ink text-paper-cream"
-                    }`}
+                    whileTap={canControlMission ? { scale: 0.97 } : undefined}
+                    onClick={() => pickMission(id)}
+                    className={`paper-btn relative flex items-center gap-3 p-3.5 text-left md:flex-col md:items-stretch md:gap-4 md:p-5 ${
+                      active ? `bg-paper-cream text-ink-black ring-4 ${style.ring}` : "bg-space-ink text-paper-cream"
+                    } ${!canControlMission && !active ? "opacity-55" : ""}`}
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`paper-badge px-2 py-0.5 text-[10px] text-ink-black ${accent}`}>
-                          {badge}
+                    <div className="md:self-center">
+                      <MissionPlanet id={id} size={isMobilePad ? 60 : 104} />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1.5 md:space-y-2">
+                      <div className="flex items-center gap-2 pr-6 md:justify-between md:pr-0">
+                        <span
+                          className={`rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-xs font-bold text-ink-black ${style.chip}`}
+                        >
+                          {style.label}
                         </span>
-                        <span className="font-mono text-xs font-bold">
-                          ${budgetM}M
-                        </span>
+                        <DifficultyPips level={level} />
                       </div>
-                      <div className="font-display text-base font-bold leading-tight">
-                        {spec.name}
+                      <div className="font-display text-base font-bold leading-tight sm:text-lg">{spec.name}</div>
+                      <div
+                        className={`flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] font-bold ${
+                          active ? "text-slate-700" : "text-slate-300"
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-1" title="Budget">
+                          <Wallet className="h-3.5 w-3.5" />${budgetM}M
+                        </span>
+                        {spec.requires_thermal_protection && (
+                          <span className="inline-flex items-center gap-1" title="Needs a heat shield">
+                            <Flame className="h-3.5 w-3.5" />
+                            Heat shield
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    <div
-                      className={`flex flex-wrap gap-2 border-t pt-2 font-mono text-[11px] ${
-                        active
-                          ? "border-ink-black/20 text-slate-700"
-                          : "border-slate-700 text-slate-300"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <Scale className="h-3 w-3" />
-                        CG ±{spec.cg_tolerance_m}m
+                    {active && (
+                      <span className="absolute right-2 top-2 rounded-full border-2 border-ink-black bg-status-ok p-0.5 md:right-3 md:top-3">
+                        <Check className="h-3.5 w-3.5 text-ink-black" />
                       </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Shield className="h-3 w-3" />
-                        UFE ≥{spec.recommended_ufe_pct}%
-                      </span>
-                      {spec.requires_thermal_protection && (
-                        <span className="inline-flex items-center gap-1">
-                          <Flame className="h-3 w-3" />
-                          TPS Req
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                    )}
+                  </motion.button>
                 );
               })}
             </div>
 
-            <div className="rounded-xl border-2 border-ink-black bg-space-ink/90 p-3 font-mono text-xs text-slate-200">
-              <span className="font-bold text-role-finance">NASA MISSION FACT: </span>
-              {activeMission.nasa_real_world_fact}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-1 font-mono text-xs font-bold uppercase text-slate-300">
-                DIFFICULTY:
-              </span>
-              {(["easy", "medium", "hard"] as DifficultyType[]).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  disabled={!canControlMission}
-                  onClick={() => {
-                    soundEngine.playClick();
-                    onChangeDifficulty(d);
-                  }}
-                  className={`paper-btn px-4 py-1.5 font-mono text-xs uppercase ${
-                    difficulty === d
-                      ? "bg-role-finance text-ink-black"
-                      : "bg-space-ink text-slate-300"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Launch Button */}
-          <button
-            type="button"
-            disabled={!canControlMission}
-            onClick={triggerLaunch}
-            className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-4 text-xl text-ink-black"
-          >
-            <Rocket className="h-6 w-6" />
-            {canControlMission
-              ? "LAUNCH MISSION SEQUENCE (HOST + MOBILE TERMINALS)"
-              : "WAITING FOR HOST TO LAUNCH..."}
-          </button>
-        </>
-      )}
+            {canControlMission ? (
+              <button
+                type="button"
+                onClick={triggerLaunch}
+                className="paper-btn mx-auto flex w-full max-w-md items-center justify-center gap-2 bg-status-ok py-4 text-xl text-ink-black"
+              >
+                <Rocket className="h-6 w-6" />
+                Launch
+              </button>
+            ) : (
+              <div className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-xl border-3 border-ink-black bg-blueprint-navy py-3.5 font-mono text-sm font-bold text-status-ok">
+                <motion.span
+                  className="h-2.5 w-2.5 rounded-full bg-status-ok"
+                  animate={{ opacity: [1, 0.25, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                />
+                Waiting for host…
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

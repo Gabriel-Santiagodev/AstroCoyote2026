@@ -227,7 +227,7 @@ export function Rol4B_CommsSpectralHacker({
             STATION 2 · DSN COMMS &amp; SPECTRUM HACKER
           </span>
           <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Track Antenna Carrier &amp; Decode DTMF Telemetry
+            Send data home
           </h3>
         </div>
         <button
@@ -360,7 +360,7 @@ export function Rol4B_CommsSpectralHacker({
                 </span>
               </div>
               <p className="mt-2 text-[11px] text-slate-300">
-                Click inside the radar or use arrows below to stay inside the green DSN target!
+                Keep the dot in the green zone.
               </p>
             </div>
 
