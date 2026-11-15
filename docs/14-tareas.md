@@ -2,7 +2,7 @@
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (18:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 ## Cómo leer esta tabla
 
@@ -73,12 +73,12 @@
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
-| [ ] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
-| [ ] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
-| [ ] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
-| [ ] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
-| [ ] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
+| [x] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
+| [x] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
+| [x] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
+| [x] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
+| [x] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
+| [x] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
 
 ---
 

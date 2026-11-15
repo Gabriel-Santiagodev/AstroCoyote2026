@@ -247,7 +247,7 @@ Para **ganar el NASA Space Apps Challenge 2026**, evitamos caer en el típico si
 
 **Qué contiene:** qué pide exactamente la NASA, cómo nos califican los jueces, cómo lo cubre nuestro juego web de 5 minutos y el texto oficial completo (incluyendo *NASA Data & Resources*).  
 **Dueños:** Rubén, Abraham  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h)
 
 ## En una frase
 
@@ -264,7 +264,7 @@ Crear un **videojuego web interactivo (1 a 4 jugadores)** donde los participante
 | **Validar compatibilidad masa / órbita / lanzador** | Nodo 1 (`NODE_1_LAUNCH`) y Nodo 2 (`NODE_2_PROPULSION`) en `decision_tree.py` evalúan capacidad del cohete, presupuesto y $\Delta v$ de Tsiolkovsky. |
 | **Simular la misión con eventos y operación por turnos** | **Fase de Vuelo de 60 segundos**: animación del cohete en ruta mientras ocurren eventos reales (tormenta solar, nube de polvo, conjunción solar) y los jugadores responden por turnos preguntas/crisis de ingeniería de 15 s (`story_tree.json`). |
 | **Evaluar y explicar por qué la misión tuvo éxito o falló** | **Dashboard Final de Retroalimentación NASA**: se muestra siempre (gane o pierda), detallando la cadena causal numérica, el puntaje (0–1,000 pts), un dato histórico real NASA y el botón de reintentar/rediseñar. |
-| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, conceptos explicados visualmente en el juego (sin exigir conocimientos previos de ingeniería) y partida ágil de ~5 minutos. |
+| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, guías paso a paso y conceptos científicos explicados dentro de cada minijuego espectral/orbital (`educational_guide`, sin exigir conocimientos previos) y partida ágil de ~5 minutos. |
 
 ## Cómo nos califican (5 criterios globales)
 
@@ -661,7 +661,7 @@ Sabemos que el juego está listo para ganar cuando una persona ajena al equipo (
 
 **Qué contiene:** todas las constantes físicas verificadas, ecuaciones orbitales y termodinámicas, catálogo de misiones, cohetes, instrumentos y espectros, con sus fuentes reales y su estado de verificación.  
 **Dueño:** Abraham *(en coordinación con Schoenstadt para el árbol causal)*  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 **Regla sagrada:** Prohibido inventar números dentro del código. Todos los valores parametrizables viven en `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`, y cada registro incluye su campo `"fuente"`.
 
@@ -766,14 +766,26 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 | **Antena HGA y enlace DSN** | $3\text{ m}$, $0.5\text{–}6.0\text{ Mbps}$, margen $\ge +3.0\text{ dB}$, memoria $160\text{ Gbit}$ | verificado / fuente secundaria | JPL DESCANSO (`MRO_092106.pdf`) |
 | **Retraso señal Tierra–Marte / Conjunción** | $4\text{–}25\text{ min}$ / cada $\sim 26\text{ meses}$ ($\sim 2\text{ semanas}$ sin comandos) | fuente secundaria / verificado NASA | arXiv 2211.14245 / science.nasa.gov |
 | **Luz solar en Marte** | $\sim 590\text{ W/m}^2$ ($\approx 43\%$ de la Tierra) | fuente secundaria | NASA Mars Fact Sheet (NSSDCA) |
-| **HiRISE** | $64.2\text{–}65\text{ kg}$, $60\text{ W}$, $0.3\text{ m/píxel}$, altísimo volumen de datos | sin verificar (confirmar NSSDCA) | NASA MRO Science |
-| **CTX** | $3\text{ kg}$, $7\text{ W}$ ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | sin verificar | NASA MRO Science |
-| **CRISM** | $32\text{–}33\text{ kg}$, espectrómetro mineralógico | sin verificar | NASA MRO Science |
-| **MARCI** | $0.481\text{ kg}$, cámara climática diaria | sin verificar | NASA MRO Science |
-| **MCS** | $9\text{ kg}$, $11\text{ W}$, temperatura y polvo atmosférico | sin verificar | NASA MRO Science |
-| **SHARAD** | Radar subsuperficial (hielo), $40\text{–}90\text{ Gbit/día}$ | sin verificar | NASA MRO Science |
+| **HiRISE** | $65.0\text{ kg}$, $60\text{ W}$ promedio, $0.3\text{ m/píxel}$, hasta $28\text{ Gbit/imagen}$ | verificado / fuente secundaria | NASA MRO Science / `uahirise.org` |
+| **CTX** | $3.0\text{ kg}$, $7\text{ W}$ activo ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | verificado | NASA MRO Science |
+| **CRISM** | $32.9\text{ kg}$, $44.4\text{ W}$ operación ($16.1\text{ W}$ standby), espectrómetro mineralógico | verificado | NASA MRO / JHUAPL (`crism.jhuapl.edu`) |
+| **MARCI** | $0.481\text{ kg}$ (heritage base), $<5\text{ W}$ activo, cámara climática diaria | verificado / fuente secundaria | NASA MRO / Malin Space Science Systems |
+| **MCS** | $9.0\text{ kg}$, $11.0\text{ W}$, temperatura y polvo atmosférico | verificado | NASA MRO Science |
+| **SHARAD** | $15.0\text{–}16.6\text{ kg}$, $10\text{ W}$ RF ($\sim 20\text{ W}$ pico), $40\text{–}90\text{ Gbit/día}$ | verificado / fuente secundaria | NASA MRO (ASI / JPL) |
 
-*(Nota para Abraham — tarea `ABR-01`: confirmar masas/potencias exactas de HiRISE, CRISM, MARCI, SHARAD y fijar costos de balance de juego en `nasa_catalog.json` antes de H6).*
+### Instrumentos verificados para M1 (LRO / Luna) y M2 (OSIRIS-REx / Asteroide)
+| Misión | Instrumento | Masa / Potencia | Estado | Fuente |
+|---|---|---|---|---|
+| **M1 (Luna)** | **LROC** (Lunar Reconnaissance Orbiter Camera) | $16.5\text{ kg}$, $22.0\text{ W}$ prom. ($30\text{ W}$ pico) | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LOLA** (Lunar Orbiter Laser Altimeter) | $15.3\text{ kg}$, $39.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **Diviner (DLRE)** (Radiómetro Lunar) | $11.9\text{ kg}$, $21.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LAMP** (Mapeador UV Lyman-Alpha) | $5.3\text{ kg}$, $4.86\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M2 (Asteroide)** | **OVIRS** (Espectrómetro Vis-IR) | $17.8\text{ kg}$, $8.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OTES** (Espectrómetro Emisión Térmica) | $6.27\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OLA** (Altímetro Láser) | $22.9\text{ kg}$, $\sim 75\text{ W}$ | verificado | NASA OSIRIS-REx / CSA |
+| **M2 (Asteroide)** | **REXIS** (Espectrómetro Rayos X Regolito) | $4.4\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+
+*(Nota `ABR-01` completada: todos los instrumentos de MRO, LRO y OSIRIS-REx quedan verificados con fuentes oficiales y sincronizados con `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`; únicamente `cost_musd`, `science_value` y `data_gbit_day` estimados conservan etiqueta explícita de balance de juego).*
 
 ### Parámetros de las 3 Misiones del juego
 | Parámetro | M1 (Fácil): *Artemis Moon* | M2 (Media): *Asteroid Hunter* | M3 (Difícil): *Mars Sample Return (MSR/MRO)* |
@@ -789,10 +801,12 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 
 ## 6. Datos espectrales de referencia (`juegos_espectrales/`)
 
-- **Líneas estelares de Balmer / Dobletes:** $\text{H}\alpha = 656.3\text{ nm}$, $\text{H}\beta = 486.1\text{ nm}$, $\text{Na} = 589.0\text{ nm}$, $\text{Ca II} = 393.4\text{ nm}$; Ley de Wien $T = \frac{2.898 \times 10^6\text{ nm}\cdot\text{K}}{\lambda_{\max}}$. *(Fuente verificada: NIST Atomic Spectra Database).*
-- **Bandas FTIR de minerales/biofirmas:** $\text{Si–O–Si} \approx 1,050\text{ cm}^{-1}$, $\text{O–H} = 3,200\text{–}3,550\text{ cm}^{-1}$, $\text{C=O} \approx 1,700\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,610\text{–}1,640\text{ cm}^{-1}$, Hélice $\alpha$ $1,650\text{–}1,658\text{ cm}^{-1}$).
+- **Líneas estelares de Balmer / Dobletes / Emisión (NIST ASD):** $\text{H}\alpha = 656.28\text{ nm}$, $\text{H}\beta = 486.13\text{ nm}$, $\text{H}\gamma = 434.05\text{ nm}$, $\text{Na D1/D2} = 589.59 / 588.99\text{ nm}$, $\text{Ca II K} = 393.37\text{ nm}$, $\text{He I} = 587.56\text{ nm}$, $\text{O III} = 500.68\text{ nm}$; Ley de desplazamiento de Wien $\lambda_{\max} \cdot T = 2,897,771.955\text{ nm}\cdot\text{K}$. *(Fuente verificada: NIST Atomic Spectra Database / CODATA 2018).*
+- **Bandas FTIR de minerales/biofirmas (`cm-1`):** Silicatos $\text{Si–O–Si} \approx 1,045\text{ cm}^{-1}$, Carbonatos $\text{CO}_3 \approx 1,435\text{ cm}^{-1}$, Agua ligada $\text{H}_2\text{O} \approx 1,630\text{ cm}^{-1}$, Carbonilo $\text{C=O} \approx 1,720\text{ cm}^{-1}$, Arcillas hidratadas $\text{O–H} \approx 3,620\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,632\text{ cm}^{-1}$, Hélice $\alpha$ $1,654\text{ cm}^{-1}$, Giro $\beta$ $1,676\text{ cm}^{-1}$).
 - **Índices multiespectrales:** $\text{NDVI} = \frac{\text{NIR}-\text{Rojo}}{\text{NIR}+\text{Rojo}}$, $\text{NDWI} = \frac{\text{Verde}-\text{NIR}}{\text{Verde}+\text{NIR}}$, $\text{NBR} = \frac{\text{NIR}-\text{SWIR}}{\text{NIR}+\text{SWIR}}$.
+- **Dispersión óptica de Cauchy (*Misión Fotón*):** $n(\lambda) = A + B/\lambda^2$ con $\lambda$ en $\mu\text{m}$ (*Fused Silica* $A=1.458, B=0.00354$; *BK7* $A=1.5046, B=0.00420$; *Sapphire* $A=1.754, B=0.00610$).
 - **Matriz DTMF (*Espectro Hacker*):** Filas $\{697, 770, 852, 941\}\text{ Hz}$ $\times$ Columnas $\{1209, 1336, 1477, 1633\}\text{ Hz}$. *(Estándar ITU-T Q.23).*
+- **Arquetipos implementados y espectros reales:** Los 8 modos (`cazadores_estrellas`, `detectives_luz`, `ecoespectro`, `laboratorio_musical`, `mision_foton`, `bioespectro`, `ladron_colores`, `espectro_hacker`) funcionan con generadores sintéticos calibrados o cargando CSVs reales vía `cargar_espectro_csv` / `backend/juegos_espectrales/datos_reales/<mission_id>.csv`, incluyendo guías educativas paso a paso en `educational_guide`.
 
 ---
 
@@ -809,8 +823,8 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
       "data_gbit_day": 90.0,
       "cost_musd": 40.0,
       "science_value": 45.0,
-      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
-      "estado": "verificar masa exacta"
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/ & https://www.uahirise.org/",
+      "estado": "verificado (~65 kg, ~60 W, hasta 28 Gbit/imagen) / estimado juego (costo)"
     }
   ]
 }
@@ -1170,7 +1184,7 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 1. `Vector` acepta `variable` (`Absorbancia`, `Transmitancia`, `Intensidad`, `Reflectancia`) y `unidadX` (`cm-1`, `nm`, `Hz`).
 2. `AnalizadorFTIR.Deconvolucion` protege `_p0_inicial` con bordes sintéticos cuando no haya depresiones intermedias.
 3. `Plantilla.puede(paso)` devuelve `(False, motivo_educativo)` y aplica penalización leve ($-3\text{ pts}$) sin lanzar excepción fatal.
-4. `adaptadores_web.py` envía máximo $500\text{–}1,000$ puntos `(x, y)` por WebSocket/JSON y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`.
+4. `adaptadores_web.py` envía máximo $500$ puntos `(x, y)` preservando picos y fallos por WebSocket/JSON, incluye `educational_guide` por juego y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`. Además expone `generar_reto_juego(...)` (los 8 arquetipos), `ejecutar_accion_espectral(...)` (interacción paso a paso con `Vector`/`AnalizadorFTIR`/`Plantilla`) y `cargar_espectro_csv(...)` / `datos_reales/<mission_id>.csv` para enchufar espectros experimentales reales sin cambiar el contrato frontend.
 
 ---
 
@@ -1381,7 +1395,7 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (18:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 ## Cómo leer esta tabla
 
@@ -1452,12 +1466,12 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
-| [ ] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
-| [ ] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
-| [ ] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
-| [ ] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
-| [ ] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
+| [x] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
+| [x] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
+| [x] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
+| [x] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
+| [x] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
+| [x] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
 
 ---
 
@@ -1538,12 +1552,13 @@ Exclusivamente de `06-datos-nasa.md` y `frontend/src/data/nasa_catalog.json` con
 
 **Qué contiene:** definición rápida y sencilla de los términos de ingeniería espacial, espectroscopía y desarrollo web usados en este proyecto.  
 **Dueño:** Abraham  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h)
 
 | Término | Significado en este proyecto |
 |---|---|
 | **1 Toma (One-Shot)** | Modalidad de los minijuegos de 30 s: no hay botón de deshacer tras confirmar o al agotarse el reloj, obligando al equipo a asumir consecuencias reales. |
 | **Árbol de 4 Nodos** | Evaluador determinista (`decision_tree.py`) que revisa secuencialmente: Nodo 1 Lanzamiento $\rightarrow$ Nodo 2 Propulsión/$\Delta v$ $\rightarrow$ Nodo 3 Escudo/Evento $\rightarrow$ Nodo 4 Ciencia/DSN. |
+| **`cargar_espectro_csv` (`datos_reales/`)** | Cargador ligero en Python puro (`csv` + `numpy`) que convierte archivos experimentales reales (`%T`, `Absorbancia`, `Intensidad`, `Reflectancia`) en objetos `Vector` listos para los minijuegos. |
 | **Centro de Gravedad (CG)** | Punto de equilibrio de masa de la nave. Si queda fuera de tolerancia ($d_{\text{CG}} > R_{\text{tol}}$), dispara `fuel_burn_multiplier = 1.5x` y desestabiliza la antena DSN. |
 | **CML 4 (Concept Maturity Level 4)** | Nivel de madurez conceptual de NASA/JPL donde se exige un margen de crecimiento de masa (*Mass Growth Allowance*) $\ge 35\%$. |
 | **Concurrencia en vivo (`mutacion_en_vivo`)** | Mecanismo por Socket.IO donde cada decisión tomada en una estación modifica al instante las barras y restricciones físicas de los compañeros en paralelo. |
@@ -1563,9 +1578,14 @@ Exclusivamente de `06-datos-nasa.md` y `frontend/src/data/nasa_catalog.json` con
 | **`MinigameProps`** | Contrato TypeScript en `frontend/src/types/game.ts` que todos los minijuegos implementan para conectarse como piezas intercambiables. |
 | **Paper Mario × Among Us** | Estilo visual del juego: tripulantes espaciales adorables con acabado de cartulina recortada 2.5D (doble contorno blanco/negro, sombra sólida, animación de papel). |
 | **Pista Lineal (`LinearStationTrack`)** | Recorrido automático en línea recta entre Estación 1 y Estación 2, reemplazando la caminata libre en mapa. |
+| **`Plantilla.puede` (Flujo FTIR)** | Regla educativa en `backend/logica/proyecto.py` que enseña el orden correcto (*Baseline $\rightarrow$ Region $\rightarrow$ Modelo*), devolviendo aviso y penalización leve ($-3\text{ pts}$) sin detener la partida. |
 | **Rideshare** | Vuelo espacial compartido (SpaceX *Transporter/Bandwagon* v11) cobrado por masa/placa para cargas ligeras ($\le 831\text{ kg}$). |
 | **RTG ($\text{Pu-238}$)** | Generador termoeléctrico por radioisótopos; genera energía constante independiente de la luz solar o tormentas de polvo marcianas. |
+| **`Rubberband` (Línea Base)** | Estimador de línea base por envolvente convexa inferior que elimina la deriva instrumental antes de recortar o deconvolucionar bandas. |
+| **`Tracker` ($d^2y/dx^2$ + MAD)** | Detector automático en `AnalizadorFTIR` que identifica picos estrechos no físicos (fallos de sensor o rayos cósmicos) usando la segunda derivada y desviación mediana absoluta. |
 | **UFE (Unallocated Future Expenses)** | Reserva presupuestaria de contingencia exigida por NASA (NPR 7120.5: $\ge 25\%\text{–}30\%$) para no cancelar la misión ante imprevistos. |
+| **`Vector` Espectral** | Clase núcleo en `backend/logica/vector.py` que almacena ejes `(x, y)`, unidades (`cm-1`, `nm`, `Hz`), variable física, derivadas y serialización $\le 500$ puntos preservando picos. |
+| **Voigt / Pseudo-Voigt** | Perfiles analíticos de banda que combinan ensanchamiento gaussiano (térmico/instrumental) y lorentziano (colisional/natural) para separar picos superpuestos. |
 | **Vuelo de 60 Segundos (`Flight60sView`)** | Fase animada posterior a las estaciones donde la nave viaja por el espacio mientras se disparan 4 rondas de 15 s de preguntas/crisis por turnos (`story_tree.json`). |
 
 ---
@@ -1878,49 +1898,56 @@ Requisitos en inglés con estilo Paper Mario x Among Us (.paper-card, .paper-btn
 
 # 19 · Roadmap Paso a Paso: Abraham (Datos NASA, Motor Espectral y Minijuegos de Ciencia, Órbita, DSN y Energía 3D)
 
-**Tu misión en estas 24 horas:** Mantener la **validez científica NASA** (criterio global de evaluación), adaptar el **motor analítico espectral** heredado (`logica/` + `juegos_espectrales/`) y construir los **4 minijuegos científicos, orbitales, de comunicaciones DSN y de logística energética 3D**.
+**Tu misión en estas 24 horas:** Mantener la **validez científica NASA** (criterio global de evaluación), adaptar el **motor analítico espectral** heredado (`logica/` + `juegos_espectrales/`) y construir los **4 minijuegos científicos, orbitales, de comunicaciones DSN y de logística energética 3D**.  
+**Estado actual (`2026-11-14 23:50 h`):** `[x] ABR-01`, `[x] ABR-02`, `[x] ABR-03`, `[x] ABR-04`, `[x] ABR-05` y `[x] ABR-06` implementados y verificados con `pytest` y `tsc && vite build`.
 
 ---
 
 ## Árbol exacto de carpetas y archivos donde trabajas
 
-Todos estos archivos ya existen en el repositorio listos para que tu agente trabaje directamente sobre ellos:
+Todos estos archivos ya existen implementados en el repositorio:
 
 ```text
 space-apps-juego/
 ├── backend/
 │   ├── models/
 │   │   └── subsystems.py                    # TUYO: Catálogo tipado sincronizado con nasa_catalog.json (ABR-01)
-│   ├── logica/                              # TUYO: Motor analítico FTIR adaptado a web (ABR-02)
+│   ├── logica/                              # TUYO: Motor analítico FTIR adaptado a web sin GUI/pandas (ABR-02)
 │   │   ├── __init__.py
-│   │   ├── vector.py
-│   │   ├── Analizador.py
-│   │   ├── proyecto.py
-│   │   ├── lineaBase/__init__.py
-│   │   └── modelos/__init__.py
-│   └── juegos_espectrales/                  # TUYO: Generadores y evaluación F1 para Rol 4A/4B (ABR-02)
+│   │   ├── vector.py                        # Vector (Absorbancia/%T/Intensidad/Reflectancia, unidades cm-1/nm/Hz, <=500 pts)
+│   │   ├── Analizador.py                    # AnalizadorFTIR (lineaBase, Recortar, Tracker d2y/dx2, Deconvolucion segura)
+│   │   ├── proyecto.py                      # Plantilla.puede (-3 pts), Muestra, Proyecto y cargar_espectro_csv
+│   │   ├── lineaBase/
+│   │   │   ├── __init__.py
+│   │   │   └── modeloLineaBase.py           # rubberband, splines, lineal, escalar
+│   │   └── modelos/
+│   │       ├── __init__.py
+│   │       ├── model.py                     # Registro Models (gauss_amp, guassiano/gaussiano, lorentz, voigt, psd_voigt1/2)
+│   │       ├── simulacion.py                # Métricas MAE/MSE/RMSE/R2 y simulador de bandas sintéticas
+│   │       └── Modelo_*.py                  # Implementaciones puras NumPy/SciPy
+│   └── juegos_espectrales/                  # TUYO: Generadores (8 modos + CSV real), guías y F1 (ABR-02)
 │       ├── __init__.py
-│       ├── adaptadores_web.py
+│       ├── adaptadores_web.py               # generar_reto_oleada1, generar_reto_hacker, generar_reto_juego, ejecutar_accion_espectral, evaluar_marcas
 │       └── nucleo/
 │           ├── __init__.py
-│           ├── generador.py
-│           ├── puntaje.py
-│           └── biblioteca.py
+│           ├── generador.py                 # 8 generadores sintéticos + generar_desde_csv_real (soporta datos_reales/<mission_id>.csv)
+│           ├── puntaje.py                   # emparejar (Precision/Recall/F1), cosine_similarity y penalización de flujo
+│           └── biblioteca.py                # NIST/Wien/FTIR/Cauchy/DTMF + educational_guide en inglés
 └── frontend/
     └── src/
         ├── data/
         │   └── nasa_catalog.json            # TUYO: Single Source of Truth de datos NASA (ABR-01)
         └── components/
             └── minigames/
-                ├── Rol3A_OrbitalSniper.tsx        # TUYO (Prioridad 1 — H7 · ABR-03)
-                ├── Rol4A_SpectralLabTask.tsx      # TUYO (Prioridad 1 — H8 · ABR-04)
-                ├── Rol4B_CommsSpectralHacker.tsx  # TUYO (Prioridad 2 — H13 · ABR-05)
-                └── Rol3B_AstroLogistics3D.tsx     # TUYO (Prioridad 2 — H14 · ABR-06)
+                ├── Rol3A_OrbitalSniper.tsx        # TUYO [x] (H7 · ABR-03)
+                ├── Rol4A_SpectralLabTask.tsx      # TUYO [x] (H8 · ABR-04)
+                ├── Rol4B_CommsSpectralHacker.tsx  # TUYO [x] (H13 · ABR-05)
+                └── Rol3B_AstroLogistics3D.tsx     # TUYO [x] (H14 · ABR-06)
 ```
 
 ---
 
-## Paso 1 · Catálogo Verificado NASA en JSON (`ABR-01` | Meta: H3)
+## Paso 1 · Catálogo Verificado NASA en JSON (`[x] ABR-01` | Meta: H3)
 
 1. Revisa los datos marcados como `sin verificar` en `docs/06-datos-nasa.md` (masas/potencias de HiRISE, CRISM, MARCI, SHARAD y fuentes oficiales en `science.nasa.gov` / NSSDCA).
 2. Llena `frontend/src/data/nasa_catalog.json` y su espejo `backend/models/subsystems.py` con:
@@ -1932,7 +1959,7 @@ space-apps-juego/
 
 ---
 
-## Paso 2 · Motor Espectral y Adaptadores Web (`ABR-02` | Meta: H5)
+## Paso 2 · Motor Espectral y Adaptadores Web (`[x] ABR-02` | Meta: H5)
 
 Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` §5) dentro de `backend/logica/` y `backend/juegos_espectrales/`:
 1. **Aplica las 4 correcciones críticas para la web:**
@@ -1948,9 +1975,11 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
    - Crea `generar_reto_hacker(mission_id, difficulty)` para Oleada 2 (tono anómalo + matriz DTMF de `espectro_hacker`).
    - Crea `evaluar_marcas(marcas_usuario, verdad, tolerancia)` llamando a `puntaje.emparejar(...)` para devolver `science_calibration_f1` $\in [0.0, 1.0]$.
 
+   - Expone también `generar_reto_juego(game_id, ...)`, `ejecutar_accion_espectral(...)` y `generar_desde_csv_real(...)` para cubrir los **8 arquetipos** (`cazadores_estrellas`, `detectives_luz`, `ecoespectro`, `laboratorio_musical`, `mision_foton`, `bioespectro`, `ladron_colores`, `espectro_hacker`), guías educativas paso a paso (`educational_guide`) y carga automática de espectros experimentales CSV en `datos_reales/<mission_id>.csv`.
+
 ---
 
-## Paso 3 (Prioridad 1 · Meta H7) · `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*)
+## Paso 3 (Prioridad 1 · Meta H7) · `Rol3A_OrbitalSniper.tsx` (`[x] ABR-03` · *Orbital Constraints*)
 
 1. Implementa `MinigameProps` en `/dev-sandbox`.
 2. **Parte 1 (0–15 s):** Selector visual de órbita/ruta:
@@ -1962,7 +1991,7 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
 
 ---
 
-## Paso 4 (Prioridad 1 · Meta H8) · `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*)
+## Paso 4 (Prioridad 1 · Meta H8) · `Rol4A_SpectralLabTask.tsx` (`[x] ABR-04` · *Science + Spectral*)
 
 1. **Parte 1 (0–10 s):** Selector de carga útil desde `nasa_catalog.json` (respetando el techo presupuestario científico `liveMetrics` que fijó Rol 1A) + toggle **Visual Autopilot (Natural Feature Tracking)** vital en M2.
 2. **Parte 2 (10–30 s):** Gráfica SVG/Canvas limpia del espectro recibido en `spectralChallenge`. El jugador hace clic/toca sobre los picos característicos (y opcionalmente aplica botón `Clean Baseline` antes de marcar).
@@ -1970,14 +1999,14 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
 
 ---
 
-## Paso 5 (Prioridad 2 · Meta H13) · `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*)
+## Paso 5 (Prioridad 2 · Meta H13) · `Rol4B_CommsSpectralHacker.tsx` (`[x] ABR-05` · *Comms + Data*)
 
 1. **Osciloscopio DSN (0–15 s):** Una retícula objetivo se mueve por deriva orbital; si `!liveMetrics.cg_balanced`, la velocidad de deriva aumenta $1.5\times$ (con alerta visible *"Unbalanced CG causing 1.5x antenna drift!"*). El jugador centra la antena para superar $+3.0\text{ dB}$ compensando `liveMetrics.fspl_loss_db`.
 2. **Espectro Hacker + Bitrate (15–30 s):** Muestra la señal de portadora con un tono intruso DTMF; el jugador aplica filtro de línea base y toca el par DTMF anómalo para desbloquear el enlace, luego desliza el *Bitrate* ($0.5\text{–}6.0\text{ Mbps}$) verificando no pasarse de `liveMetrics.available_power_w` ni dejar el búfer de $160\text{ Gbit}$ lleno antes de la Conjunción Solar.
 
 ---
 
-## Paso 6 (Prioridad 2 · Meta H14) · `Rol3B_AstroLogistics3D.tsx` (*Power 3D*)
+## Paso 6 (Prioridad 2 · Meta H14) · `Rol3B_AstroLogistics3D.tsx` (`[x] ABR-06` · *Power 3D*)
 
 1. Escena 3D ligera en **Three.js** (canvas dentro del contenedor de `MinigameShell` con cleanup estricto de `WebGLRenderer` en `useEffect` return para no fugar memoria al salir de la estación).
 2. Rover recolector con límite estricto de **$N_{\max} = 3$ paquetes apilados** antes de descargar en el Aro Holográfico Central:

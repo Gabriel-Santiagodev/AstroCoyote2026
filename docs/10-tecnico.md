@@ -156,7 +156,7 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 1. `Vector` acepta `variable` (`Absorbancia`, `Transmitancia`, `Intensidad`, `Reflectancia`) y `unidadX` (`cm-1`, `nm`, `Hz`).
 2. `AnalizadorFTIR.Deconvolucion` protege `_p0_inicial` con bordes sintéticos cuando no haya depresiones intermedias.
 3. `Plantilla.puede(paso)` devuelve `(False, motivo_educativo)` y aplica penalización leve ($-3\text{ pts}$) sin lanzar excepción fatal.
-4. `adaptadores_web.py` envía máximo $500\text{–}1,000$ puntos `(x, y)` por WebSocket/JSON y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`.
+4. `adaptadores_web.py` envía máximo $500$ puntos `(x, y)` preservando picos y fallos por WebSocket/JSON, incluye `educational_guide` por juego y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`. Además expone `generar_reto_juego(...)` (los 8 arquetipos), `ejecutar_accion_espectral(...)` (interacción paso a paso con `Vector`/`AnalizadorFTIR`/`Plantilla`) y `cargar_espectro_csv(...)` / `datos_reales/<mission_id>.csv` para enchufar espectros experimentales reales sin cambiar el contrato frontend.
 
 ---
 

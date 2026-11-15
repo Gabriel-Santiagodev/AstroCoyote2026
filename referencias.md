@@ -5,6 +5,8 @@
 
 ## 1. Fuentes Oficiales de la NASA y Estándares Científicos
 - **NASA Mars Reconnaissance Orbiter (MRO):** https://science.nasa.gov/mission/mars-reconnaissance-orbiter/
+- **MRO HiRISE & CRISM Instrument Pages:** https://www.uahirise.org/ | https://crism.jhuapl.edu/
+- **NASA Lunar Reconnaissance Orbiter (LRO):** https://science.nasa.gov/mission/lro/
 - **NASA JPL DESCANSO — MRO Telecommunications:** https://descanso.jpl.nasa.gov/DPSummary/MRO_092106.pdf
 - **NASA Artemis Program:** https://www.nasa.gov/humans-in-space/artemis/
 - **NASA OSIRIS-REx Mission:** https://science.nasa.gov/mission/osiris-rex/
@@ -14,6 +16,8 @@
 - **NASA General Mission Analysis Tool (GMAT) & Concept Maturity Levels (CMLs):** Recursos oficiales del reto Space Apps 2026
 - **NIMA / WGS84 World Geodetic System (TR8350.2)**
 - **NIST Atomic Spectra Database (Líneas de Balmer y constantes físicas)**
+- **ITU-T Recommendation Q.23:** Estándar internacional de pares de frecuencias DTMF (usado en *Espectro Hacker*, `Rol4B`).
+- **Optical Dispersion Reference (Cauchy Equation):** Coeficientes ópticos estándar para sílice fundida, BK7 y zafiro (*Misión Fotón*).
 
 ## 2. Librerías Open Source
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS, Framer Motion, Three.js, Socket.IO Client, Lucide React, tsParticles, canvas-confetti.
@@ -24,4 +28,4 @@
 - **Audio (si se agrega en Extras):** *Agregar enlaces CC0 aquí.*
 
 ## 4. Declaración de Uso de IA (AI Use)
-- *Documentar aquí las herramientas de IA utilizadas para planeación documental y asistencia de programación, detallando el rol de revisión y validación humana del equipo.*
+- **Asistencia en desarrollo y documentación (`ABR-01` a `ABR-06`):** Se utilizó apoyo de agente de IA (Antigravity) para adaptar el motor analítico FTIR heredado (`backend/logica/` + `backend/juegos_espectrales/`) y redactar los componentes React (`Rol3A`, `Rol4A`, `Rol4B`, `Rol3B`). Todas las constantes físicas, contratos `MinigameProps`, cálculos orbitales/espectrales y compilación fueron revisados y validados por el equipo mediante `pytest` y `tsc && vite build`.
