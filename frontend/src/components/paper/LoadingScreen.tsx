@@ -7,6 +7,7 @@ import {
   CrewmateAvatar,
   ROLE_CHARACTER_PROFILE,
 } from "./CrewmateAvatar";
+import { soundEngine } from "./SoundEngine";
 import type { MissionIdType, RoleType } from "../../types/game";
 
 export type LoadingPhaseVariant =
@@ -112,6 +113,10 @@ export function MissionLoadingScreen({
   const cfg = VARIANT_DEFAULTS[variant];
   const mission = nasaCatalog.missions[missionId];
   const roleProfile = ROLE_CHARACTER_PROFILE[roleId];
+
+  useEffect(() => {
+    soundEngine.playSceneJump();
+  }, [variant]);
 
   useEffect(() => {
     if (typeof progressPct === "number") return;
@@ -325,7 +330,10 @@ export function MissionLoadingScreen({
           {allowSkip && onComplete && (
             <button
               type="button"
-              onClick={onComplete}
+              onClick={() => {
+                soundEngine.playClick();
+                onComplete();
+              }}
               className="paper-btn bg-paper-cream px-3 py-1 text-[11px] text-ink-black"
             >
               CONTINUE &gt;&gt;

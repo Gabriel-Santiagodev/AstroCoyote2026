@@ -21,6 +21,7 @@ import {
   ROLE_CHARACTER_PROFILE,
 } from "../components/paper/CrewmateAvatar";
 import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
+import { soundEngine } from "../components/paper/SoundEngine";
 import type { DifficultyType, MissionIdType, RoleType } from "../types/game";
 
 export interface LobbyPlayer {
@@ -99,6 +100,7 @@ export function LobbyView({
     (perspective === "auto" && (isNarrowScreen || (mode === "multi" && !isHost)));
 
   const handleCopyPin = () => {
+    soundEngine.playClick();
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(pin).catch(() => {});
     }
@@ -132,6 +134,7 @@ export function LobbyView({
   const myProfile = ROLE_CHARACTER_PROFILE[selectedRole];
 
   const triggerLaunch = () => {
+    soundEngine.playComplete();
     setIsLaunchingWave1(true);
   };
 
@@ -206,6 +209,7 @@ export function LobbyView({
                   key={viewMode}
                   type="button"
                   onClick={() => {
+                    soundEngine.playClick();
                     setPerspective(viewMode);
                     onChangePerspective?.(viewMode);
                   }}
@@ -283,7 +287,10 @@ export function LobbyView({
                     key={r}
                     type="button"
                     disabled={takenOther}
-                    onClick={() => onChangeRole(r)}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      onChangeRole(r);
+                    }}
                     className={`paper-btn flex flex-col items-center gap-1 p-2.5 text-center ${
                       isSelected
                         ? "bg-paper-cream text-ink-black"
@@ -474,7 +481,10 @@ export function LobbyView({
                     key={roleId}
                     type="button"
                     disabled={takenOther}
-                    onClick={() => onChangeRole(roleId)}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      onChangeRole(roleId);
+                    }}
                     className={`paper-btn flex items-center justify-between gap-3 px-4 py-3 text-left ${
                       isSelected
                         ? "bg-paper-cream text-ink-black"
@@ -554,7 +564,10 @@ export function LobbyView({
                     key={id}
                     type="button"
                     disabled={!canControlMission}
-                    onClick={() => onChangeMission(id)}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      onChangeMission(id);
+                    }}
                     className={`paper-btn flex flex-col justify-between gap-2 p-4 text-left ${
                       active
                         ? "bg-paper-cream text-ink-black"
@@ -616,7 +629,10 @@ export function LobbyView({
                   key={d}
                   type="button"
                   disabled={!canControlMission}
-                  onClick={() => onChangeDifficulty(d)}
+                  onClick={() => {
+                    soundEngine.playClick();
+                    onChangeDifficulty(d);
+                  }}
                   className={`paper-btn px-4 py-1.5 font-mono text-xs uppercase ${
                     difficulty === d
                       ? "bg-role-finance text-ink-black"

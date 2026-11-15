@@ -19,6 +19,7 @@ import {
   ROLE_CHARACTER_PROFILE,
 } from "../components/paper/CrewmateAvatar";
 import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
+import { soundEngine } from "../components/paper/SoundEngine";
 import type { RoleType } from "../types/game";
 
 interface HomeMenuProps {
@@ -65,6 +66,7 @@ export function HomeMenu({
   // Clear local boot loader if a connection error comes back
   useEffect(() => {
     if (connectionError) {
+      soundEngine.playError();
       setPendingAction(null);
     }
   }, [connectionError]);
@@ -88,6 +90,7 @@ export function HomeMenu({
   };
 
   const handleModeStart = (mode: "single" | "multi") => {
+    soundEngine.playClick();
     setPinNotice(null);
     setPendingAction({ type: "create", mode });
   };
@@ -96,9 +99,11 @@ export function HomeMenu({
     e.preventDefault();
     const cleanedPin = pinInput.trim().toUpperCase();
     if (cleanedPin.length < 4) {
+      soundEngine.playError();
       setPinNotice("Enter a valid 4–8 character room PIN (e.g. MARS26).");
       return;
     }
+    soundEngine.playClick();
     setPinNotice(null);
     setPendingAction({ type: "join", pin: cleanedPin });
   };
@@ -172,7 +177,10 @@ export function HomeMenu({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowGuide(true)}
+              onClick={() => {
+                soundEngine.playClick();
+                setShowGuide(true);
+              }}
               className="paper-btn inline-flex items-center gap-1.5 bg-space-ink px-3 py-1.5 text-xs text-paper-cream"
             >
               <BookOpen className="h-3.5 w-3.5 text-role-spacecraft" />
@@ -180,7 +188,10 @@ export function HomeMenu({
             </button>
             <button
               type="button"
-              onClick={onOpenSandbox}
+              onClick={() => {
+                soundEngine.playClick();
+                onOpenSandbox();
+              }}
               className="paper-btn inline-flex items-center gap-1 bg-slate-800 px-3 py-1.5 font-mono text-[11px] text-slate-200"
             >
               <Wrench className="h-3.5 w-3.5 text-role-finance" />
@@ -219,7 +230,10 @@ export function HomeMenu({
                 <button
                   key={r}
                   type="button"
-                  onClick={() => setPreviewRole(r)}
+                  onClick={() => {
+                    soundEngine.playClick();
+                    setPreviewRole(r);
+                  }}
                   className={`flex flex-col items-center rounded-xl border-3 p-2.5 text-center transition-all ${
                     isActive
                       ? "border-paper-cream bg-blueprint-navy shadow-paper"

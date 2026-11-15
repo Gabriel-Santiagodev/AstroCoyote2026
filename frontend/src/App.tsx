@@ -2,6 +2,7 @@
 // (docs/08-controles.md) and automatic offline/preview fallback when the backend on :8000 is
 // not running, so the full HomeMenu -> Lobby -> Stations -> Flight -> Report loop always works.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SoundControlPill } from "./components/paper/SoundEngine";
 import { Starfield } from "./components/paper/Starfield";
 import { ROLE_META } from "./components/MinigameShell";
 import { DevSandboxView } from "./views/DevSandboxView";
@@ -766,6 +767,7 @@ export function App() {
   return (
     <>
       <Starfield />
+      <SoundControlPill />
 
       {screen === "sandbox" && <DevSandboxView onExitSandbox={() => setScreen("home")} />}
 
@@ -849,6 +851,8 @@ export function App() {
           report={report}
           onRetry={handleRetry}
           roleContributions={report.role_contributions}
+          missionId={mission}
+          myRole={role}
         />
       )}
 

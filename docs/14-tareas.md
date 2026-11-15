@@ -2,7 +2,7 @@
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (18:00 h)
+**Última actualización:** 2026-11-14 (23:15 h)
 
 ## Cómo leer esta tabla
 
@@ -34,15 +34,15 @@
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
-| [ ] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
-| [ ] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
-| [ ] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
-| [ ] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
-| [ ] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
-| [ ] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
-| [ ] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
-| [ ] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
+| [x] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
+| [x] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
+| [x] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
+| [x] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
+| [x] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
+| [x] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
+| [x] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
+| [x] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
+| [x] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
 
 ---
 
@@ -100,6 +100,6 @@
 
 | ✓ | ID | Extra | Dueño | Terminado cuando |
 |---|---|---|---|---|
-| [ ] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
-| [ ] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
-| [ ] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |
+| [x] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
+| [x] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
+| [x] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |

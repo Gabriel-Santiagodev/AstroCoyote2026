@@ -127,6 +127,8 @@ export const ROLE_PALETTE: Record<
   },
 };
 
+export type ActionEffect = "none" | "complete" | "error" | "scan" | "thruster";
+
 interface CrewmateAvatarProps {
   role: RoleType;
   state?: AvatarState;
@@ -134,6 +136,8 @@ interface CrewmateAvatarProps {
   flipX?: boolean;
   showRoleTag?: boolean;
   className?: string;
+  actionEffect?: ActionEffect;
+  statusBadgeText?: string;
 }
 
 const STATE_ANIMATIONS: Record<
@@ -165,8 +169,18 @@ const STATE_ANIMATIONS: Record<
   },
 };
 
-function VisorExpression({ role, state }: { role: RoleType; state: AvatarState }) {
-  if (state === "panic") {
+function VisorExpression({
+  role,
+  state,
+  isError,
+  isComplete,
+}: {
+  role: RoleType;
+  state: AvatarState;
+  isError: boolean;
+  isComplete: boolean;
+}) {
+  if (isError || state === "panic") {
     return (
       <g>
         <path d="M47 36 L55 44 M55 36 L47 44" stroke="#FF5A4E" strokeWidth="3.2" strokeLinecap="round" />
@@ -176,31 +190,62 @@ function VisorExpression({ role, state }: { role: RoleType; state: AvatarState }
     );
   }
 
-  if (role === "finance_launch") {
-    // ASTRO_ENGINEER: glowing orange twin gear eyes + friendly smile
+  if (isComplete) {
     return (
       <g>
-        <circle cx="51" cy="39" r="5.5" fill="none" stroke="#FB923C" strokeWidth="2.6" strokeDasharray="3 2" />
-        <circle cx="51" cy="39" r="2.2" fill="#FDE68A" />
-        <circle cx="69" cy="39" r="5.5" fill="none" stroke="#FB923C" strokeWidth="2.6" strokeDasharray="3 2" />
-        <circle cx="69" cy="39" r="2.2" fill="#FDE68A" />
+        <path d="M47 40 L51 35 L55 40" stroke="#3DDC84" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M65 40 L69 35 L73 40" stroke="#3DDC84" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M51 46 Q60 54 69 46" stroke="#FDE68A" strokeWidth="3" strokeLinecap="round" fill="none" />
+      </g>
+    );
+  }
+
+  if (role === "finance_launch") {
+    // ASTRO_ENGINEER: glowing orange twin rotating gear eyes + friendly smile
+    const spinning = state === "work" || state === "walk";
+    return (
+      <g>
+        <motion.g
+          animate={spinning ? { rotate: 360 } : undefined}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+          style={{ originX: "51px", originY: "39px" }}
+        >
+          <circle cx="51" cy="39" r="5.5" fill="none" stroke="#FB923C" strokeWidth="2.6" strokeDasharray="3 2" />
+          <circle cx="51" cy="39" r="2.2" fill="#FDE68A" />
+        </motion.g>
+        <motion.g
+          animate={spinning ? { rotate: -360 } : undefined}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+          style={{ originX: "69px", originY: "39px" }}
+        >
+          <circle cx="69" cy="39" r="5.5" fill="none" stroke="#FB923C" strokeWidth="2.6" strokeDasharray="3 2" />
+          <circle cx="69" cy="39" r="2.2" fill="#FDE68A" />
+        </motion.g>
         <path d="M53 48 Q60 53 67 48" stroke="#FB923C" strokeWidth="2.8" strokeLinecap="round" fill="none" />
       </g>
     );
   }
 
   if (role === "spacecraft_mass") {
-    // ASTRO_MEDIC: glowing cyan-red medical cross + ECG pulse waveform
+    // ASTRO_MEDIC: glowing cyan-red medical cross + pulsing ECG waveform
     return (
       <g>
-        <path d="M58 29 H62 V33 H66 V37 H62 V41 H58 V37 H54 V33 H58 Z" fill="#FF5A4E" />
-        <path
+        <motion.path
+          d="M58 29 H62 V33 H66 V37 H62 V41 H58 V37 H54 V33 H58 Z"
+          fill="#FF5A4E"
+          animate={state === "work" ? { scale: [1, 1.18, 1] } : undefined}
+          transition={{ duration: 0.9, repeat: Infinity }}
+          style={{ originX: "60px", originY: "35px" }}
+        />
+        <motion.path
           d="M42 46 H49 L53 39 L57 51 L62 35 L66 49 L70 46 H78"
           stroke="#22D3EE"
           strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
+          animate={{ opacity: [0.65, 1, 0.65] }}
+          transition={{ duration: 1.1, repeat: Infinity }}
         />
       </g>
     );
@@ -222,56 +267,95 @@ function VisorExpression({ role, state }: { role: RoleType; state: AvatarState }
     <g>
       <rect x="44" y="34" width="32" height="5" rx="2" fill="#38BDF8" />
       <rect x="56" y="39" width="8" height="11" rx="2" fill="#38BDF8" />
-      <rect x="46" y="42" width="7" height="3" rx="1.5" fill="#A855F7" />
-      <rect x="67" y="42" width="7" height="3" rx="1.5" fill="#A855F7" />
+      <motion.rect
+        x="46"
+        y="42"
+        width="7"
+        height="3"
+        rx="1.5"
+        fill="#A855F7"
+        animate={state === "work" ? { opacity: [0.4, 1, 0.4] } : undefined}
+        transition={{ duration: 0.7, repeat: Infinity }}
+      />
+      <motion.rect
+        x="67"
+        y="42"
+        width="7"
+        height="3"
+        rx="1.5"
+        fill="#A855F7"
+        animate={state === "work" ? { opacity: [1, 0.4, 1] } : undefined}
+        transition={{ duration: 0.7, repeat: Infinity }}
+      />
     </g>
   );
 }
 
-function RoleBackpackAndGear({ role }: { role: RoleType }) {
+function RoleBackpackAndGear({
+  role,
+  state,
+  actionEffect,
+}: {
+  role: RoleType;
+  state: AvatarState;
+  actionEffect: ActionEffect;
+}) {
+  const isScanning = state === "work" || actionEffect === "scan";
+  const isThrusting = state === "walk" || actionEffect === "thruster";
+
   if (role === "finance_launch") {
-    // Backpack + antenna + floating mini-drone + shoulder wrench
+    // Backpack + antenna + animated hovering mini-drone + shoulder wrench + scan beam
     return (
       <g>
-        {/* Thruster / toolbox backpack */}
         <rect x="33" y="56" width="54" height="30" rx="8" fill="#92400E" stroke="#0F172A" strokeWidth="3" />
-        {/* Floating Mini-Drone companion */}
         <line x1="88" y1="60" x2="101" y2="42" stroke="#64748B" strokeWidth="3" strokeLinecap="round" />
-        <g transform="translate(94, 24)">
+        <motion.g
+          transform="translate(94, 24)"
+          animate={isScanning || isThrusting ? { y: [-2, 2.5, -2] } : { y: [-1, 1, -1] }}
+          transition={{ duration: isScanning ? 0.65 : 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
           <rect x="2" y="6" width="18" height="13" rx="5" fill="#F59E0B" stroke="#0F172A" strokeWidth="2.4" />
           <circle cx="11" cy="12" r="3.5" fill="#38BDF8" stroke="#0F172A" strokeWidth="1.6" />
           <ellipse cx="3" cy="5" rx="6" ry="2" fill="#E2E8F0" stroke="#0F172A" strokeWidth="1.6" />
           <ellipse cx="19" cy="5" rx="6" ry="2" fill="#E2E8F0" stroke="#0F172A" strokeWidth="1.6" />
-        </g>
-        {/* Wrench over right shoulder */}
-        <path
-          d="M16 48 L36 74"
-          stroke="#CBD5E1"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        <path
-          d="M16 48 L36 74"
-          stroke="#0F172A"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeDasharray="1 0"
-        />
-        <circle cx="15" cy="46" r="7" fill="#94A3B8" stroke="#0F172A" strokeWidth="2.5" />
-        <rect x="11" y="40" width="6" height="6" rx="1" fill="#0B1021" />
+          {isScanning && (
+            <motion.polygon
+              points="11,16 3,34 19,34"
+              fill="#38BDF8"
+              animate={{ opacity: [0.15, 0.5, 0.15] }}
+              transition={{ duration: 0.7, repeat: Infinity }}
+            />
+          )}
+        </motion.g>
+        <motion.g
+          animate={isScanning ? { rotate: [-6, 10, -6] } : undefined}
+          transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+          style={{ originX: "34px", originY: "72px" }}
+        >
+          <path d="M16 48 L36 74" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" />
+          <path d="M16 48 L36 74" stroke="#0F172A" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="15" cy="46" r="7" fill="#94A3B8" stroke="#0F172A" strokeWidth="2.5" />
+          <rect x="11" y="40" width="6" height="6" rx="1" fill="#0B1021" />
+        </motion.g>
       </g>
     );
   }
 
   if (role === "spacecraft_mass") {
-    // ASTRO_MEDIC: cryo tank + handheld diagnostic scanner & med-pad
+    // ASTRO_MEDIC: cryo tank + handheld diagnostic scanner (animated scan cone) & med-pad
     return (
       <g>
         <rect x="33" y="57" width="54" height="29" rx="8" fill="#0891B2" stroke="#0F172A" strokeWidth="3" />
-        {/* Right-hand mass diagnostic scanner */}
         <rect x="14" y="75" width="18" height="10" rx="3" fill="#22D3EE" stroke="#0F172A" strokeWidth="2.4" />
         <rect x="11" y="77" width="5" height="6" rx="1" fill="#F8FAFC" stroke="#0F172A" strokeWidth="2" />
-        {/* Left-hand handheld tablet + hip med-kit */}
+        {isScanning && (
+          <motion.polygon
+            points="11,80 -2,68 -2,92"
+            fill="#22D3EE"
+            animate={{ opacity: [0.18, 0.55, 0.18] }}
+            transition={{ duration: 0.75, repeat: Infinity }}
+          />
+        )}
         <rect x="88" y="60" width="17" height="23" rx="3" fill="#E2E8F0" stroke="#0F172A" strokeWidth="2.5" />
         <rect x="91" y="64" width="11" height="10" rx="1.5" fill="#10B981" stroke="#0F172A" strokeWidth="1.5" />
         <rect x="78" y="88" width="20" height="15" rx="3" fill="#F8FAFC" stroke="#0F172A" strokeWidth="2.4" />
@@ -281,29 +365,57 @@ function RoleBackpackAndGear({ role }: { role: RoleType }) {
   }
 
   if (role === "orbit_power") {
-    // ASTRO_SOLDIER: twin orbital propellant pack + Delta-v pulse carbine
+    // ASTRO_SOLDIER: twin orbital propellant pack + thruster flames + Delta-v pulse carbine
     return (
       <g>
         <rect x="31" y="55" width="58" height="31" rx="8" fill="#475569" stroke="#0F172A" strokeWidth="3" />
-        {/* Pulse calibrator rifle across chest */}
+        {(isThrusting || isScanning) && (
+          <motion.g
+            animate={{ scaleY: [0.85, 1.25, 0.85], opacity: [0.75, 1, 0.75] }}
+            transition={{ duration: 0.25, repeat: Infinity }}
+            style={{ originY: "86px" }}
+          >
+            <polygon points="36,86 42,102 48,86" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" />
+            <polygon points="72,86 78,102 84,86" fill="#F59E0B" stroke="#0F172A" strokeWidth="1.5" />
+          </motion.g>
+        )}
         <g transform="translate(0, 2)">
           <rect x="20" y="72" width="76" height="13" rx="4" fill="#334155" stroke="#0F172A" strokeWidth="2.8" />
           <rect x="35" y="75" width="38" height="6" rx="2" fill="#EF4444" stroke="#0F172A" strokeWidth="1.8" />
           <rect x="88" y="75" width="14" height="7" rx="2" fill="#38BDF8" stroke="#0F172A" strokeWidth="2" />
           <rect x="46" y="65" width="16" height="7" rx="2" fill="#64748B" stroke="#0F172A" strokeWidth="2" />
+          {isScanning && (
+            <motion.circle
+              cx="105"
+              cy="78.5"
+              r="5"
+              fill="#38BDF8"
+              animate={{ opacity: [0.3, 0.95, 0.3], scale: [0.8, 1.25, 0.8] }}
+              transition={{ duration: 0.45, repeat: Infinity }}
+              style={{ originX: "105px", originY: "78.5px" }}
+            />
+          )}
         </g>
       </g>
     );
   }
 
-  // ASTRO_DEFENDER: heavy shoulder shield pack + glowing holo-dish shield
+  // ASTRO_DEFENDER: heavy shoulder shield pack + pulsing holo-dish shield
   return (
     <g>
       <rect x="31" y="55" width="58" height="31" rx="8" fill="#1E293B" stroke="#0F172A" strokeWidth="3" />
-      {/* Right-hand spectral pistol/scanner */}
       <rect x="13" y="76" width="19" height="11" rx="3" fill="#38BDF8" stroke="#0F172A" strokeWidth="2.4" />
-      {/* Left-arm holographic shield */}
-      <ellipse
+      {isScanning && (
+        <motion.circle
+          cx="11"
+          cy="81"
+          r="5"
+          fill="#22D3EE"
+          animate={{ opacity: [0.25, 0.9, 0.25] }}
+          transition={{ duration: 0.6, repeat: Infinity }}
+        />
+      )}
+      <motion.ellipse
         cx="98"
         cy="78"
         rx="16"
@@ -312,6 +424,9 @@ function RoleBackpackAndGear({ role }: { role: RoleType }) {
         fillOpacity="0.28"
         stroke="#38BDF8"
         strokeWidth="3"
+        animate={isScanning || isThrusting ? { scale: [0.96, 1.08, 0.96], opacity: [0.7, 1, 0.7] } : undefined}
+        transition={{ duration: 0.85, repeat: Infinity }}
+        style={{ originX: "98px", originY: "78px" }}
       />
       <ellipse
         cx="98"
@@ -335,9 +450,15 @@ export function CrewmateAvatar({
   flipX = false,
   showRoleTag = false,
   className = "",
+  actionEffect = "none",
+  statusBadgeText,
 }: CrewmateAvatarProps) {
   const profile = ROLE_CHARACTER_PROFILE[role];
-  const motionCfg = STATE_ANIMATIONS[state];
+  const isError = actionEffect === "error" || state === "panic";
+  const isComplete = actionEffect === "complete" || state === "cheer";
+  const effectiveState: AvatarState =
+    actionEffect === "error" ? "panic" : actionEffect === "complete" ? "cheer" : state;
+  const motionCfg = STATE_ANIMATIONS[effectiveState];
 
   const suitPrimary =
     role === "finance_launch"
@@ -374,8 +495,8 @@ export function CrewmateAvatar({
         repeat: Infinity,
         ease: "easeInOut",
       }}
-      className={`inline-flex flex-col items-center select-none ${className}`}
-      aria-label={`${profile.codename} (${state})`}
+      className={`relative inline-flex flex-col items-center select-none ${className}`}
+      aria-label={`${profile.codename} (${effectiveState})`}
     >
       <svg
         width={size}
@@ -388,6 +509,40 @@ export function CrewmateAvatar({
           transform: flipX ? "scaleX(-1)" : undefined,
         }}
       >
+        {/* Completion green halo ring */}
+        {isComplete && (
+          <motion.ellipse
+            cx="60"
+            cy="68"
+            rx="50"
+            ry="56"
+            stroke="#3DDC84"
+            strokeWidth="3.5"
+            strokeDasharray="8 5"
+            fill="#3DDC84"
+            fillOpacity="0.1"
+            animate={{ scale: [0.95, 1.05, 0.95], opacity: [0.45, 0.95, 0.45] }}
+            transition={{ duration: 0.95, repeat: Infinity }}
+            style={{ originX: "60px", originY: "68px" }}
+          />
+        )}
+
+        {/* Error red short-circuit aura */}
+        {isError && (
+          <motion.ellipse
+            cx="60"
+            cy="68"
+            rx="49"
+            ry="55"
+            stroke="#FF5A4E"
+            strokeWidth="3.5"
+            fill="#FF5A4E"
+            fillOpacity="0.12"
+            animate={{ opacity: [0.25, 0.95, 0.25] }}
+            transition={{ duration: 0.35, repeat: Infinity }}
+          />
+        )}
+
         {/* Ground shadow */}
         <ellipse cx="60" cy="124" rx="28" ry="5" fill="#0F172A" opacity="0.35" />
 
@@ -396,7 +551,7 @@ export function CrewmateAvatar({
         <rect x="33" y="55" width="54" height="58" rx="16" fill="#FFFFFF" opacity="0.9" />
 
         {/* Role gear behind arms/torso */}
-        <RoleBackpackAndGear role={role} />
+        <RoleBackpackAndGear role={role} state={effectiveState} actionEffect={actionEffect} />
 
         {/* Left & Right Legs */}
         <rect x="41" y="88" width="15" height="27" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="3" />
@@ -453,25 +608,68 @@ export function CrewmateAvatar({
         <path d="M47 28 Q60 24 73 28" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" opacity="0.45" />
 
         {/* Unique Astro-Squad Glowing LED Visor Face */}
-        <VisorExpression role={role} state={state} />
+        <VisorExpression role={role} state={effectiveState} isError={isError} isComplete={isComplete} />
 
-        {/* Dynamic Status Badges */}
-        {state === "panic" && (
+        {/* Dynamic Error / Danger Sparks & Sweat Drop */}
+        {isError && (
           <g>
             <circle cx="98" cy="18" r="10" fill="#FF5A4E" stroke="#0F172A" strokeWidth="2.5" />
             <path d="M98 13 V19 M98 22 V23" stroke="#0F172A" strokeWidth="2.5" strokeLinecap="round" />
+            <motion.path
+              d="M15 24 L23 18 L20 27 L27 25 L17 34"
+              stroke="#F2C94C"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ duration: 0.4, repeat: Infinity }}
+            />
+            <motion.path
+              d="M20 56 C17 61 17 66 20 66 C23 66 23 61 20 56 Z"
+              fill="#38BDF8"
+              stroke="#0F172A"
+              strokeWidth="1.6"
+              animate={{ y: [0, 5, 0], opacity: [0.6, 1, 0.6] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+            />
           </g>
         )}
-        {state === "cheer" && (
-          <path
-            d="M98 8 L101 14 L107 17 L101 20 L98 26 L95 20 L89 17 L95 14 Z"
-            fill="#F2C94C"
-            stroke="#0F172A"
-            strokeWidth="2.2"
-            strokeLinejoin="round"
-          />
+
+        {/* Dynamic Completion Stars & Sparkles */}
+        {isComplete && (
+          <g>
+            <motion.path
+              d="M98 8 L101 14 L107 17 L101 20 L98 26 L95 20 L89 17 L95 14 Z"
+              fill="#F2C94C"
+              stroke="#0F172A"
+              strokeWidth="2.2"
+              strokeLinejoin="round"
+              animate={{ scale: [0.85, 1.2, 0.85], rotate: [-12, 12, -12] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+              style={{ originX: "98px", originY: "17px" }}
+            />
+            <motion.path
+              d="M18 14 L20 18 L24 20 L20 22 L18 26 L16 22 L12 20 L16 18 Z"
+              fill="#3DDC84"
+              stroke="#0F172A"
+              strokeWidth="1.8"
+              animate={{ scale: [1.1, 0.8, 1.1] }}
+              transition={{ duration: 0.75, repeat: Infinity }}
+              style={{ originX: "18px", originY: "20px" }}
+            />
+          </g>
         )}
       </svg>
+
+      {statusBadgeText && (
+        <span
+          className={`paper-badge mt-0.5 px-1.5 py-0.5 text-[9px] tracking-wider text-ink-black ${
+            isError ? "bg-status-crit" : isComplete ? "bg-status-ok" : "bg-role-spacecraft"
+          }`}
+        >
+          {statusBadgeText}
+        </span>
+      )}
 
       {showRoleTag && (
         <span
