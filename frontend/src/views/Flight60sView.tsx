@@ -44,6 +44,8 @@ interface Flight60sViewProps {
   onAnswerOption: (questionId: string, optionId: string) => void;
   activePlayerName?: string;
   globalTimeLeftSec?: number;
+  /** Untimed turns (docs/03, 2026-11-15): no countdown, the crew answers when ready. */
+  untimed?: boolean;
   rocketHealthPct?: number;
   lastTurnResult?: FlightTurnResultUI | null;
   missionId?: MissionIdType;
@@ -438,7 +440,7 @@ function CabinScene({
 
 export function Flight60sView({
   round, timeLeftSec, myRole, question, onAnswerOption,
-  activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult,
+  activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult, untimed = false,
   missionId = "artemis_moon", isHostStage, stationLoadout,
 }: Flight60sViewProps) {
   const isNarrow = useNarrowViewport();
@@ -485,12 +487,16 @@ export function Flight60sView({
   const activeGateIndex = question
     ? Math.max(0, GATES.findIndex((gate) => gate.id === question.gate))
     : clamp(Math.floor(round) - 1, 0, GATES.length - 1);
-  const roundLeft = clamp(timeLeftSec, 0, ROUND_DURATION_SEC);
+  // Untimed: the round never runs out, so the crew can read the log and decide calmly.
+  const roundLeft = untimed ? ROUND_DURATION_SEC : clamp(timeLeftSec, 0, ROUND_DURATION_SEC);
   const globalLeft = clamp(
     globalTimeLeftSec ?? (GATES.length - activeGateIndex - 1) * ROUND_DURATION_SEC + roundLeft,
     0, FLIGHT_DURATION_SEC,
   );
-  const flightProgress = ((FLIGHT_DURATION_SEC - globalLeft) / FLIGHT_DURATION_SEC) * 100;
+  const chaptersDone = activeGateIndex + (lastTurnResult?.round === activeGateIndex + 1 ? 1 : 0);
+  const flightProgress = untimed
+    ? (chaptersDone / GATES.length) * 100
+    : ((FLIGHT_DURATION_SEC - globalLeft) / FLIGHT_DURATION_SEC) * 100;
   const activeRole = question?.assigned_role ?? myRole;
   const activeProfile = ROLE_CHARACTER_PROFILE[activeRole];
   const playerLabel = activePlayerName?.trim() || activeProfile.codename;
@@ -512,12 +518,12 @@ export function Flight60sView({
   const logbookActionEffect: ActionEffect = logbookError ? "error" : logbookPass ? "complete" : "scan";
 
   useEffect(() => {
-    if (!question || countdownSecond < 1 || countdownSecond > 5) return;
+    if (untimed || !question || countdownSecond < 1 || countdownSecond > 5) return;
     const tickKey = questionKey + ":" + countdownSecond;
     if (lastTickKeyRef.current === tickKey) return;
     lastTickKeyRef.current = tickKey;
     soundEngine.playCountdownTick(countdownSecond <= 2);
-  }, [countdownSecond, question, questionKey]);
+  }, [countdownSecond, question, questionKey, untimed]);
 
   const answer = useCallback((optionId: string) => {
     if (!question || !canAnswer || activeQuestionKeyRef.current !== questionKey ||
@@ -554,9 +560,8 @@ export function Flight60sView({
     <main className={"relative mx-auto flex min-w-0 flex-col text-paper-cream " +
       (isPhoneConsole
         ? "handheld-console-frame my-2 w-[calc(100%-1rem)] max-w-md gap-3 px-2 pb-2 pt-12 sm:pt-14"
-        : "max-w-7xl gap-5 px-4 pb-6 pt-12 sm:px-6 sm:pt-14")}>
-      <header className={"flash-panel min-w-0 overflow-hidden " + (isPhoneConsole ? "p-2" : "p-5")}>
-        <div className={"hazard-stripe-bar rounded-full " + (isPhoneConsole ? "h-1.5" : "h-2")} aria-hidden="true" />
+        : "h-[100dvh] max-w-7xl gap-3 overflow-hidden px-4 pb-3 pt-14 sm:px-6 sm:pt-16")}>
+      <header className={"flash-panel min-w-0 shrink-0 overflow-hidden " + (isPhoneConsole ? "p-2" : "px-4 py-3")}>
         <div className="mt-2 flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-role-spacecraft">
@@ -568,8 +573,10 @@ export function Flight60sView({
             </h1>
           </div>
           <div className="shrink-0 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 text-center font-mono font-black tabular-nums text-ink-black">
-            <span className="block text-[9px]">FLIGHT</span>
-            <span className={isPhoneConsole ? "text-lg" : "text-2xl"}>{Math.ceil(globalLeft)}s</span>
+            <span className="block text-[9px]">{untimed ? "CHAPTER" : "FLIGHT"}</span>
+            <span className={isPhoneConsole ? "text-lg" : "text-2xl"}>
+              {untimed ? `${Math.min(activeGateIndex + 1, GATES.length)}/${GATES.length}` : `${Math.ceil(globalLeft)}s`}
+            </span>
           </div>
         </div>
         <ol className={(isPhoneConsole ? "mt-1" : "mt-2") + " grid grid-cols-4 gap-1 " + (isPhoneConsole ? "" : "sm:gap-2")}
@@ -596,8 +603,10 @@ export function Flight60sView({
         </ol>
       </header>
 
-      <div className={"min-w-0 gap-5 " +
-        (isPhoneConsole ? "flex flex-col gap-3" : "grid grid-cols-1 xl:grid-cols-[minmax(0,1.55fr)_minmax(350px,1fr)]")}>
+      <div className={"min-w-0 gap-4 " +
+        (isPhoneConsole
+          ? "flex flex-col gap-3"
+          : "grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)] lg:overflow-hidden")}>
         <CabinScene isPhoneConsole={isPhoneConsole} missionId={missionId}
           activeGateIndex={activeGateIndex} flightProgress={flightProgress}
           healthValue={healthValue} alarm={alarm} visibleResult={visibleResult}
@@ -605,7 +614,7 @@ export function Flight60sView({
           stationLoadout={stationLoadout}
           sceneJump={sceneJump} onSkipJump={skipJump} />
 
-        <section aria-label="Captain's survival log" className="flash-panel relative min-w-0 p-2 sm:p-3"
+        <section aria-label="Captain's survival log" className="flash-panel relative min-h-0 min-w-0 overflow-y-auto p-2 sm:p-3"
           style={{ perspective: 1100 }}>
           <AnimatePresence mode="popLayout" initial={false}>
           <motion.div key={activeGateIndex} className="paper-card-light relative min-w-0 overflow-hidden p-3 sm:p-5"
@@ -626,19 +635,28 @@ export function Flight60sView({
                   Captain's Logbook
                 </h2>
               </div>
-              <div role="timer" aria-label={Math.ceil(roundLeft) + " seconds left in decision round"}
-                className={"shrink-0 rounded-lg border-[3px] border-ink-black px-2 py-1 text-center font-mono font-black tabular-nums " +
-                  (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
-                <span className="block text-[9px]">DECIDE</span>
-                <span className="text-2xl">{Math.ceil(roundLeft)}s</span>
+              {untimed ? (
+                <div className="shrink-0 rounded-lg border-[3px] border-ink-black bg-status-warn px-2 py-1 text-center font-mono font-black tabular-nums">
+                  <span className="block text-[9px]">CHAPTER</span>
+                  <span className="text-2xl">{Math.min(activeGateIndex + 1, GATES.length)}/{GATES.length}</span>
+                </div>
+              ) : (
+                <div role="timer" aria-label={Math.ceil(roundLeft) + " seconds left in decision round"}
+                  className={"shrink-0 rounded-lg border-[3px] border-ink-black px-2 py-1 text-center font-mono font-black tabular-nums " +
+                    (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
+                  <span className="block text-[9px]">DECIDE</span>
+                  <span className="text-2xl">{Math.ceil(roundLeft)}s</span>
+                </div>
+              )}
+            </div>
+            {!untimed && (
+              <div className="mt-2 h-2 overflow-hidden rounded-full border border-ink-black bg-slate-300"
+                aria-label="Decision time remaining">
+                <motion.div className={"h-full " + (roundLeft <= 5 ? "bg-status-crit" : "bg-role-finance")}
+                  animate={{ width: (roundLeft / ROUND_DURATION_SEC) * 100 + "%" }}
+                  transition={{ duration: 0.35 }} />
               </div>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full border border-ink-black bg-slate-300"
-              aria-label="Decision time remaining">
-              <motion.div className={"h-full " + (roundLeft <= 5 ? "bg-status-crit" : "bg-role-finance")}
-                animate={{ width: (roundLeft / ROUND_DURATION_SEC) * 100 + "%" }}
-                transition={{ duration: 0.35 }} />
-            </div>
+            )}
 
             {question ? (
               <>

@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 type BucketKey = "eng" | "sci" | "ufe";
 
@@ -222,366 +225,180 @@ export function Rol1A_BudgetTable({
     }
   }, [timeLeftSec, isLocked, onSubmitTake, buildPayload]);
 
-  const ufeStatus =
-    computed.ufeReservePct >= 25
-      ? {
-          label: "SAFE",
-          color: "text-emerald-300",
-          bg: "bg-emerald-500/20 border-emerald-400",
-          barColor: "bg-emerald-400",
-        }
-      : computed.ufeReservePct >= 15
-      ? {
-          label: "THIN",
-          color: "text-amber-300",
-          bg: "bg-amber-500/20 border-amber-400",
-          barColor: "bg-amber-400",
-        }
-      : {
-          label: "DANGER",
-          color: "text-rose-300",
-          bg: "bg-rose-500/25 border-rose-400",
-          barColor: "bg-rose-500",
-        };
-
-  // Speedometer needle angle (-80 deg to +80 deg for 0% to 50% UFE)
-  const needleDeg = Math.min(80, Math.max(-80, (computed.ufeReservePct / 50) * 160 - 80));
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): three coin vaults + a request inbox + goals panel.
+  // The model above (coins, requests, payload) is unchanged.
+  // ---------------------------------------------------------------------------
+  const recommendedUfe = Number(missionCfg.recommended_ufe_pct ?? 25);
+  const pendingRequest = SURPRISE_REQUESTS.find((r) => cardDecisions[r.id] === "pending") ?? null;
+  const leftForRocketUsd = totalBudgetUsd - computed.subsystemsCostUsd;
+  const goals: Goal[] = [
+    { label: `Safety vault ${recommendedUfe}%+`, done: computed.ufeReservePct >= recommendedUfe },
+    { label: "Fund engineering and science", done: coins.eng > 0 && coins.sci > 0 },
+    { label: "Answer the requests", done: pendingRequest === null },
+  ];
+  const vaults: Array<{ key: BucketKey; label: string; color: string; Icon: typeof Wrench; hint: string }> = [
+    { key: "eng", label: "Engineering", color: "#06B6D4", Icon: Wrench, hint: "Fuel cells for Power" },
+    { key: "sci", label: "Science", color: "#A855F7", Icon: FlaskConical, hint: "Instruments + radio" },
+    { key: "ufe", label: "Safety vault", color: "#22C55E", Icon: ShieldAlert, hint: "Emergency cash" },
+  ];
+  const usdOf = (key: BucketKey) =>
+    key === "eng" ? computed.budgetEngineeringUsd : key === "sci" ? computed.budgetScienceUsd : coins.ufe * coinValueUsd;
 
   return (
-    <div className="space-y-4 text-slate-100">
-      {/* Header Banner */}
-      <div className="paper-card flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink-black bg-role-finance font-display text-sm font-bold text-ink-black">
-            1A
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col">
+          <PlayBackdrop tint="#F59E0B" />
+          <div className="relative flex items-center justify-between gap-2 px-3 pt-3">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 font-mono text-xs font-bold text-ink-black">
+              <Coins className="h-4 w-4 text-amber-500" /> 1 coin = ${Math.round(coinValueUsd / 1e6)}M
+            </span>
+            <span className="font-mono text-[11px] font-bold uppercase text-slate-400">
+              Budget ${Math.round(totalBudgetUsd / 1e6)}M
+            </span>
           </div>
-          <div>
-            <h3 className="font-display text-base font-bold text-white">
-              Budget coins
-            </h3>
-            <p className="text-xs text-slate-300">
-              1 coin = <b className="font-mono text-amber-300">${Math.round(coinValueUsd / 1e6)}M</b>.
-              Keep <b>25%+</b> in the vault.
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-3 font-mono text-xs">
-          <div className="rounded-lg border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <span className="text-slate-400">Fuel cells: </span>
-            <strong className="text-amber-300">{computed.h2ProbPct}%</strong>
-          </div>
-          <div className="rounded-lg border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <span className="text-slate-400">Spent: </span>
-            <strong className="text-white">
-              ${Math.round(computed.subsystemsCostUsd / 1e6)}M
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      {/* 3 Coin Allocation Columns */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        {/* Box 1: Engineering & R&D */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3.5">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-display text-sm font-bold text-cyan-300">
-                <Wrench className="h-4 w-4" /> 1. Engineering
-              </span>
-              <span className="paper-badge bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-200">
-                {coins.eng * 10}% (${Math.round(computed.budgetEngineeringUsd / 1e6)}M)
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-300">
-              More coins = more fuel cells for Power.
-            </p>
-
-            {/* Visual Coin Stack */}
-            <div className="my-3 flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2">
-              {Array.from({ length: coins.eng }).map((_, i) => (
+          <div className="relative grid min-h-0 flex-1 grid-cols-3 gap-2 px-3 pb-3 pt-2 sm:gap-4">
+            {vaults.map(({ key, label, color, Icon, hint }) => (
+              <div key={key} className="flex min-h-0 flex-col items-center gap-1.5">
+                <div className="flex items-center gap-1 font-display text-xs font-bold sm:text-sm" style={{ color }}>
+                  <Icon className="h-4 w-4" /> {label}
+                </div>
+                {/* glass vault with stacked coins */}
                 <div
-                  key={i}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink-black bg-amber-400 font-mono text-xs font-extrabold text-ink-black shadow-paper-sm"
-                  title="10% Budget Coin"
+                  className="relative w-full max-w-[9rem] flex-1 overflow-hidden rounded-2xl border-[3px] border-ink-black shadow-paper"
+                  style={{ background: `linear-gradient(180deg, ${color}10, ${color}30)`, minHeight: 120 }}
                 >
-                  $
+                  <div className="absolute inset-x-2 top-1 h-3 rounded-full bg-white/10" />
+                  <div className="absolute inset-x-0 bottom-1 flex flex-col-reverse items-center gap-[3px]">
+                    <AnimatePresence>
+                      {Array.from({ length: coins[key] }, (_, i) => (
+                        <motion.span
+                          key={i}
+                          initial={{ y: -60, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          exit={{ y: -30, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 420, damping: 22 }}
+                          className="block h-3 w-3/4 rounded-full border-2 border-ink-black bg-amber-400 sm:h-3.5"
+                          style={{ boxShadow: "inset 0 -2px 0 #B45309" }}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
                 </div>
-              ))}
-              {coins.eng === 0 && (
-                <span className="text-xs italic text-slate-500">0 coins allocated</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={isLocked || coins.eng <= 0}
-              onClick={() => handleAdjustCoin("eng", -1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-slate-800 py-2 text-sm text-white"
-            >
-              <Minus className="h-4 w-4" /> -1 Coin
-            </button>
-            <span className="font-mono text-lg font-extrabold text-amber-300">{coins.eng}</span>
-            <button
-              type="button"
-              disabled={isLocked || coins.eng >= TOTAL_COINS}
-              onClick={() => handleAdjustCoin("eng", 1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-cyan-400 py-2 text-sm text-ink-black"
-            >
-              <Plus className="h-4 w-4" /> +1 Coin
-            </button>
-          </div>
-        </div>
-
-        {/* Box 2: Science & Comms */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3.5">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-display text-sm font-bold text-violet-300">
-                <FlaskConical className="h-4 w-4" /> 2. Science
-              </span>
-              <span className="paper-badge bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">
-                {coins.sci * 10}% (${Math.round(computed.budgetScienceUsd / 1e6)}M)
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-300">
-              Pays for instruments and the radio.
-            </p>
-
-            <div className="my-3 flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2">
-              {Array.from({ length: coins.sci }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink-black bg-amber-400 font-mono text-xs font-extrabold text-ink-black shadow-paper-sm"
-                >
-                  $
+                <div className="font-mono text-sm font-bold tabular-nums" style={{ color }}>
+                  {key === "ufe" ? `${computed.ufeReservePct}%` : `$${Math.round(usdOf(key) / 1e6)}M`}
                 </div>
-              ))}
-              {coins.sci === 0 && (
-                <span className="text-xs italic text-slate-500">0 coins allocated</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={isLocked || coins.sci <= 0}
-              onClick={() => handleAdjustCoin("sci", -1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-slate-800 py-2 text-sm text-white"
-            >
-              <Minus className="h-4 w-4" /> -1 Coin
-            </button>
-            <span className="font-mono text-lg font-extrabold text-amber-300">{coins.sci}</span>
-            <button
-              type="button"
-              disabled={isLocked || coins.sci >= TOTAL_COINS}
-              onClick={() => handleAdjustCoin("sci", 1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-violet-400 py-2 text-sm text-ink-black"
-            >
-              <Plus className="h-4 w-4" /> +1 Coin
-            </button>
-          </div>
-        </div>
-
-        {/* Box 3: Emergency Vault (UFE) + Speedometer Gauge */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3.5">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-display text-sm font-bold text-amber-300">
-                <Gauge className="h-4 w-4" /> 3. Safety vault
-              </span>
-              <span className={`paper-badge px-2 py-0.5 text-xs ${ufeStatus.bg} ${ufeStatus.color}`}>
-                {computed.ufeReservePct}% Reserve
-              </span>
-            </div>
-
-            {/* Speedometer Gauge */}
-            <div className="my-2 flex flex-col items-center rounded-xl border-2 border-ink-black bg-slate-950/90 p-2">
-              <svg viewBox="0 0 160 88" className="h-20 w-40">
-                {/* Red / Yellow / Green Arcs */}
-                <path
-                  d="M 20 76 A 60 60 0 0 1 56 22"
-                  fill="none"
-                  stroke="#EF4444"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M 58 21 A 60 60 0 0 1 102 21"
-                  fill="none"
-                  stroke="#F59E0B"
-                  strokeWidth="12"
-                />
-                <path
-                  d="M 104 22 A 60 60 0 0 1 140 76"
-                  fill="none"
-                  stroke="#22C55E"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                />
-                {/* Needle */}
-                <g transform={`translate(80,76) rotate(${needleDeg})`}>
-                  <line
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="-48"
-                    stroke="#F8FAFC"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="0" cy="0" r="6" fill="#F59E0B" stroke="#0F172A" strokeWidth="2" />
-                </g>
-                <text
-                  x="80"
-                  y="70"
-                  textAnchor="middle"
-                  className="fill-white font-mono text-[11px] font-bold"
-                >
-                  UFE {computed.ufeReservePct}%
-                </text>
-              </svg>
-              <span className={`font-mono text-[11px] font-bold ${ufeStatus.color}`}>
-                {ufeStatus.label}
-              </span>
-            </div>
-
-            <div className="my-2 flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-1.5">
-              {Array.from({ length: coins.ufe }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink-black bg-emerald-400 font-mono text-xs font-extrabold text-ink-black"
-                >
-                  $
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={isLocked || coins.ufe <= 0}
-              onClick={() => handleAdjustCoin("ufe", -1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-slate-800 py-2 text-sm text-white"
-            >
-              <Minus className="h-4 w-4" /> -1 Coin
-            </button>
-            <span className="font-mono text-lg font-extrabold text-emerald-300">{coins.ufe}</span>
-            <button
-              type="button"
-              disabled={isLocked || coins.ufe >= TOTAL_COINS}
-              onClick={() => handleAdjustCoin("ufe", 1)}
-              className="paper-btn flex flex-1 items-center justify-center gap-1 bg-emerald-400 py-2 text-sm text-ink-black"
-            >
-              <Plus className="h-4 w-4" /> +1 Coin
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Surprise Push-Your-Luck Engineering Requests (triggered at <= 20s and <= 12s) */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {SURPRISE_REQUESTS.map((req) => {
-          const isVisible = timeLeftSec <= req.triggerSec;
-          const status = cardDecisions[req.id];
-          if (!isVisible) {
-            return (
-              <div
-                key={req.id}
-                className="flex items-center justify-between rounded-xl border-2 border-dashed border-slate-700 bg-slate-900/50 px-4 py-3 text-xs text-slate-400"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-400" />
-                  Request at <b>{req.triggerSec}s</b>
-                </span>
-                <span className="font-mono">STANDBY</span>
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={req.id}
-              className="paper-card border-amber-400 bg-amber-950/30 p-3 text-xs text-slate-100"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="font-mono text-[10px] font-bold uppercase text-amber-300">
-                    {req.department}
-                  </span>
-                  <h4 className="font-display text-sm font-bold text-white">{req.title}</h4>
-                </div>
-                {status !== "pending" && (
-                  <span
-                    className={`paper-badge px-2 py-0.5 text-[10px] ${
-                      status === "approved"
-                        ? "bg-emerald-400 text-ink-black"
-                        : "bg-slate-700 text-slate-200"
-                    }`}
+                <div className="hidden text-center text-[10px] text-slate-400 sm:block">{hint}</div>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    aria-label={`Remove a coin from ${label}`}
+                    disabled={isLocked || coins[key] <= 0}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      handleAdjustCoin(key, -1);
+                    }}
+                    className="paper-btn flex h-9 w-9 items-center justify-center bg-space-ink text-paper-cream"
                   >
-                    {status.toUpperCase()}
-                  </span>
-                )}
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Add a coin to ${label}`}
+                    disabled={isLocked || coins[key] >= TOTAL_COINS}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      handleAdjustCoin(key, 1);
+                    }}
+                    className="paper-btn flex h-9 w-9 items-center justify-center text-ink-black"
+                    style={{ backgroundColor: color }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              <p className="mt-1 text-slate-300">{req.description}</p>
-              <div className="mt-2.5 flex gap-2">
-                <button
-                  type="button"
-                  disabled={isLocked || status !== "pending"}
-                  onClick={() => handleDecision(req.id, "approved")}
-                  className="paper-btn flex flex-1 items-center justify-center gap-1 bg-amber-400 py-1.5 text-xs text-ink-black"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Approve from Vault (-{req.ufeDrainPct}%
-                  UFE)
-                </button>
-                <button
-                  type="button"
-                  disabled={isLocked || status !== "pending"}
-                  onClick={() => handleDecision(req.id, "rejected")}
-                  className="paper-btn flex flex-1 items-center justify-center gap-1 bg-slate-800 py-1.5 text-xs text-slate-200"
-                >
-                  <XCircle className="h-3.5 w-3.5" /> Reject Request
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
 
-      {/* Confirm Footer */}
-      <div className="paper-card flex flex-wrap items-center justify-between gap-3 bg-slate-900/95 p-3">
-        <div className="flex items-center gap-2 text-xs text-slate-300">
-          {computed.ufeReservePct < 20 ? (
-            <ShieldAlert className="h-4 w-4 text-rose-400" />
-          ) : (
-            <Coins className="h-4 w-4 text-amber-300" />
-          )}
-          <span>
-            Left for rocket:{" "}
-            <b className="font-mono text-emerald-300">
-              ${Math.round((totalBudgetUsd - computed.subsystemsCostUsd) / 1e6)}M
-            </b>{" "}
-            · Weight:{" "}
-            <b className="font-mono text-cyan-300">
-              {Math.round(liveMetrics.estimated_wet_mass_kg)} kg
-            </b>
-          </span>
         </div>
-
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={() => onSubmitTake(buildPayload())}
-          className="paper-btn bg-status-ok px-6 py-2.5 text-sm text-ink-black"
-        >
-          {isLocked ? "LOCKED ✓" : "LOCK BUDGET"}
-        </button>
-      </div>
-    </div>
+      }
+      panel={
+        <>
+          {/* Request inbox: requests arrive one after another (no timer) */}
+          <AnimatePresence mode="wait">
+            {pendingRequest && (
+              <motion.div
+                key={pendingRequest.id}
+                initial={{ x: 40, opacity: 0, rotate: 3 }}
+                animate={{ x: 0, opacity: 1, rotate: 0 }}
+                exit={{ x: -40, opacity: 0 }}
+                className="rounded-xl border-[3px] border-ink-black bg-paper-cream p-3 text-ink-black shadow-paper"
+              >
+                <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase text-amber-700">
+                  <Sparkles className="h-3.5 w-3.5" /> {pendingRequest.department} asks
+                </div>
+                <div className="font-display text-base font-bold leading-tight">{pendingRequest.title}</div>
+                <p className="mt-1 text-xs text-slate-700">{pendingRequest.description}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => {
+                      soundEngine.playComplete();
+                      handleDecision(pendingRequest.id, "approved");
+                    }}
+                    className="paper-btn flex items-center justify-center gap-1 bg-status-ok py-1.5 text-sm text-ink-black"
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Approve
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      handleDecision(pendingRequest.id, "rejected");
+                    }}
+                    className="paper-btn flex items-center justify-center gap-1 bg-slate-300 py-1.5 text-sm text-ink-black"
+                  >
+                    <XCircle className="h-4 w-4" /> Reject
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <GoalList goals={goals} />
+          <PanelCard title="Live">
+            <div className="space-y-2">
+              <Readout
+                label="Safety vault"
+                value={`${computed.ufeReservePct}%`}
+                pct={(computed.ufeReservePct / (recommendedUfe * 2)) * 100}
+                tone={computed.ufeReservePct >= recommendedUfe ? "ok" : computed.ufeReservePct > 0 ? "warn" : "bad"}
+              />
+              <Readout label="Fuel cell chance" value={`${computed.h2ProbPct}%`} pct={computed.h2ProbPct} tone="info" />
+              <Readout
+                label="Left for the rocket"
+                value={`$${Math.round(leftForRocketUsd / 1e6)}M`}
+                tone={leftForRocketUsd > 0 ? "ok" : "bad"}
+              />
+            </div>
+          </PanelCard>
+          {computed.ufeReservePct < recommendedUfe && (
+            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-warn px-2.5 py-1.5 text-xs font-bold text-ink-black">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Thin reserve: crises will hurt more.
+            </div>
+          )}
+          <LockButton
+            isLocked={isLocked}
+            ready={goals.every((g) => g.done)}
+            label="Lock budget"
+            onLock={() => onSubmitTake(buildPayload())}
+          />
+        </>
+      }
+    />
   );
 }
 

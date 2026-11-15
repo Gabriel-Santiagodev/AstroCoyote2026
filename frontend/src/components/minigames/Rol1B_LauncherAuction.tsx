@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 interface CatalogLauncher {
   id: string;
@@ -172,7 +175,8 @@ export function Rol1B_LauncherAuction({
   }, [wetMassKg]);
 
   const [selectedId, setSelectedId] = useState<string>(initialLauncherId);
-  const [fairingOk, setFairingOk] = useState<boolean>(true);
+  // Starts open: sealing the nose cone is a player action (hold-to-seal).
+  const [fairingOk, setFairingOk] = useState<boolean>(false);
   const [showAllRideshare, setShowAllRideshare] = useState<boolean>(false);
 
   // VAB Blueprint interactive inspection controls from Ismael's VAB HTML
@@ -228,8 +232,8 @@ export function Rol1B_LauncherAuction({
     (launcher: CatalogLauncher) => {
       if (isLocked) return;
       setSelectedId(launcher.id);
-      setFairingOk(true);
-      emitSelection(launcher, true);
+      setFairingOk(false);
+      emitSelection(launcher, false);
     },
     [isLocked, emitSelection]
   );
@@ -264,368 +268,197 @@ export function Rol1B_LauncherAuction({
   const selectedAffordable = selectedLauncher.cost_usd <= remainingBudgetUsd;
   const massMarginKg = selectedLauncher.max_mass_kg - wetMassKg;
 
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): VAB hangar with the stacked rocket, a rocket lineup,
+  // test ignition and a hold-to-seal nose cone. Model above unchanged except that the
+  // nose cone starts open (sealing it is now a player action).
+  // ---------------------------------------------------------------------------
+  const [holdPct, setHoldPct] = useState(0);
+  const holdTimer = useRef<number | null>(null);
+  const stopHold = () => {
+    if (holdTimer.current !== null) window.clearInterval(holdTimer.current);
+    holdTimer.current = null;
+  };
+  useEffect(() => stopHold, []);
+  const startHold = () => {
+    if (isLocked || fairingOk) return;
+    stopHold();
+    let pct = 0;
+    holdTimer.current = window.setInterval(() => {
+      pct += 10;
+      setHoldPct(pct);
+      if (pct >= 100) {
+        stopHold();
+        soundEngine.playComplete();
+        setFairingOk(true);
+        emitSelection(selectedLauncher, true);
+      }
+    }, 70);
+  };
+  const cancelHold = () => {
+    stopHold();
+    if (!fairingOk) setHoldPct(0);
+  };
+  const testIgnition = () => {
+    if (isLaunchingPreview) return;
+    soundEngine.playSceneJump();
+    setIsLaunchingPreview(true);
+    window.setTimeout(() => setIsLaunchingPreview(false), 1400);
+  };
+
+  const goals: Goal[] = [
+    { label: "Rocket strong enough", done: selectedFits },
+    { label: "Inside the budget", done: selectedAffordable },
+    { label: "Nose cone sealed", done: fairingOk },
+  ];
+  const liftPct = (wetMassKg / Math.max(1, selectedLauncher.max_mass_kg)) * 100;
+  const costPct = (selectedLauncher.cost_usd / Math.max(1, remainingBudgetUsd)) * 100;
+
   return (
-    <div className="space-y-3 text-slate-100">
-      {/* Top Status Banner: Live Wet Mass & Remaining Budget */}
-      <div className="paper-card flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink-black bg-role-finance font-display text-sm font-bold text-ink-black">
-            1B
-          </div>
-          <div>
-            <h3 className="font-display text-base font-bold text-white">
-              Pick the rocket
-            </h3>
-            <p className="text-xs text-slate-300">
-              Strong enough + cheap enough. Then seal the nose.
-            </p>
-          </div>
-        </div>
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col">
+          <PlayBackdrop tint="#F97316" />
+          {/* yellow gantry crane */}
+          <div className="pointer-events-none absolute inset-x-6 top-2 h-4 rounded border-[3px] border-ink-black bg-status-warn" aria-hidden="true" />
+          <div className="pointer-events-none absolute left-8 top-2 h-[70%] w-5 border-[3px] border-ink-black bg-status-warn" aria-hidden="true"
+            style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent 0 8px, rgba(15,23,42,0.6) 8px 11px)" }} />
 
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <div className="flex items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <Scale className="h-4 w-4 text-cyan-400" />
-            <span className="text-slate-400">Team Wet Mass:</span>
-            <strong className="text-sm text-cyan-300">{wetMassKg.toLocaleString()} kg</strong>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950 px-3 py-1.5">
-            <Coins className="h-4 w-4 text-amber-400" />
-            <span className="text-slate-400">Available Budget:</span>
-            <strong className="text-sm text-emerald-300">
-              ${(remainingBudgetUsd / 1e6).toFixed(1)}M
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Left VAB Blueprint Visualizer (Ismael's VAB HTML) + Right Launcher Cards */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* Left Column: Ismael's VAB Blueprint Rocket Stack with real extracted PNGs */}
-        <div className="paper-card blueprint-grid relative flex flex-col justify-between overflow-hidden bg-[#161c28] p-3 lg:col-span-5">
-          <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
-            <span className="font-display font-bold text-amber-300">
-              VAB BLUEPRINT HANGAR · {selectedLauncher.name}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setShowCgMarker((v) => !v)}
-                className={`rounded border px-2 py-0.5 font-mono text-[10px] font-bold ${
-                  showCgMarker
-                    ? "border-amber-400 bg-amber-400/20 text-amber-200"
-                    : "border-slate-700 bg-slate-800 text-slate-400"
-                }`}
-              >
-                <Eye className="mr-1 inline h-3 w-3" />
-                CG Marker
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLaunchingPreview(true);
-                  window.setTimeout(() => setIsLaunchingPreview(false), 1800);
-                }}
-                className="rounded border border-cyan-400 bg-cyan-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-200"
-              >
-                <Flame className="mr-1 inline h-3 w-3" />
-                Test Ignition
-              </button>
-            </div>
-          </div>
-
-          {/* Fairing Nosecone Style Selector (Ismael's 3 VAB fairings) */}
-          <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px]">
-            <span className=" font-mono text-slate-400">Fairing Nose:</span>
-            {(
-              [
-                ["preset", "Default"],
-                ["ojiva_puntiaguda", "Pointed Ogive"],
-                ["ojiva_redondeada", "Rounded Fairing"],
-                ["capsula_dragon", "Dragon Capsule"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                disabled={isLocked}
-                onClick={() => setCustomCofia(id)}
-                className={`rounded border px-1.5 py-0.5 font-bold ${
-                  customCofia === id
-                    ? "border-amber-400 bg-amber-400 text-ink-black"
-                    : "border-slate-700 bg-slate-900 text-slate-300"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* VAB Vertical Rocket Stack using Ismael's extracted PNGs */}
-          <div className="relative my-2 flex min-h-[300px] flex-col items-center justify-end overflow-hidden rounded-xl border-2 border-slate-700/80 bg-gradient-to-b from-[#131924] via-[#1c2536] to-[#263147] p-3">
-            {/* Hangar gantry lines */}
-            <div className="pointer-events-none absolute inset-x-6 top-3 flex justify-between text-[10px] font-mono text-slate-500">
-              <span>GANTRY TOWER A</span>
-              <span>PAYLOAD: {roverPayloadTons} t</span>
-            </div>
-
-            {/* Rocket Assembly Stack */}
-            <div
-              className={`relative flex flex-col items-center transition-transform duration-500 ${
-                isLaunchingPreview ? "-translate-y-12 scale-105" : ""
-              }`}
-              style={{ transform: `rotateY(${yawDeg}deg)` }}
+          <div className="relative flex min-h-0 flex-1 items-end justify-center gap-6 px-3 pt-8">
+            {/* the stacked rocket (VAB assets) */}
+            <motion.div
+              className="relative flex flex-col items-center"
+              animate={isLaunchingPreview ? { y: [0, -6, 4, -10, 0] } : { y: 0 }}
+              transition={{ duration: 1.2 }}
             >
-              {/* Nosecone / Fairing */}
-              <div className="relative flex flex-col items-center">
-                <img
-                  src={`/assets/vab/${activeCofia}.png`}
-                  alt="Rocket Fairing"
-                  className={`h-20 w-14 object-contain transition ${
-                    fairingOk ? "opacity-100" : "translate-x-2 -rotate-12 opacity-60"
-                  }`}
-                />
-                {vabPreset.paracaidas && (
-                  <img
-                    src="/assets/vab/paracaidas_modulo.png"
-                    alt="Recovery Parachute"
-                    title="Radial Recovery Parachute Pack"
-                    className="absolute -right-4 top-10 h-6 w-6 object-contain"
-                  />
-                )}
-              </div>
-
-              {/* Avionics Ring */}
-              <img
-                src={`/assets/vab/${vabPreset.avionica}.png`}
-                alt="Avionics Module"
-                className="-mt-1 h-12 w-12 object-contain"
+              <motion.img
+                src={`/assets/vab/${activeCofia}.png`}
+                alt="Nose cone"
+                className="h-16 w-12 object-contain sm:h-20 sm:w-14"
+                animate={fairingOk ? { y: 0, rotate: 0, opacity: 1 } : { y: -10, rotate: -14, x: 10, opacity: 0.75 }}
               />
-
-              {/* Interstage */}
-              <img
-                src={`/assets/vab/${vabPreset.interetapa}.png`}
-                alt="Interstage"
-                className="-mt-1 h-10 w-12 object-contain"
-              />
-
-              {/* Core Stage Tank + Optional Symmetric Side Boosters */}
+              <img src={`/assets/vab/${vabPreset.avionica}.png`} alt="Avionics" className="-mt-1 h-10 w-10 object-contain sm:h-12 sm:w-12" />
+              <img src={`/assets/vab/${vabPreset.interetapa}.png`} alt="Interstage" className="-mt-1 h-8 w-10 object-contain sm:h-10 sm:w-12" />
               <div className="relative flex items-end justify-center">
                 {vabPreset.boosters && (
-                  <img
-                    src={`/assets/vab/${vabPreset.boosters}.png`}
-                    alt="Left Booster"
-                    className="-mr-2 h-28 w-8 object-contain"
-                  />
+                  <img src={`/assets/vab/${vabPreset.boosters}.png`} alt="" className="-mr-2 h-24 w-7 object-contain sm:h-28 sm:w-8" />
                 )}
-                <img
-                  src={`/assets/vab/${vabPreset.tanque1}.png`}
-                  alt="Main Propellant Tank"
-                  className="-mt-1 h-32 w-12 object-fill"
-                />
+                <img src={`/assets/vab/${vabPreset.tanque1}.png`} alt="Core tank" className="-mt-1 h-28 w-10 object-fill sm:h-32 sm:w-12" />
                 {vabPreset.boosters && (
-                  <img
-                    src={`/assets/vab/${vabPreset.boosters}.png`}
-                    alt="Right Booster"
-                    className="-ml-2 h-28 w-8 scale-x-[-1] object-contain"
+                  <img src={`/assets/vab/${vabPreset.boosters}.png`} alt="" className="-ml-2 h-24 w-7 scale-x-[-1] object-contain sm:h-28 sm:w-8" />
+                )}
+              </div>
+              <img src={`/assets/vab/${vabPreset.motor1}.png`} alt="Engines" className="-mt-1 h-10 w-12 object-contain sm:h-12 sm:w-14" />
+              <AnimatePresence>
+                {isLaunchingPreview && (
+                  <motion.div
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: [0.6, 1.2, 0.9, 1.1], opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, repeat: 2 }}
+                    style={{ transformOrigin: "top" }}
+                    className="h-12 w-8 rounded-b-full border-2 border-ink-black bg-gradient-to-b from-yellow-300 via-orange-500 to-transparent"
                   />
                 )}
+              </AnimatePresence>
+              <div className="mt-1 h-3 w-40 rounded border-2 border-ink-black bg-slate-700" />
+            </motion.div>
 
-                {/* Center of Gravity (CG) 3D Marker from Ismael's VAB */}
-                {showCgMarker && (
-                  <div
-                    className="pointer-events-none absolute -left-16 flex items-center gap-1 rounded bg-amber-400 px-1.5 py-0.5 font-mono text-[9px] font-extrabold text-ink-black shadow"
-                    style={{ bottom: `${Math.round(vabPreset.cgFrac * 100)}%` }}
-                  >
-                    <span>CG {(vabPreset.cgFrac * 100).toFixed(0)}%</span>
-                    <span className="h-2 w-2 rounded-full bg-ink-black" />
-                  </div>
-                )}
-              </div>
-
-              {/* First Stage Main Engine */}
-              <img
-                src={`/assets/vab/${vabPreset.motor1}.png`}
-                alt="Main Engine"
-                className="-mt-1 h-12 w-14 object-contain"
-              />
-
-              {/* Ignition exhaust flame */}
-              {isLaunchingPreview && (
-                <div className="h-10 w-8 animate-pulse rounded-b-full bg-gradient-to-b from-amber-300 via-orange-500 to-transparent blur-[1px]" />
-              )}
-            </div>
-
-            {/* VAB Launch Mount */}
-            <div className="mt-1 flex w-44 items-center justify-between rounded bg-slate-950 px-3 py-1 font-mono text-[9px] font-bold text-slate-400">
-              <span className="h-2 w-3 bg-amber-400" />
-              <span>PAD 39A HOLD-DOWN CLAMPS</span>
-              <span className="h-2 w-3 bg-amber-400" />
-            </div>
-          </div>
-
-          {/* 360 Rotation Slider + VAB Telemetry */}
-          <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2 text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1 font-mono text-[11px] text-slate-300">
-                <RotateCw className="h-3.5 w-3.5 text-cyan-400" /> Inspect Yaw: {yawDeg}°
-              </span>
-              <input
-                type="range"
-                min={-45}
-                max={45}
-                value={yawDeg}
-                onChange={(e) => setYawDeg(Number(e.target.value))}
-                className="h-1.5 w-32 accent-amber-400"
+            {/* lift gauge next to the rocket */}
+            <div className="mb-4 flex h-48 w-8 flex-col-reverse overflow-hidden rounded-full border-[3px] border-ink-black bg-space-ink" title="Ship weight vs. rocket lift">
+              <motion.div
+                className={selectedFits ? "bg-status-ok" : "bg-status-crit"}
+                initial={false}
+                animate={{ height: `${Math.min(100, liftPct)}%` }}
               />
             </div>
-            <div className="flex items-center justify-between font-mono text-[11px] text-slate-300">
-              <span>{vabPreset.stagesLabel}</span>
-              <span className="text-amber-300">{vabPreset.thrustKn.toLocaleString()} kN</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: NASA Launcher Auction Cards + Fairing Seal */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3 lg:col-span-7">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="font-display text-sm font-bold text-white">
-                Rockets ({visibleLaunchers.length})
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowAllRideshare((v) => !v)}
-                className="rounded-lg border-2 border-ink-black bg-slate-800 px-2.5 py-1 font-mono text-xs font-bold text-amber-300 hover:bg-slate-700"
-              >
-                {showAllRideshare ? "Show 5 Main Vehicles" : "Show All Rideshare Plates (8)"}
-              </button>
-            </div>
-
-            <div className="grid max-h-[310px] grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-              {visibleLaunchers.map((launcher) => {
-                const fitsMass = wetMassKg <= launcher.max_mass_kg;
-                const excessKg = wetMassKg - launcher.max_mass_kg;
-                const fitsBudget = launcher.cost_usd <= remainingBudgetUsd;
-                const isSelected = launcher.id === selectedLauncher.id;
-
-                return (
-                  <button
-                    key={launcher.id}
-                    type="button"
-                    disabled={isLocked}
-                    onClick={() => handleSelectLauncher(launcher)}
-                    className={`flex flex-col justify-between rounded-xl border-2 p-2.5 text-left transition ${
-                      isSelected
-                        ? "border-amber-400 bg-amber-400/15 shadow-paper-sm"
-                        : "border-ink-black bg-slate-800/90 hover:border-slate-500"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-1">
-                        <span className="font-display text-sm font-bold text-white">
-                          {launcher.name}
-                        </span>
-                        {isSelected && (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-300" />
-                        )}
-                      </div>
-                      <p className="mt-0.5 font-mono text-[11px] text-slate-300">
-                        Lifts <b>{launcher.max_mass_kg.toLocaleString()} kg</b>
-                      </p>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
-                      <span
-                        className={`rounded px-2 py-0.5 font-mono text-[10px] font-extrabold ${
-                          fitsMass
-                            ? "bg-emerald-500/25 text-emerald-300"
-                            : "bg-rose-500/30 text-rose-200"
-                        }`}
-                      >
-                        {fitsMass
-                          ? `PAYLOAD FITS! (-${(launcher.max_mass_kg - wetMassKg).toLocaleString()} kg)`
-                          : `TOO HEAVY (+${excessKg.toLocaleString()} kg)`}
-                      </span>
-
-                      <span
-                        className={`rounded px-2 py-0.5 font-mono text-[10px] font-extrabold ${
-                          fitsBudget
-                            ? "bg-cyan-500/20 text-cyan-200"
-                            : "bg-rose-500/30 text-rose-200"
-                        }`}
-                      >
-                        ${(launcher.cost_usd / 1e6).toFixed(1)}M{" "}
-                        {fitsBudget ? "OK" : "OVER CAP"}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
-          {/* Fairing Confirmation Toggle & Final Submit */}
-          <div className="mt-3 space-y-2.5 border-t border-slate-700 pt-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2.5">
-              <div className="flex items-center gap-2">
-                <PackageCheck
-                  className={`h-5 w-5 ${fairingOk ? "text-emerald-400" : "text-rose-400"}`}
-                />
-                <div>
-                  <span className="block font-display text-xs font-bold text-white">
-                    Seal the nose cone
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    {selectedFits
-                      ? `+${massMarginKg.toLocaleString()} kg spare`
-                      : `${Math.abs(massMarginKg).toLocaleString()} kg too heavy`}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={handleToggleFairing}
-                className={`paper-btn px-3 py-1.5 text-xs ${
-                  fairingOk
-                    ? "bg-emerald-400 text-ink-black"
-                    : "bg-rose-500 text-white"
-                }`}
-              >
-                <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />
-                {fairingOk ? "Sealed ✓" : "Open!"}
-              </button>
-            </div>
-
-            {!selectedFits || !selectedAffordable ? (
-              <div className="flex items-center gap-2 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-200">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
-                <span>
-                  {!selectedFits
-                    ? `Too heavy for ${selectedLauncher.name}. Pick a bigger rocket.`
-                    : `${selectedLauncher.name} costs too much.`}
-                </span>
-              </div>
-            ) : null}
-
+          <div className="relative flex flex-wrap items-center justify-center gap-2 px-3 pb-2">
+            <button type="button" onClick={testIgnition} disabled={isLocked}
+              className="paper-btn inline-flex items-center gap-1.5 bg-space-ink px-3 py-1.5 text-xs text-paper-cream">
+              <Flame className="h-4 w-4 text-orange-400" /> Test ignition
+            </button>
             <button
               type="button"
-              disabled={isLocked}
-              onClick={() => onSubmitTake(buildPayload())}
-              className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-2.5 text-sm text-ink-black"
+              disabled={isLocked || fairingOk}
+              onPointerDown={startHold}
+              onPointerUp={cancelHold}
+              onPointerLeave={cancelHold}
+              onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") startHold(); }}
+              onKeyUp={cancelHold}
+              className={`paper-btn relative inline-flex items-center gap-1.5 overflow-hidden px-3 py-1.5 text-xs text-ink-black ${fairingOk ? "bg-status-ok" : "bg-paper-cream"}`}
             >
-              <Rocket className="h-4 w-4" />
-              {isLocked
-                ? "LOCKED ✓"
-                : `LOCK ${selectedLauncher.name.toUpperCase()} ($${(
-                    selectedLauncher.cost_usd / 1e6
-                  ).toFixed(1)}M)`}
+              <span className="absolute inset-y-0 left-0 bg-status-ok/60" style={{ width: `${fairingOk ? 100 : holdPct}%` }} />
+              <PackageCheck className="relative h-4 w-4" />
+              <span className="relative">{fairingOk ? "Nose sealed" : "Hold to seal nose"}</span>
             </button>
           </div>
+
+          {/* rocket lineup */}
+          <div className="relative grid grid-cols-5 gap-1.5 border-t-[3px] border-ink-black bg-slate-900/80 p-2">
+            {visibleLaunchers.slice(0, 5).map((launcher) => {
+              const fits = wetMassKg <= launcher.max_mass_kg;
+              const affordable = launcher.cost_usd <= remainingBudgetUsd;
+              const active = launcher.id === selectedLauncher.id;
+              return (
+                <button
+                  key={launcher.id}
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    soundEngine.playClick();
+                    handleSelectLauncher(launcher);
+                    setHoldPct(0);
+                  }}
+                  className={`min-w-0 rounded-lg border-[3px] px-1 py-1.5 text-center transition ${
+                    active ? "border-paper-cream bg-blueprint-navy shadow-paper-sm" : "border-ink-black bg-space-ink hover:bg-blueprint-navy"
+                  }`}
+                >
+                  <Rocket className={`mx-auto h-5 w-5 ${fits ? "text-status-ok" : "text-status-crit"}`} />
+                  <div className="truncate font-display text-[11px] font-bold leading-tight">{launcher.name.replace("SpaceX ", "")}</div>
+                  <div className={`font-mono text-[10px] font-bold ${affordable ? "text-amber-300" : "text-status-crit"}`}>
+                    ${(launcher.cost_usd / 1e6).toFixed(0)}M
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title={selectedLauncher.name}>
+            <div className="space-y-2">
+              <Readout
+                label="Ship weight / lift"
+                value={`${wetMassKg.toLocaleString()} / ${selectedLauncher.max_mass_kg.toLocaleString()} kg`}
+                pct={liftPct}
+                tone={selectedFits ? (liftPct > 90 ? "warn" : "ok") : "bad"}
+              />
+              <Readout
+                label="Cost / money left"
+                value={`$${(selectedLauncher.cost_usd / 1e6).toFixed(1)}M / $${Math.round(remainingBudgetUsd / 1e6)}M`}
+                pct={costPct}
+                tone={selectedAffordable ? "ok" : "bad"}
+              />
+              <Readout
+                label="Spare lift"
+                value={`${massMarginKg >= 0 ? "+" : ""}${massMarginKg.toLocaleString()} kg`}
+                tone={massMarginKg >= 0 ? "ok" : "bad"}
+              />
+            </div>
+          </PanelCard>
+          {!selectedFits && (
+            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-2.5 py-1.5 text-xs font-bold text-ink-black">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Too heavy: liftoff will fail.
+            </div>
+          )}
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock rocket" onLock={() => onSubmitTake(buildPayload())} />
+        </>
+      }
+    />
   );
 }
 

@@ -82,3 +82,43 @@ def test_multiplayer_lock_takes_advance_waves_and_live_mutation() -> None:
         gm._cancel_timer(pin)
 
     asyncio.run(scenario())
+
+
+def test_timed_out_flight_round_still_advances_with_feedback_pause() -> None:
+    """Regression: a timed-out round must not cancel itself during the feedback pause."""
+
+    async def scenario() -> None:
+        sio = FakeSio()
+        gm = GameManager(
+            sio,  # type: ignore[arg-type]
+            wave_duration_sec=0.05,
+            sync_delay_sec=0.0,
+            flight_round_sec=0.05,
+            flight_feedback_sec=0.05,
+            station_grace_sec=0.0,
+            launch_transition_sec=0.0,
+        )
+        await gm.handle_create_room("s1", {"mode": "single", "host_name": "Ruben"})
+        pin = sio.last("sala_creada")["pin"]
+        await gm.handle_start_game("s1", {"pin": pin})
+        await asyncio.sleep(1.5)
+        assert sio.count("pregunta_vuelo_60s") == 4
+        assert sio.count("resultado_turno_vuelo") == 4
+        assert sio.count("reporte_final_mision") == 1
+
+    asyncio.run(scenario())
+
+
+def test_default_manager_is_untimed() -> None:
+    """Untimed play (docs/03, 2026-11-15): stations and flight rounds announce no clock."""
+
+    async def scenario() -> None:
+        sio = FakeSio()
+        gm = GameManager(sio)  # type: ignore[arg-type]
+        await gm.handle_create_room("s1", {"mode": "single", "host_name": "Ruben"})
+        pin = sio.last("sala_creada")["pin"]
+        await gm.handle_start_game("s1", {"pin": pin})
+        assert sio.last("iniciar_oleada_1")["duration_sec"] == 0
+        gm._cancel_timer(pin)
+
+    asyncio.run(scenario())

@@ -392,6 +392,15 @@ Lo más nuevo va arriba.
 
 ---
 
+## 15 de noviembre de 2026 · Juego sin límite de tiempo (Leonardo)
+
+| Tema | Decisión vigente | Qué reemplaza |
+|---|---|---|
+| **Sin cronómetro en estaciones ni en el vuelo** `[DECIDIDO]` | Por pedido explícito de Leonardo tras la prueba de juego: cada estación abre con una **tarjeta de briefing** (por qué importa, metas, controles) y el jugador bloquea su toma cuando quiere (`duration_sec = 0` en `iniciar_oleada_*`). El vuelo es de **4 capítulos por turnos sin reloj** (`pregunta_vuelo_60s.duration_sec = 0`); la bitácora muestra el resultado 4 s antes del siguiente capítulo. El backend conserva un **respaldo AFK oculto** (`wave_backstop_sec = 150`, `flight_backstop_sec = 90` en `backend/game_manager.py`) para que un jugador inactivo no bloquee la sala. Partida objetivo: 3–5 min. | Reemplaza la modalidad de 30 s de A5 y el reloj de 4 × 15 s del vuelo. Se mantienen la toma única (1 toma), el árbol de 4 nodos y la degradación causal. |
+| **Sin pantallas de carga intermedias** `[DECIDIDO]` | Se eliminan los loaders de arranque, lobby → estación 1, sincronización, plataforma y reporte; en su lugar hay cinemáticas cortas en la pista (caminata del escuadrón, "Sharing your choices", despegue). | Reemplaza las `MissionLoadingScreen` intermedias. |
+
+---
+
 ## 14 de noviembre de 2026 (15:00 h) · Pivote Oficial del Hackathon (24 horas)
 
 Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo la coordinación de **Rubén** tras el traspaso de Roberto, el equipo acuerda el pivote completo a un videojuego **100 % software web**, consolidando los documentos maestros de Leonardo (`arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` y `arquitectura_y_dependencias_nasa_space_challenge.md`).
@@ -516,7 +525,7 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 ```
 
 - Al empezar cada oleada, el personaje estilo *Paper Mario × Among Us* **camina automáticamente** con animación de balanceo 2.5D hasta la estación correspondiente, abre la compuerta y lanza el minijuego en `MinigameShell`.
-- **Respiro inicial `READY` (3 s, 2026-11-15):** al abrirse cada estación, el minijuego ya es visible y explorable pero el reloj de la toma de 30 s (A5) arranca tras una cuenta `3 · 2 · 1` con el nombre de la tarea (`READY_BREATHER_SEC` en `LinearStationTrack.tsx`). El servidor lo cubre con `station_grace_sec = 6.0` en `backend/game_manager.py` (caminata 1.5 s + respiro 3 s + ~1.5 s de red), así nadie pierde su último segundo.
+- **Briefing y sin reloj (2026-11-15):** al abrirse cada estación aparece una tarjeta con *por qué importa*, las metas y los controles (`frontend/src/data/stationBriefings.ts`); el jugador pulsa **Start**, juega sin cronómetro y bloquea cuando quiere. Cada minijuego es una ventana de pantalla completa (`MinigameShell fill` + `components/minigames/kit/GameKit.tsx`: zona de juego + panel de metas, lecturas en vivo y botón de bloqueo) sin desplazamiento de página.
 - **Sincronización en Multiplayer:** Todos los jugadores ven su pista avanzar de forma sincronizada y trabajan en paralelo en sus respectivas consolas de estación.
 - **Concurrencia y afectación en cadena en vivo (`mutacion_en_vivo`):**
   - El HUD superior muestra en todo momento las **barras compartidas de la misión** (*Mass*, *Budget*, *Power*, *Data / Comms*, *UFE Reserve*).
@@ -941,7 +950,7 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 | `iniciar_oleada_2` | `{ "sync_delay_sec": 5, "duration_sec": 30, "consolidated_wave1": dict, "spectral_challenge"?: dict }` | Anima la caminata automática de Estación 1 $\rightarrow$ Estación 2 (5 s) y abre `1B/2B/3B/4B` con las salidas exactas de Oleada 1. |
 | `iniciar_vuelo_60s` | `{ "total_duration_sec": 60, "consolidated_state": dict, "preliminary_gates": dict }` | Cambia de la Pista Lineal a `Flight60sView` (despegue animado del cohete). |
 | `pregunta_vuelo_60s` | `{ "round": 1 \| 2 \| 3 \| 4, "duration_sec": 15, "gate": str, "active_role": RoleType, "active_player_name": str, "question": FlightQuestionNode }` | Muestra la crisis espacial, activa los botones de respuesta solo para el jugador en turno (o único jugador) y corre el cronómetro de 15 s. |
-| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). |
+| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). **Desde el 2026-11-15 `duration_sec = 0` en `iniciar_oleada_1/2` y `pregunta_vuelo_60s` significa *sin reloj*:** el cliente no muestra cuenta atrás y el servidor solo aplica un respaldo AFK oculto. |
 | `reporte_final_mision` | `MissionResolutionOutcome` + `{ "role_contributions": [...], "decision_history": [...] }` | Transiciona a `MissionReportDashboard` mostrando siempre resultado, puntaje (0–1,000), explicación causal y dato real NASA. |
 
 ---

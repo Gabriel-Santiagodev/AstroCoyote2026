@@ -29,7 +29,7 @@ import {
   TIMER_CRIT_SEC,
 } from "../components/MinigameShell";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
-import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
+import { STATION_BRIEFINGS, type StationBriefing } from "../data/stationBriefings";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
 import { soundEngine } from "../components/paper/SoundEngine";
 import nasaCatalog from "../data/nasa_catalog.json";
@@ -56,15 +56,17 @@ import type {
 /** Automatic crewmate walk between two track nodes. */
 export const WALK_DURATION_SEC = 1.5;
 /** Default synchronized transition between Station 1 and Station 2 (`iniciar_oleada_2.sync_delay_sec`). */
-export const SYNC_DELAY_SEC = 5;
+export const SYNC_DELAY_SEC = 2;
 /** UI-only: how long the Launchpad -> 60s Flight loading screen stays up after the walk. */
-export const LAUNCH_LOADING_MS = 2500;
+export const LAUNCH_LOADING_MS = 1500;
 /**
  * "Get ready" breather when a station opens: the minigame is visible and explorable, but the
  * 30 s take clock (docs/03 A5) only starts once this countdown ends. Keeps the 1-shot take
  * while giving players time to read the task. Covered server-side by `station_grace_sec`.
  */
 export const READY_BREATHER_SEC = 3;
+/** Paper wipe between station and hangar: off since 2026-11-15 (briefing card + cutscene captions replace it). */
+const USE_PAPER_WIPE = false;
 /** Phone console breakpoint (STATE.md Fase 5: phones are `< 768px`). */
 export const PHONE_BREAKPOINT_PX = 768;
 /** UI-only refresh rate for loading-screen progress bars. */
@@ -422,6 +424,118 @@ function ReadyBreather({ secondsLeft, task, suit }: { secondsLeft: number; task:
   );
 }
 
+/** Station briefing: why the job matters, what "good" looks like, how to play. */
+function StationBriefingCard({
+  roleId,
+  wave,
+  task,
+  briefing,
+  onStart,
+}: {
+  roleId: RoleType;
+  wave: 1 | 2;
+  task: string;
+  briefing: StationBriefing;
+  onStart: () => void;
+}) {
+  const profile = ROLE_CHARACTER_PROFILE[roleId];
+  return (
+    <motion.div
+      className="absolute inset-0 z-40 flex items-center justify-center bg-space-ink/70 p-3 backdrop-blur-[2px]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Station ${wave} briefing`}
+        className="paper-card-light max-h-full w-full max-w-lg overflow-y-auto p-0"
+        initial={{ scale: 0.9, y: 16, rotate: -1 }}
+        animate={{ scale: 1, y: 0, rotate: 0 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      >
+        <div className="hazard-stripe-bar h-3 border-b-[3px] border-ink-black" />
+        <div className="flex items-center gap-3 p-4 pb-2">
+          <div className="shrink-0 rounded-xl border-[3px] border-ink-black bg-blueprint-navy p-1">
+            <CrewmateAvatar role={roleId} state="cheer" actionEffect="scan" size={64} />
+          </div>
+          <div className="min-w-0">
+            <div className="font-mono text-[11px] font-bold uppercase tracking-widest text-slate-500">
+              Station {wave} · {profile.short}
+            </div>
+            <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{task}</h2>
+          </div>
+        </div>
+        <div className="space-y-3 px-4 pb-4">
+          <p className="text-sm leading-snug text-slate-700">{briefing.why}</p>
+          <ul className="space-y-1.5">
+            {briefing.goals.map((g, i) => (
+              <li key={g} className="flex items-center gap-2 font-display text-sm font-bold">
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 border-ink-black font-mono text-xs"
+                  style={{ backgroundColor: profile.suit }}
+                >
+                  {i + 1}
+                </span>
+                {g}
+              </li>
+            ))}
+          </ul>
+          <p className="rounded-lg border-2 border-dashed border-slate-400 px-3 py-1.5 font-mono text-[11px] text-slate-600">
+            {briefing.controls}
+          </p>
+          <button
+            type="button"
+            onClick={onStart}
+            autoFocus
+            className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-3 text-lg text-ink-black"
+          >
+            Start
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/** Big caption shown over the hangar cutscene between stations; liftoff adds a rising rocket. */
+function CutsceneCaption({ title, subtitle, liftoff }: { title: string; subtitle: string; liftoff: boolean }) {
+  return (
+    <motion.div
+      className="pointer-events-none fixed inset-x-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center px-4"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 1.05 }}
+      transition={{ duration: 0.25 }}
+      role="status"
+    >
+      {liftoff && (
+        <motion.svg
+          viewBox="0 0 60 120"
+          className="mb-2 h-28 w-14"
+          initial={{ y: 60 }}
+          animate={{ y: -220 }}
+          transition={{ duration: 1.6, ease: "easeIn" }}
+          aria-hidden="true"
+        >
+          <path d="M18 30 Q30 -6 42 30 Z" fill="#F8FAFC" stroke="#0F172A" strokeWidth="4" />
+          <rect x="18" y="30" width="24" height="56" fill="#F97316" stroke="#0F172A" strokeWidth="4" />
+          <path d="M18 86 L10 100 L50 100 L42 86 Z" fill="#334155" stroke="#0F172A" strokeWidth="4" />
+          <path d="M22 100 Q30 124 38 100 Z" fill="#FACC15" stroke="#0F172A" strokeWidth="3" />
+        </motion.svg>
+      )}
+      <div className="-rotate-2 rounded-2xl border-4 border-ink-black bg-paper-cream px-6 py-3 text-center text-ink-black shadow-paper-lg">
+        <div className="font-display text-3xl font-bold uppercase sm:text-5xl">{title}</div>
+        <div className="mt-0.5 font-mono text-xs font-bold uppercase tracking-widest text-slate-600 sm:text-sm">
+          {subtitle}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 type TrackPhase =
   | "walk_to_station_1"
   | "station_1"
@@ -522,6 +636,8 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const openedRef = useRef(onStationOpened);
   openedRef.current = onStationOpened;
   const [readyLeft, setReadyLeft] = useState<number | null>(null);
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const activeWaveRef = useRef<1 | 2>(1);
   const stationRef = useRef<HTMLDivElement | null>(null);
   const readyTimer = useRef<number | null>(null);
 
@@ -530,32 +646,19 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     readyTimer.current = null;
   };
 
-  /** Show the station, run the READY breather, then start the take clock. */
+  /** Show the station window with its briefing; the take starts when the player taps Start. */
   const openStation = (n: 1 | 2) => {
     setPhase(n === 1 ? "station_1" : "station_2");
     clearReadyTimer();
-    if (READY_BREATHER_SEC <= 0) {
-      setReadyLeft(null);
-      openedRef.current?.(n);
-      return;
-    }
-    let left = READY_BREATHER_SEC;
-    setReadyLeft(left);
-    // Bring the console into view while the clock is still paused.
-    window.setTimeout(() => stationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
-    soundEngine.playCountdownTick(false);
-    readyTimer.current = window.setInterval(() => {
-      left -= 1;
-      if (left <= 0) {
-        clearReadyTimer();
-        setReadyLeft(null);
-        soundEngine.playComplete();
-        openedRef.current?.(n);
-        return;
-      }
-      setReadyLeft(left);
-      soundEngine.playCountdownTick(false);
-    }, 1000);
+    setReadyLeft(null);
+    setBriefingOpen(true);
+    soundEngine.playSceneJump();
+  };
+
+  const startStation = () => {
+    setBriefingOpen(false);
+    soundEngine.playComplete();
+    openedRef.current?.(activeWaveRef.current);
   };
 
   useEffect(() => clearReadyTimer, []);
@@ -621,6 +724,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const avatarNode = PHASE_NODE[phase];
   const showMinigame = phase === "station_1" || phase === "station_2";
   const activeWave: 1 | 2 = phase === "station_2" || phase === "sync" ? 2 : wave;
+  activeWaveRef.current = activeWave;
   const ActiveMinigame = activeWave === 1 ? WAVE1_MAP[roleId] : WAVE2_MAP[roleId];
   const myProfile = ROLE_CHARACTER_PROFILE[roleId];
 
@@ -688,7 +792,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   useEffect(() => {
     if (prevShowMinigame.current === showMinigame) return;
     prevShowMinigame.current = showMinigame;
-    if (reduceMotion) return;
+    if (reduceMotion || !USE_PAPER_WIPE) return;
     wipeSeq.current += 1;
     setPaperWipe({
       key: wipeSeq.current,
@@ -739,6 +843,123 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
         : "Connecting…"}
     </span>
   );
+
+  if (showMinigame) {
+    const briefing = STATION_BRIEFINGS[roleId][activeWave];
+    const crewLocked = ALL_ROLES.filter(isRoleLocked).length;
+    return (
+      <main
+        className={`fixed inset-0 z-20 flex flex-col ${
+          isPhoneConsole ? "gap-2 px-2 pb-2 pt-14" : "gap-3 px-3 pb-3 pt-16 sm:px-5"
+        }`}
+      >
+        {/* Game HUD: shared resources + task bar + crew status */}
+        <div className="flex shrink-0 flex-col gap-2 lg:flex-row lg:items-stretch">
+          <div className="min-w-0 flex-1">
+            <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} compact={isPhoneConsole} activeRole={roleId} />
+          </div>
+          <div className="flash-panel flex shrink-0 items-center gap-3 px-3 py-2 lg:w-80">
+            <MiniRadar sizePx={isPhoneConsole ? 34 : 44} alert={isCritical} />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <TaskBar done={tasksDone} total={TOTAL_TASKS} />
+              <div className="flex gap-1">
+                {ALL_ROLES.map((role) => (
+                  <span
+                    key={role}
+                    title={ROLE_CHARACTER_PROFILE[role].label}
+                    className={`flex h-6 flex-1 items-center justify-center rounded border-2 border-ink-black font-mono text-[9px] font-bold ${
+                      isRoleLocked(role) ? "bg-status-ok text-ink-black" : "bg-space-ink"
+                    }`}
+                    style={isRoleLocked(role) ? undefined : { color: ROLE_CHARACTER_PROFILE[role].suit }}
+                  >
+                    {isRoleLocked(role) ? <CheckCircle2 className="h-3.5 w-3.5" /> : ROLE_CHARACTER_PROFILE[role].short}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {isCritical && (
+          <div
+            className="flex shrink-0 items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-1.5 font-mono text-xs font-bold text-ink-black shadow-paper"
+            role="alert"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {criticalAlerts.map((a) => CRITICAL_ALERT_LABEL[a]).join(" · ")}
+          </div>
+        )}
+
+        {/* The game window */}
+        <div ref={stationRef} className="relative min-h-0 flex-1">
+          <MinigameShell
+            roleId={roleId}
+            wave={activeWave}
+            timeLeftSec={timeLeftSec}
+            isLocked={isLocked}
+            toastAlert={toastAlert}
+            durationSec={stationDurationSec}
+            missionId={missionId}
+            playerLabel={playerName ? `Crew: ${playerName}` : undefined}
+            onFallbackSubmit={() => onSubmitTake({})}
+            layout={isPhoneConsole ? "handheld" : "stage"}
+            criticalAlert={isCritical}
+            fill
+          >
+            <ActiveMinigame
+              key={`${roleId}-${activeWave}`}
+              missionId={missionId}
+              difficulty={difficulty}
+              roleId={roleId}
+              wave={activeWave}
+              timeLeftSec={timeLeftSec}
+              liveMetrics={liveMetrics}
+              spectralChallenge={spectralChallenge}
+              onLiveMutation={onLiveMutation}
+              onSubmitTake={onSubmitTake}
+              isLocked={isLocked}
+            />
+          </MinigameShell>
+
+          <AnimatePresence>
+            {briefingOpen && (
+              <StationBriefingCard
+                key="briefing"
+                roleId={roleId}
+                wave={activeWave}
+                task={activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}
+                briefing={briefing}
+                onStart={startStation}
+              />
+            )}
+            {isLocked && crewLocked < ALL_ROLES.length && (
+              <motion.div
+                key="waiting"
+                initial={{ y: 40, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 40, opacity: 0 }}
+                className="absolute inset-x-3 bottom-3 z-30 flex items-center justify-center gap-3 rounded-xl border-[3px] border-ink-black bg-paper-cream px-4 py-2.5 font-display text-sm font-bold text-ink-black shadow-paper"
+                role="status"
+              >
+                <motion.span
+                  className="h-2.5 w-2.5 rounded-full bg-status-ok"
+                  animate={{ opacity: [1, 0.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                />
+                Locked! Waiting for the crew · {crewLocked}/{ALL_ROLES.length}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <AnimatePresence>
+          {paperWipe && (
+            <PaperWipe key={paperWipe.key} label={paperWipe.label} onDone={() => setPaperWipe(null)} />
+          )}
+        </AnimatePresence>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -1103,109 +1324,31 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
         )}
       </AnimatePresence>
 
-      {/* Split loading screens owned by Claude Code (STATE.md Fase 5) */}
-      {phase === "sync" && (
-        <MissionLoadingScreen
-          variant="wave1_to_wave2"
-          missionId={missionId}
-          roleId={roleId}
-          title="Syncing the crew…"
-          progressPct={Math.round(syncProgressPct)}
-          isMobileClient={isPhoneConsole}
-        />
-      )}
-      {phase === "launchpad" && (
-        <MissionLoadingScreen
-          variant="wave2_to_flight"
-          missionId={missionId}
-          roleId={roleId}
-          progressPct={Math.round(launchProgressPct)}
-          isMobileClient={isPhoneConsole}
-        />
-      )}
-
-      {/* Station content */}
-      <AnimatePresence mode="wait">
-        {phase === "walk_to_station_1" && (
-          <motion.section
-            key="walk1"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={`flex items-center justify-center gap-3 font-mono text-sm text-slate-300 ${
-              isPhoneConsole ? "handheld-console-frame p-4" : "flash-panel p-6"
-            }`}
-            role="status"
-          >
-            <Flag className="h-5 w-5 text-status-ok" aria-hidden="true" />
-            {myProfile.codename} walking to Station 1 · {myProfile.wave1Task}…
-          </motion.section>
-        )}
-
-        {phase === "walk_to_launchpad" && (
-          <motion.section
-            key="walk-launchpad"
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className={`flex items-center justify-center gap-3 font-mono text-sm text-slate-300 ${
-              isPhoneConsole ? "handheld-console-frame p-4" : "flash-panel p-6"
-            }`}
-            role="status"
-          >
-            <Rocket className="h-5 w-5 text-status-crit" aria-hidden="true" />
-            All subsystems locked · squad rolling out to the launchpad…
-          </motion.section>
-        )}
-
-        {showMinigame && (
-          <motion.div
-            key={`station-${activeWave}`}
-            ref={stationRef}
-            className="relative min-w-0 scroll-mt-16"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
-          >
-            <MinigameShell
-              roleId={roleId}
-              wave={activeWave}
-              timeLeftSec={timeLeftSec}
-              isLocked={isLocked}
-              toastAlert={toastAlert}
-              durationSec={stationDurationSec}
-              missionId={missionId}
-              playerLabel={playerName ? `Crew: ${playerName}` : undefined}
-              onFallbackSubmit={() => onSubmitTake({})}
-              layout={isPhoneConsole ? "handheld" : "stage"}
-              criticalAlert={isCritical}
-            >
-              <ActiveMinigame
-                key={`${roleId}-${activeWave}`}
-                missionId={missionId}
-                difficulty={difficulty}
-                roleId={roleId}
-                wave={activeWave}
-                timeLeftSec={timeLeftSec}
-                liveMetrics={liveMetrics}
-                spectralChallenge={spectralChallenge}
-                onLiveMutation={onLiveMutation}
-                onSubmitTake={onSubmitTake}
-                isLocked={isLocked}
-              />
-            </MinigameShell>
-            <AnimatePresence>
-              {readyLeft !== null && (
-                <ReadyBreather
-                  key="ready"
-                  secondsLeft={readyLeft}
-                  task={activeWave === 1 ? myProfile.wave1Task : myProfile.wave2Task}
-                  suit={myProfile.suit}
-                />
-              )}
-            </AnimatePresence>
-          </motion.div>
+      {/* Cutscene captions between stations (no loading screens) */}
+      <AnimatePresence>
+        {!showMinigame && (
+          <CutsceneCaption
+            key={phase}
+            title={
+              phase === "walk_to_station_1"
+                ? "To station 1"
+                : phase === "sync"
+                ? "Sharing your choices"
+                : phase === "walk_to_launchpad"
+                ? "Rolling to the pad"
+                : "Liftoff!"
+            }
+            subtitle={
+              phase === "walk_to_station_1"
+                ? myProfile.wave1Task
+                : phase === "sync"
+                ? `Next: ${myProfile.wave2Task}`
+                : phase === "walk_to_launchpad"
+                ? "Ship assembled"
+                : "Survival flight ahead"
+            }
+            liftoff={phase === "launchpad"}
+          />
         )}
       </AnimatePresence>
     </main>

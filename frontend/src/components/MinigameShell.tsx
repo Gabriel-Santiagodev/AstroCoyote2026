@@ -174,7 +174,7 @@ interface ToastItem {
 function LiveMutationToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
     // Sits below the fixed <SoundControlPill /> (top-right) so toasts never cover the audio controls.
-    <div className="pointer-events-none fixed right-3 top-14 z-50 flex w-[min(92vw,22rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed right-3 top-[8.5rem] z-50 flex w-[min(92vw,20rem)] flex-col gap-2">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <motion.div
@@ -224,6 +224,11 @@ export interface MinigameShellProps {
   layout?: MinigameShellLayout;
   /** Shared metrics are in red alert (overweight, no budget, UFE below minimum, missing TPS). */
   criticalAlert?: boolean;
+  /**
+   * Full-screen game window: the shell fills its parent's height and the minigame area takes
+   * the rest (internal scroll only as a fallback), so the page itself never scrolls.
+   */
+  fill?: boolean;
   children: ReactNode;
 }
 
@@ -239,12 +244,15 @@ export function MinigameShell({
   onFallbackSubmit,
   layout = "stage",
   criticalAlert = false,
+  fill = false,
   children,
 }: MinigameShellProps) {
   const profile = ROLE_CHARACTER_PROFILE[roleId];
   const station = STATION_META[wave];
   const stationTask = wave === 1 ? profile.wave1Task : profile.wave2Task;
   const isHandheld = layout === "handheld";
+  /** durationSec <= 0 = untimed station (docs/03, 2026-11-15): no clock, lock when ready. */
+  const untimed = durationSec <= 0;
   const secondsLeft = Math.max(0, Math.ceil(timeLeftSec));
   const progress = durationSec > 0 ? Math.min(1, Math.max(0, timeLeftSec / durationSec)) : 0;
   const isTimeUp = secondsLeft <= 0;
@@ -356,8 +364,8 @@ export function MinigameShell({
   return (
     <motion.section
       className={`relative min-w-0 overflow-hidden ${
-        isHandheld ? "handheld-console-frame space-y-3 p-3" : "flash-panel space-y-4 p-4 sm:p-5"
-      }`}
+        isHandheld ? "handheld-console-frame p-3" : "flash-panel p-3 sm:p-4"
+      } ${fill ? "flex h-full flex-col gap-2 sm:gap-3" : isHandheld ? "space-y-3" : "space-y-4"}`}
       // Mechanical "thunk" when the stamp lands.
       animate={isLocked ? { x: [0, -5, 5, -3, 2, 0] } : { x: 0 }}
       transition={{ duration: 0.38, delay: isLocked ? STAMP_IMPACT_DELAY_SEC : 0 }}
@@ -365,7 +373,7 @@ export function MinigameShell({
     >
       <LiveMutationToasts toasts={toasts} />
 
-      {!isHandheld && (
+      {!isHandheld && !fill && (
         <div
           className="hazard-stripe-bar -mx-4 -mt-4 h-2.5 border-b-[3px] border-ink-black sm:-mx-5 sm:-mt-5"
           aria-hidden="true"
@@ -374,8 +382,8 @@ export function MinigameShell({
 
       {/* Header: ASTRO SPRITE identity + station task + giant timer */}
       <header
-        className={`flex items-center justify-between gap-3 border-b-[3px] border-ink-black ${
-          isHandheld ? "pb-2" : "flex-wrap pb-3"
+        className={`flex shrink-0 items-center justify-between gap-3 border-b-[3px] border-ink-black ${
+          isHandheld || fill ? "pb-2" : "flex-wrap pb-3"
         }`}
       >
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -418,7 +426,7 @@ export function MinigameShell({
             >
               {station.title} · {stationTask}
             </div>
-            {!isHandheld && (
+            {!isHandheld && !fill && (
               <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
                 <span className="inline-flex items-center gap-1">
                   <Wrench className="h-3 w-3" aria-hidden="true" /> {profile.gearLabel}
@@ -429,10 +437,17 @@ export function MinigameShell({
             )}
           </div>
         </div>
-        {timer}
+        {untimed ? (
+          <span className="shrink-0 rounded-xl border-[3px] border-ink-black bg-space-ink px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-sky-glow shadow-paper">
+            {isLocked ? "Locked" : isHandheld ? "No timer" : "No timer · lock when ready"}
+          </span>
+        ) : (
+          timer
+        )}
       </header>
 
       {/* Time progress bar */}
+      {!untimed && (
       <div
         className={`w-full overflow-hidden rounded-full border-2 border-ink-black bg-space-ink ${
           isHandheld ? "h-2.5" : "h-3"
@@ -456,14 +471,17 @@ export function MinigameShell({
           transition={{ ease: "linear", duration: 0.9 }}
         />
       </div>
+      )}
 
       {/* Phase scenery (VAB hangar / ascent / orbital base / rover) — art only, no logic */}
-      <StationScenery roleId={roleId} wave={wave} missionId={missionId ?? "artemis_moon"} compact={isHandheld} />
+      {!fill && (
+        <StationScenery roleId={roleId} wave={wave} missionId={missionId ?? "artemis_moon"} compact={isHandheld} />
+      )}
 
       {/* Minigame body — pointer-events disabled once the single take is locked */}
-      <div className="relative min-w-0">
+      <div className={`relative min-w-0 ${fill ? "min-h-0 flex-1" : ""}`}>
         <div
-          className={`min-w-0 overflow-x-hidden ${
+          className={`min-w-0 overflow-x-hidden ${fill ? "h-full overflow-y-auto overscroll-contain" : ""} ${
             isLocked ? "pointer-events-none select-none opacity-60 transition-opacity" : ""
           }`}
           aria-disabled={isLocked}

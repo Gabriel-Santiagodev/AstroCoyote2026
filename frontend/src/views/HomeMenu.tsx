@@ -15,7 +15,6 @@ import {
   Zap,
 } from "lucide-react";
 import { KeyArt } from "../components/paper/KeyArt";
-import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { soundEngine } from "../components/paper/SoundEngine";
 
 interface HomeMenuProps {
@@ -86,7 +85,7 @@ export function HomeMenu({
   const handleModeStart = (mode: "single" | "multi") => {
     soundEngine.playClick();
     setPinNotice(null);
-    setPendingAction({ type: "create", mode });
+    executePendingAction({ type: "create", mode });
   };
 
   const handleJoinSubmit = (e: FormEvent) => {
@@ -99,29 +98,13 @@ export function HomeMenu({
     }
     soundEngine.playClick();
     setPinNotice(null);
-    setPendingAction({ type: "join", pin: cleanedPin });
+    executePendingAction({ type: "join", pin: cleanedPin });
   };
 
   const showBootLoader = Boolean(pendingAction) || isConnecting;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-5 px-3 pb-8 pt-14 sm:px-6 sm:pt-16">
-      {showBootLoader && (
-        <MissionLoadingScreen
-          variant="boot"
-          roleId="finance_launch"
-          durationMs={750}
-          isMobileClient={pendingAction?.type === "join"}
-          progressPct={isConnecting && !pendingAction ? 72 : undefined}
-          title={pendingAction?.type === "join" ? `JOINING ${pendingAction.pin}` : "BOOTING MISSION CONTROL"}
-          subtitle={pendingAction?.type === "join" ? "Linking your phone…" : "Warming up the hangar…"}
-          allowSkip={Boolean(pendingAction) && !isConnecting}
-          onComplete={() => {
-            if (pendingAction) executePendingAction(pendingAction);
-          }}
-        />
-      )}
-
       {/* Title + squad */}
       <motion.section
         initial={{ opacity: 0, y: -10 }}

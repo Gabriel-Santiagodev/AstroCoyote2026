@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 interface PowerPackDef {
   id: "chemical_pack" | "battery_pack" | "h2_fuel_cell";
@@ -393,162 +396,115 @@ export function Rol3B_AstroLogistics3D({
     keysRef.current[dir] = active;
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black bg-role-orbit px-2.5 py-0.5 font-mono text-xs font-bold text-ink-black">
-            <Zap className="h-3.5 w-3.5" />
-            STATION 2 · 3D POWER LOGISTICS ROVER
-          </span>
-          <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Collect power crates
-          </h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowGuide((v) => !v)}
-          className="paper-btn flex items-center gap-1.5 bg-blueprint-navy px-3 py-1.5 text-xs text-paper-cream"
-        >
-          <HelpCircle className="h-4 w-4 text-role-orbit" />
-          {showGuide ? "Hide Controls" : "Controls & Legend"}
-        </button>
-      </div>
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): the 3D rover arena fills the play area; power source chips and
+  // the D-pad sit on top of it; goals + readouts in the side panel. 3D game logic unchanged.
+  // ---------------------------------------------------------------------------
+  const missionCfg = nasaCatalog.missions[missionId] ?? nasaCatalog.missions.artemis_moon;
+  const minBatteryPct = Number(
+    (missionCfg as { min_battery_event_pct?: number }).min_battery_event_pct ??
+      (missionCfg as { min_ufe_event_pct?: number }).min_ufe_event_pct ??
+      0
+  );
+  const [startEnergy] = useState(totalEnergyMj);
+  const [sourceTouched, setSourceTouched] = useState(false);
+  const goals: Goal[] = [
+    { label: "Power source chosen", done: sourceTouched },
+    { label: "At least one delivery", done: totalEnergyMj > startEnergy },
+    { label: `Battery reserve ${minBatteryPct}%+`, done: reservePct >= minBatteryPct },
+  ];
+  const dpad = (dir: "up" | "down" | "left" | "right", Icon: typeof ArrowUp) => (
+    <button
+      type="button"
+      aria-label={`Drive ${dir}`}
+      disabled={isLocked}
+      onPointerDown={() => setHold(dir, true)}
+      onPointerUp={() => setHold(dir, false)}
+      onPointerLeave={() => setHold(dir, false)}
+      className="paper-btn flex h-11 w-11 items-center justify-center bg-blueprint-navy/90 text-paper-cream"
+    >
+      <Icon className="h-5 w-5" />
+    </button>
+  );
 
-      {showGuide && (
-        <div className="rounded-xl border-2 border-role-orbit bg-space-ink/90 p-3 text-xs text-slate-200">
-          <p className="font-bold text-role-orbit">How Power Logistics Works:</p>
-          <p className="mt-1">
-            Drive with <strong>WASD / Arrows</strong> (or the touch D-Pad). Stack up to{" "}
-            <strong>3 crates</strong> and enter the glowing green central ring to deliver power!
-          </p>
-          <div className="mt-2 flex flex-wrap gap-3 font-mono text-[11px]">
+  return (
+    <GameLayout
+      play={
+        <div className="absolute inset-0">
+          {webglUnavailable ? (
+            <div className="flex h-full items-center justify-center p-4 text-center font-mono text-xs text-status-warn">
+              3D view unavailable here. You can still lock your power plan.
+            </div>
+          ) : (
+            <div ref={mountRef} className="h-full w-full" />
+          )}
+          {/* power source chips */}
+          <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
+            {(
+              [
+                { id: "solar_arrays", label: "Solar" },
+                { id: "fuel_cell", label: "Fuel cell" },
+                { id: "rtg_nuclear", label: "Nuclear RTG" },
+              ] as const
+            ).map((src) => (
+              <button
+                key={src.id}
+                type="button"
+                disabled={isLocked}
+                onClick={() => {
+                  soundEngine.playClick();
+                  setSourceTouched(true);
+                  setPowerSource(src.id);
+                }}
+                className={`paper-btn px-2.5 py-1 text-xs ${
+                  powerSource === src.id ? "bg-role-orbit text-ink-black" : "bg-space-ink/90 text-slate-200"
+                }`}
+              >
+                {src.label}
+              </button>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute right-2 top-2 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 font-mono text-xs font-bold text-ink-black">
+            Cargo {cargo.length}/{MAX_CARGO}
+          </div>
+          <div className="pointer-events-none absolute bottom-2 left-2 max-w-[55%] rounded-lg border-2 border-ink-black bg-space-ink/90 px-2 py-1 text-[11px] font-bold text-slate-200">
+            Grab crates, drive into the green ring.
+          </div>
+          {/* D-pad */}
+          <div className="absolute bottom-2 right-2 grid grid-cols-3 gap-1">
+            <div />
+            {dpad("up", ArrowUp)}
+            <div />
+            {dpad("left", ArrowLeft)}
+            {dpad("down", ArrowDown)}
+            {dpad("right", ArrowRight)}
+          </div>
+        </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title="Power">
+            <div className="space-y-2">
+              <Readout label="Energy stored" value={`${totalEnergyMj} MJ`} tone="info" />
+              <Readout label="Ship power" value={`${genW} W`} tone="ok" />
+              <Readout label="Battery reserve" value={`${reservePct}%`} pct={reservePct}
+                tone={reservePct >= minBatteryPct ? "ok" : "warn"} />
+              <Readout label="Fuel cell spawns" value={`${h2SpawnRatePct}%`} pct={h2SpawnRatePct} tone="info" />
+            </div>
+          </PanelCard>
+          <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
             {PACK_DEFS.map((p) => (
-              <span key={p.id} style={{ color: p.hex }}>
-                ■ {p.name}: +{p.energy_mj} MJ ({p.rover_speed_delta_pct >= 0 ? "+" : ""}
-                {p.rover_speed_delta_pct}% spd)
+              <span key={p.id} className="rounded border border-slate-600 px-1.5 py-0.5" style={{ color: p.hex }}>
+                ■ {p.name} +{p.energy_mj} MJ
               </span>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Power Source Selector */}
-      <div className="grid grid-cols-3 gap-2">
-        {(
-          [
-            { id: "solar_arrays", label: "Solar Arrays" },
-            { id: "fuel_cell", label: "H2 Fuel Cell" },
-            { id: "rtg_nuclear", label: "RTG Pu-238 (Mars Best)" },
-          ] as const
-        ).map((src) => (
-          <button
-            key={src.id}
-            type="button"
-            disabled={isLocked}
-            onClick={() => setPowerSource(src.id)}
-            className={`paper-btn px-2 py-1.5 text-xs ${
-              powerSource === src.id
-                ? "bg-role-orbit text-ink-black"
-                : "bg-space-ink text-slate-300"
-            }`}
-          >
-            {src.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 3D Viewport + Touch D-Pad Overlay */}
-      <div className="relative overflow-hidden rounded-xl border-2 border-ink-black bg-[#0B1021]">
-        {webglUnavailable ? (
-          <div className="flex h-64 items-center justify-center p-4 text-center font-mono text-xs text-status-warn">
-            WebGL context unavailable in this headless preview. Click Quick Deliver or Confirm Power Take below.
-          </div>
-        ) : (
-          <div ref={mountRef} className="h-64 w-full" />
-        )}
-
-        {/* HUD Badges */}
-        <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1.5 font-mono text-[11px]">
-          <span className="rounded border border-ink-black bg-space-ink/90 px-2 py-0.5 text-role-orbit">
-            H2 Spawn: {h2SpawnRatePct}% (F={liveMetrics.funding_factor_F.toFixed(2)})
-          </span>
-          <span className="rounded border border-ink-black bg-space-ink/90 px-2 py-0.5 text-paper-cream">
-            Cargo: {cargo.length}/{MAX_CARGO}
-          </span>
-        </div>
-
-        {/* Touch D-Pad */}
-        <div className="absolute bottom-2 right-2 grid w-28 grid-cols-3 gap-1">
-          <div />
-          <button
-            type="button"
-            disabled={isLocked}
-            onPointerDown={() => setHold("up", true)}
-            onPointerUp={() => setHold("up", false)}
-            onPointerLeave={() => setHold("up", false)}
-            className="paper-btn flex items-center justify-center bg-blueprint-navy/90 p-1.5 text-paper-cream"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </button>
-          <div />
-          <button
-            type="button"
-            disabled={isLocked}
-            onPointerDown={() => setHold("left", true)}
-            onPointerUp={() => setHold("left", false)}
-            onPointerLeave={() => setHold("left", false)}
-            className="paper-btn flex items-center justify-center bg-blueprint-navy/90 p-1.5 text-paper-cream"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            disabled={isLocked}
-            onPointerDown={() => setHold("down", true)}
-            onPointerUp={() => setHold("down", false)}
-            onPointerLeave={() => setHold("down", false)}
-            className="paper-btn flex items-center justify-center bg-blueprint-navy/90 p-1.5 text-paper-cream"
-          >
-            <ArrowDown className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            disabled={isLocked}
-            onPointerDown={() => setHold("right", true)}
-            onPointerUp={() => setHold("right", false)}
-            onPointerLeave={() => setHold("right", false)}
-            className="paper-btn flex items-center justify-center bg-blueprint-navy/90 p-1.5 text-paper-cream"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Live Energy Readout & Submit */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-ink-black bg-space-ink/85 p-3">
-        <div className="flex flex-wrap items-center gap-4 font-mono text-xs">
-          <span className="flex items-center gap-1 text-role-orbit">
-            <BatteryCharging className="h-4 w-4" />
-            Energy: <strong>{totalEnergyMj} MJ</strong>
-          </span>
-          <span>
-            Bus Power: <strong className="text-paper-cream">{genW} W</strong>
-          </span>
-          <span>
-            Reserve: <strong className="text-status-ok">{reservePct}%</strong>
-          </span>
-        </div>
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={() => onSubmitTake(buildPayload())}
-          className="paper-btn flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"
-        >
-          <Sparkles className="h-4 w-4" />
-          {isLocked ? "Power Locked" : "Confirm Power Take"}
-        </button>
-      </div>
-    </div>
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock power" onLock={() => onSubmitTake(buildPayload())} />
+        </>
+      }
+    />
   );
 }
+
+export default Rol3B_AstroLogistics3D;

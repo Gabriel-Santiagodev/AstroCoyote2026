@@ -50,11 +50,21 @@ type GameMode = "single" | "multi";
 // ---------------------------------------------------------------------------
 // Gameplay timing constants (docs/04-juego.md §Vuelo de 60 s; docs/08-controles.md)
 // ---------------------------------------------------------------------------
-/** Station duration (`iniciar_oleada_*.duration_sec`). */
-const STATION_SEC = 30;
-/** Flight: 4 rounds x 15 s = 60 s. */
+/**
+ * Station duration (`iniciar_oleada_*.duration_sec`). 0 = untimed (docs/03, 2026-11-15): the
+ * player locks when ready and no clock is shown. The backend keeps a hidden AFK backstop.
+ */
+const STATION_SEC = 0;
+/** Flight: 4 decision rounds; 0 s per round = untimed turns (answer when ready). */
 const FLIGHT_ROUNDS = 4;
-const FLIGHT_ROUND_SEC = 15;
+const FLIGHT_ROUND_SEC = 0;
+/**
+ * `timeLeftSec` handed to minigames while a station is untimed. Positive and constant, so legacy
+ * "auto-submit at t=0" logic in a minigame never fires.
+ */
+const UNTIMED_TIME_LEFT_SEC = 999;
+/** Clock value to show before a station opens: its duration, or the untimed sentinel. */
+const initialTimeLeft = (durationSec: number) => (durationSec > 0 ? durationSec : UNTIMED_TIME_LEFT_SEC);
 const FLIGHT_TOTAL_SEC = FLIGHT_ROUNDS * FLIGHT_ROUND_SEC;
 /** `resultado_turno_vuelo` feedback is shown ~4 s before the next question (docs/08 §2.B). */
 const TURN_FEEDBACK_MS = 4000;
@@ -288,7 +298,7 @@ export function App() {
   const [wave, setWave] = useState<1 | 2>(1);
   const [stationDuration, setStationDuration] = useState(STATION_SEC);
   const [syncDelay, setSyncDelay] = useState(SYNC_DELAY_SEC);
-  const [stationTimeLeft, setStationTimeLeft] = useState(STATION_SEC);
+  const [stationTimeLeft, setStationTimeLeft] = useState(initialTimeLeft(STATION_SEC));
   /** True only while the local station minigame is playable (after the walk / sync). */
   const [stationOpen, setStationOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -359,6 +369,10 @@ export function App() {
 
   const startStationTimer = useCallback((durationSec: number) => {
     clearTimer(stationTimer);
+    if (durationSec <= 0) {
+      setStationTimeLeft(UNTIMED_TIME_LEFT_SEC);
+      return;
+    }
     setStationTimeLeft(durationSec);
     stationTimer.current = window.setInterval(() => {
       setStationTimeLeft((prev) => {
@@ -373,6 +387,10 @@ export function App() {
 
   const startFlightRoundTimer = useCallback((durationSec: number) => {
     clearTimer(flightTimer);
+    if (durationSec <= 0) {
+      setFlightTimeLeft(UNTIMED_TIME_LEFT_SEC);
+      return;
+    }
     setFlightTimeLeft(durationSec);
     flightTimer.current = window.setInterval(() => {
       setFlightTimeLeft((prev) => {
@@ -410,7 +428,7 @@ export function App() {
     setWave(1);
     setStationDuration(STATION_SEC);
     setSyncDelay(SYNC_DELAY_SEC);
-    setStationTimeLeft(STATION_SEC);
+    setStationTimeLeft(initialTimeLeft(STATION_SEC));
     setStationOpen(false);
     setIsLocked(false);
     setLockedTakes([]);
@@ -511,9 +529,12 @@ export function App() {
       },
       mutacion_en_vivo: ({ source_role, live_metrics, toast_alert }) => {
         setLiveMetrics((prev) => mergeMetrics(prev, live_metrics || {}));
-        if (toast_alert) {
+        // Only teammates' changes are news; your own action already shows in your window.
+        if (source_role && source_role === latest.current.role) {
+          // no toast
+        } else if (toast_alert) {
           pushToast(toast_alert);
-        } else if (source_role && source_role !== latest.current.role && source_role in ROLE_META) {
+        } else if (source_role && source_role in ROLE_META) {
           pushToast(`${ROLE_META[source_role as RoleType].label} updated the shared constraints`);
         }
       },
@@ -532,7 +553,7 @@ export function App() {
         // Station 2 is not open until the sync ends: reset the clock so a timed-out Station 1
         // (clock at 0) never triggers the auto-lock safety net during the sync.
         setStationOpen(false);
-        setStationTimeLeft(payload.duration_sec || STATION_SEC);
+        setStationTimeLeft(initialTimeLeft(payload.duration_sec || STATION_SEC));
         setWave(2);
       },
       iniciar_vuelo_60s: (payload) => {
@@ -795,7 +816,7 @@ export function App() {
       if (w === 1) {
         schedulePreview(() => {
           setIsLocked(false);
-          setStationTimeLeft(latest.current.stationDuration);
+          setStationTimeLeft(initialTimeLeft(latest.current.stationDuration));
           setWave(2);
         }, afterAi);
       } else {
@@ -869,14 +890,16 @@ export function App() {
 
   // Optional Flight60sView props (Host stage flag + Fase 8 station loadout for the cabin shelf).
   // Passed as a typed spread so this compiles before and after Codex declares each prop.
-  const flightStageProps: { isHostStage?: boolean; stationLoadout?: StationLoadout } = {
+  const flightStageProps: { isHostStage?: boolean; stationLoadout?: StationLoadout; untimed?: boolean } = {
     isHostStage: !isPhoneConsole,
     stationLoadout,
+    untimed: FLIGHT_ROUND_SEC <= 0,
   };
 
   // The "60 s" flight clock counts decision time only: it pauses while the logbook shows a turn's
   // feedback, so reading the result never eats into the remaining crisis calls.
-  const flightDecisionTimeLeft = Math.max(0, (FLIGHT_ROUNDS - flightRound) * FLIGHT_ROUND_SEC + flightTimeLeft);
+  const flightDecisionTimeLeft =
+    FLIGHT_ROUND_SEC > 0 ? Math.max(0, (FLIGHT_ROUNDS - flightRound) * FLIGHT_ROUND_SEC + flightTimeLeft) : 0;
 
   // ---------------------------------------------------------------------------
   // Render

@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps, MissionIdType, RoleType } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 type SlotId =
   | "chasis"
@@ -794,7 +797,8 @@ export function Rol2A_TopologicalAssembly({
 
   const triggerOrderPenalty = useCallback((msg: string) => {
     setOrderAlert(msg);
-    setIntegrityPct((prev) => Math.max(60, prev - 5));
+    // Forgiving (2026-11-15): order mistakes teach, but never cost more than -15% in total.
+    setIntegrityPct((prev) => Math.max(85, prev - 5));
   }, []);
 
   const handleEquipPiece = useCallback(
@@ -931,632 +935,258 @@ export function Rol2A_TopologicalAssembly({
   const step3Done = torqued;
   const step4Done = wired;
 
-  return (
-    <div className="space-y-3 text-slate-100">
-      {/* Shared SVG gradient defs from Ismael's Taller Lunar */}
-      <svg width="0" height="0" className="pointer-events-none absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#F4F6F9" />
-            <stop offset=".3" stopColor="#CDD2DA" />
-            <stop offset=".75" stopColor="#9AA3AE" />
-            <stop offset="1" stopColor="#707A86" />
-          </linearGradient>
-          <linearGradient id="gMetalD" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#5E6874" />
-            <stop offset="1" stopColor="#262D36" />
-          </linearGradient>
-          <linearGradient id="gFoil" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#F8D983" />
-            <stop offset=".35" stopColor="#D79A25" />
-            <stop offset=".6" stopColor="#F2C45C" />
-            <stop offset="1" stopColor="#9C6812" />
-          </linearGradient>
-          <linearGradient id="gBatt" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#46698F" />
-            <stop offset="1" stopColor="#1B2A3D" />
-          </linearGradient>
-          <linearGradient id="gCell" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#6FA3DC" />
-            <stop offset="1" stopColor="#27507F" />
-          </linearGradient>
-          <radialGradient id="gTire" cx=".4" cy=".35" r=".8">
-            <stop offset="0" stopColor="#3A3F48" />
-            <stop offset="1" stopColor="#0C0D10" />
-          </radialGradient>
-          <radialGradient id="gHub" cx=".35" cy=".3" r=".85">
-            <stop offset="0" stopColor="#F1F4F7" />
-            <stop offset="1" stopColor="#6F7986" />
-          </radialGradient>
-          <radialGradient id="gHubBlue" cx=".35" cy=".3" r=".85">
-            <stop offset="0" stopColor="#8CC4FF" />
-            <stop offset="1" stopColor="#0B3D91" />
-          </radialGradient>
-          <linearGradient id="gPanel" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#2F55B8" />
-            <stop offset="1" stopColor="#0E1E58" />
-          </linearGradient>
-          <linearGradient id="gGlare" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#fff" stopOpacity=".45" />
-            <stop offset=".5" stopColor="#fff" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="gTubeV" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#E6EAEF" />
-            <stop offset=".5" stopColor="#97A0AC" />
-            <stop offset="1" stopColor="#525B67" />
-          </linearGradient>
-          <linearGradient id="gTubeH" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#E6EAEF" />
-            <stop offset=".5" stopColor="#97A0AC" />
-            <stop offset="1" stopColor="#525B67" />
-          </linearGradient>
-          <linearGradient id="gBox" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#9AA5B4" />
-            <stop offset="1" stopColor="#555F6C" />
-          </linearGradient>
-          <radialGradient id="gDish" cx=".5" cy=".4" r=".7">
-            <stop offset="0" stopColor="#EEF1F5" />
-            <stop offset="1" stopColor="#7B8592" />
-          </radialGradient>
-        </defs>
-      </svg>
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): ship blueprint with slots (the next required slot glows),
+  // a parts tray for the selected slot, then two hands-on steps: tap 4 bolts, match 3 cables.
+  // Model above (pieces, order penalties, payload) unchanged.
+  // ---------------------------------------------------------------------------
+  const BOLT_COUNT = 4;
+  const CABLE_COLORS = ["#EF4444", "#3B82F6", "#22C55E"] as const;
+  const [boltsDone, setBoltsDone] = useState<number[]>([]);
+  const [cableLeft, setCableLeft] = useState<number | null>(null);
+  const [cablesDone, setCablesDone] = useState<number[]>([]);
+  const rightOrder = [2, 0, 1];
+  const nextSlot: SlotId | null = !step1Done
+    ? "chasis"
+    : !stats.hasPower
+    ? "bateria"
+    : !stats.hasThermalProtection
+    ? "escudo"
+    : !stats.hasDeorbitDevice
+    ? "deorbit"
+    : null;
+  const slotPieces = pieces.filter((p) => p.slot === (selectedSlot ?? "chasis"));
+  const goals: Goal[] = [
+    { label: "Frame mounted first", done: step1Done },
+    { label: "Power, heat shield, deorbit", done: step2Done },
+    { label: "All bolts tight", done: step3Done },
+    { label: "Cables connected", done: step4Done },
+  ];
 
-      {/* Top Header: Role Badge + Topological 4-Step Progress Bar */}
-      <div className="paper-card flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink-black font-display text-sm font-bold text-ink-black"
-            style={{ backgroundColor: roleCfg.accent }}
-          >
-            2A
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-display text-base font-bold text-white">
-                Build the ship
-              </h3>
-              <span className="paper-badge bg-cyan-400/20 px-2 py-0.5 text-[11px] text-cyan-300">
-                {roleCfg.name} · {roleCfg.bonusText}
-              </span>
-            </div>
-            <p className="text-xs text-slate-300">
-              <b>Frame</b> → <b>Power + shield</b> → <b>Bolt</b> → <b>Wire</b>
-            </p>
-          </div>
-        </div>
+  const tapBolt = (i: number) => {
+    if (isLocked || boltsDone.includes(i)) return;
+    if (!step2Done) {
+      handleTorqueStep(); // applies the order penalty + message
+      return;
+    }
+    soundEngine.playClick();
+    const next = [...boltsDone, i];
+    setBoltsDone(next);
+    if (next.length >= BOLT_COUNT) {
+      soundEngine.playComplete();
+      handleTorqueStep();
+    }
+  };
+  const tapCable = (side: "L" | "R", color: number) => {
+    if (isLocked || cablesDone.includes(color)) return;
+    if (!torqued) {
+      handleWiringStep();
+      return;
+    }
+    if (side === "L") {
+      soundEngine.playClick();
+      setCableLeft(color);
+      return;
+    }
+    if (cableLeft === null) return;
+    if (cableLeft !== color) {
+      soundEngine.playError();
+      setCableLeft(null);
+      return;
+    }
+    soundEngine.playComplete();
+    const next = [...cablesDone, color];
+    setCablesDone(next);
+    setCableLeft(null);
+    if (next.length >= CABLE_COLORS.length) handleWiringStep();
+  };
+  // Changing hardware un-bolts the ship (model resets torqued/wired): mirror it in the mini-steps.
+  useEffect(() => {
+    if (!torqued) setBoltsDone([]);
+    if (!wired) setCablesDone([]);
+  }, [torqued, wired]);
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={isLocked}
-            onClick={handleLoadStarterBuild}
-            className="paper-btn flex items-center gap-1.5 bg-amber-400 px-3 py-1.5 text-xs text-ink-black"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Auto-Assemble Starter
-          </button>
-          <button
-            type="button"
-            disabled={isLocked}
-            onClick={handleClearAll}
-            className="paper-btn flex items-center gap-1 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Reset
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowGuide((v) => !v)}
-            className="paper-btn bg-slate-800 px-2.5 py-1.5 text-xs text-cyan-300"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {showGuide && (
-        <div className="paper-card border-cyan-400 bg-slate-900/95 p-3 text-xs text-slate-200">
-          <p className="font-bold text-cyan-300">Build order matters</p>
-          <p className="mt-1">
-            Wrong order = <b>-5% strength</b>. No <b>heat shield</b> = big risk on reentry.
-          </p>
-        </div>
-      )}
-
-      {/* Order Alert Banner */}
-      {orderAlert && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-2 rounded-xl border-3 border-ink-black bg-rose-500/95 px-3 py-2 text-xs font-bold text-white shadow-paper-sm"
-        >
-          <span className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            {orderAlert}
+  const slotTile = (slotId: SlotId, wide = false) => {
+    const piece = equipped[slotId];
+    const [vbW, vbH] = SLOT_VIEWBOX[slotId];
+    const isNext = nextSlot === slotId;
+    const isSel = selectedSlot === slotId;
+    return (
+      <button
+        key={slotId}
+        type="button"
+        disabled={isLocked}
+        onClick={() => {
+          soundEngine.playClick();
+          setSelectedSlot(slotId);
+        }}
+        className={`relative flex min-h-[64px] min-w-0 flex-col items-center justify-center rounded-lg border-[3px] p-1 transition ${
+          wide ? "col-span-2" : ""
+        } ${
+          piece
+            ? "border-status-ok bg-slate-900/80"
+            : isSel
+            ? "border-sky-glow border-dashed bg-sky-950/40"
+            : "border-dashed border-slate-600 bg-slate-900/40"
+        }`}
+      >
+        {isNext && !piece && (
+          <motion.span
+            className="pointer-events-none absolute inset-0 rounded-md border-[3px] border-status-warn"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+        )}
+        {piece ? (
+          <svg
+            viewBox={`0 0 ${vbW} ${vbH}`}
+            className="h-11 w-full"
+            dangerouslySetInnerHTML={{ __html: renderPieceInnerSvg(piece, roleCfg) }}
+          />
+        ) : (
+          <span className="text-center font-mono text-[10px] font-bold text-slate-400">
+            {SLOT_LABELS[slotId].replace(/^\d\.\s*/, "")}
           </span>
-          <span className="font-mono">Integrity: {integrityPct}%</span>
-        </div>
-      )}
-
-      {/* 4-Step Topological DAG Stepper */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div
-          className={`rounded-xl border-2 border-ink-black px-3 py-2 text-xs font-bold ${
-            step1Done ? "bg-emerald-500/25 text-emerald-300" : "bg-slate-800/90 text-amber-300"
-          }`}
-        >
-          1. Primary Chassis {step1Done ? "✓" : "(Mount First)"}
-        </div>
-        <div
-          className={`rounded-xl border-2 border-ink-black px-3 py-2 text-xs font-bold ${
-            step2Done ? "bg-emerald-500/25 text-emerald-300" : "bg-slate-800/90 text-slate-300"
-          }`}
-        >
-          2. Power + TPS + Deorbit {step2Done ? "✓" : "(Pending)"}
-        </div>
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={handleTorqueStep}
-          className={`paper-btn flex items-center justify-center gap-1.5 px-3 py-2 text-xs ${
-            step3Done
-              ? "bg-emerald-400 text-ink-black"
-              : "bg-sky-400 text-ink-black"
-          }`}
-        >
-          <Wrench className="h-3.5 w-3.5" />
-          3. TORQUE (T1) {step3Done ? "✓" : "Bolt Now"}
-        </button>
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={handleWiringStep}
-          className={`paper-btn flex items-center justify-center gap-1.5 px-3 py-2 text-xs ${
-            step4Done
-              ? "bg-emerald-400 text-ink-black"
-              : "bg-violet-400 text-ink-black"
-          }`}
-        >
-          <Cable className="h-3.5 w-3.5" />
-          4. WIRING (T2) {step4Done ? "✓" : "Wire Now"}
-        </button>
-      </div>
-
-      {/* Main Workshop Grid: Center Blueprint Canvas + Right Parts Palette */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* Left/Center Blueprint Assembly Room (Ismael's visual canvas) */}
-        <div className="paper-card blueprint-grid relative flex flex-col justify-between overflow-hidden bg-[#1b212b] p-3 lg:col-span-7">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => {
-                  setWheels6(false);
-                  emitMutation(equipped, false, integrityPct);
-                }}
-                className={`rounded-lg border-2 border-ink-black px-2.5 py-1 font-mono font-bold ${
-                  !wheels6 ? "bg-cyan-400 text-ink-black" : "bg-slate-800 text-slate-300"
-                }`}
-              >
-                4×4 Drive
-              </button>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => {
-                  setWheels6(true);
-                  emitMutation(equipped, true, integrityPct);
-                }}
-                className={`rounded-lg border-2 border-ink-black px-2.5 py-1 font-mono font-bold ${
-                  wheels6 ? "bg-cyan-400 text-ink-black" : "bg-slate-800 text-slate-300"
-                }`}
-              >
-                6×6 Drive
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsTestingDrive((v) => !v)}
-                className="rounded-lg border-2 border-ink-black bg-slate-800 px-2.5 py-1 font-mono font-bold text-amber-300"
-              >
-                <Play className="mr-1 inline h-3 w-3" />
-                {isTestingDrive ? "Stop Spin" : "Test Traction"}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 font-mono text-xs">
+        )}
+        {slotId === "chasis" && piece && (
+          <span className="absolute inset-x-2 bottom-1 flex justify-between">
+            {Array.from({ length: BOLT_COUNT }, (_, i) => (
               <span
-                className={`rounded px-2 py-0.5 font-bold ${
-                  stats.hasThermalProtection
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-rose-500/30 text-rose-200"
+                key={i}
+                role="button"
+                tabIndex={0}
+                aria-label={`Bolt ${i + 1}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  tapBolt(i);
+                }}
+                className={`h-4 w-4 rounded-full border-2 border-ink-black ${
+                  boltsDone.includes(i) || torqued ? "bg-status-ok" : step2Done ? "animate-pulse bg-status-warn" : "bg-slate-500"
                 }`}
-              >
-                <Shield className="mr-1 inline h-3.5 w-3.5" />
-                {stats.hasThermalProtection ? "TPS Shield OK" : "NO HEAT SHIELD!"}
-              </span>
-              <span className="rounded bg-slate-800 px-2 py-0.5 font-bold text-cyan-300">
-                Integrity: {integrityPct}%
-              </span>
+              />
+            ))}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col">
+          <PlayBackdrop tint="#22D3EE" />
+          {orderAlert && (
+            <div className="relative z-10 mx-3 mt-2 flex items-center gap-2 rounded-lg border-[3px] border-ink-black bg-status-warn px-2.5 py-1 text-xs font-bold text-ink-black">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> {orderAlert.replace(/\s*\(.*\)\s*$/, "")}
             </div>
-          </div>
-
-          {/* Interactive Assembled Rover & Bus Diagram */}
-          <div className="my-3 flex flex-col items-center justify-center rounded-xl border-2 border-slate-700/80 bg-[#232a35]/90 p-3">
-            {/* Top row: Solar Panel, Cockpit Seat, HGA Antenna, Front Tool */}
-            <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-              {(["panel", "asiento", "antena", "herramienta"] as SlotId[]).map((slotId) => {
-                const piece = equipped[slotId];
-                const [vbW, vbH] = SLOT_VIEWBOX[slotId];
-                return (
-                  <div
-                    key={slotId}
-                    onClick={() => setSelectedSlot(slotId)}
-                    className={`relative flex min-h-[68px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 transition ${
-                      piece
-                        ? "border-emerald-400/70 bg-slate-900/70"
-                        : selectedSlot === slotId
-                        ? "border-cyan-400 border-dashed bg-cyan-950/30"
-                        : "border-slate-600/70 border-dashed bg-slate-900/40"
-                    }`}
-                  >
-                    {piece ? (
-                      <>
-                        <svg
-                          viewBox={`0 0 ${vbW} ${vbH}`}
-                          className="h-12 w-full object-contain"
-                          dangerouslySetInnerHTML={{
-                            __html: renderPieceInnerSvg(piece, roleCfg),
-                          }}
-                        />
-                        <span className="mt-0.5 truncate text-[10px] font-bold text-emerald-300">
-                          {piece.name}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-center font-mono text-[10px] text-slate-400">
-                        {SLOT_LABELS[slotId]}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Middle row: Battery/RTG + Primary Chassis + Cargo */}
-            <div className="mt-2 grid w-full grid-cols-1 gap-2 sm:grid-cols-12">
-              <div
-                onClick={() => setSelectedSlot("bateria")}
-                className={`flex min-h-[60px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 sm:col-span-3 ${
-                  equipped.bateria
-                    ? "border-emerald-400/70 bg-slate-900/70"
-                    : "border-amber-400/70 border-dashed bg-slate-900/40"
-                }`}
-              >
-                {equipped.bateria ? (
-                  <>
-                    <svg
-                      viewBox="0 0 130 50"
-                      className="h-10 w-full"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPieceInnerSvg(equipped.bateria, roleCfg),
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-emerald-300">
-                      {equipped.bateria.name}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-center font-mono text-[10px] font-bold text-amber-300">
-                    {SLOT_LABELS.bateria}
-                  </span>
-                )}
+          )}
+          <div className="relative grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            {/* ship blueprint */}
+            <div className="relative flex min-h-0 flex-col justify-center gap-2 overflow-hidden rounded-xl border-[3px] border-ink-black bg-slate-800/70 p-2">
+              <svg viewBox="0 0 200 120" className="pointer-events-none absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <path d="M20 70 Q20 40 60 36 L140 36 Q180 40 182 70 L182 84 L20 84 Z" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                <path d="M70 36 L80 16 L122 16 L132 36" fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                {[40, 75, 125, 160].map((x) => (<circle key={x} cx={x} cy="94" r="12" fill="none" stroke="#38BDF8" strokeWidth="2.5" />))}
+                <line x1="100" y1="16" x2="100" y2="4" stroke="#38BDF8" strokeWidth="2" />
+              </svg>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["panel", "antena", "asiento", "herramienta"] as SlotId[]).map((s) => slotTile(s))}
               </div>
-
-              <div
-                onClick={() => setSelectedSlot("chasis")}
-                className={`flex min-h-[60px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 sm:col-span-6 ${
-                  equipped.chasis
-                    ? "border-emerald-400 bg-slate-900/80"
-                    : "border-rose-400 border-dashed bg-rose-950/30"
-                }`}
-              >
-                {equipped.chasis ? (
-                  <>
-                    <svg
-                      viewBox="0 0 380 52"
-                      className="h-11 w-full"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPieceInnerSvg(equipped.chasis, roleCfg),
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-emerald-300">
-                      {equipped.chasis.name} ({equipped.chasis.massKg} kg)
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-center font-mono text-xs font-bold text-rose-300">
-                    ★ 1. MOUNT PRIMARY CHASSIS HERE FIRST ★
-                  </span>
-                )}
+              <div className="grid grid-cols-4 gap-1.5">
+                {slotTile("bateria")}
+                {slotTile("chasis", true)}
+                {slotTile("carga")}
               </div>
-
-              <div
-                onClick={() => setSelectedSlot("carga")}
-                className={`flex min-h-[60px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 sm:col-span-3 ${
-                  equipped.carga
-                    ? "border-emerald-400/70 bg-slate-900/70"
-                    : "border-slate-600/70 border-dashed bg-slate-900/40"
-                }`}
-              >
-                {equipped.carga ? (
-                  <>
-                    <svg
-                      viewBox="0 0 96 56"
-                      className="h-10 w-full"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPieceInnerSvg(equipped.carga, roleCfg),
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-emerald-300">
-                      {equipped.carga.name}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-center font-mono text-[10px] text-slate-400">
-                    {SLOT_LABELS.carga}
-                  </span>
-                )}
+              <div className="grid grid-cols-3 gap-1.5">
+                {(["ruedas", "escudo", "deorbit"] as SlotId[]).map((s) => slotTile(s))}
+              </div>
+              {/* wiring panel */}
+              <div className="mt-auto flex items-center justify-between gap-2 rounded-lg border-2 border-ink-black bg-space-ink px-2 py-1.5">
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-slate-400">
+                  <Cable className="h-3.5 w-3.5" /> Wire
+                </span>
+                <div className="flex gap-1.5">
+                  {CABLE_COLORS.map((c, i) => (
+                    <button key={`L${i}`} type="button" aria-label={`Left plug ${i + 1}`} onClick={() => tapCable("L", i)}
+                      className={`h-6 w-6 rounded-md border-[3px] ${cableLeft === i ? "border-paper-cream" : "border-ink-black"} ${cablesDone.includes(i) || wired ? "opacity-40" : ""}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <span className="text-slate-500">⟶</span>
+                <div className="flex gap-1.5">
+                  {rightOrder.map((i) => (
+                    <button key={`R${i}`} type="button" aria-label={`Right plug ${i + 1}`} onClick={() => tapCable("R", i)}
+                      className={`h-6 w-6 rounded-md border-[3px] border-ink-black ${cablesDone.includes(i) || wired ? "opacity-40" : ""}`}
+                      style={{ backgroundColor: CABLE_COLORS[i] }} />
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Bottom row: Wheels + Heat Shield (TPS) + Deorbit Thruster */}
-            <div className="mt-2 grid w-full grid-cols-3 gap-2">
-              <div
-                onClick={() => setSelectedSlot("ruedas")}
-                className={`flex min-h-[62px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 ${
-                  equipped.ruedas
-                    ? "border-emerald-400/70 bg-slate-900/70"
-                    : "border-slate-600/70 border-dashed bg-slate-900/40"
-                }`}
-              >
-                {equipped.ruedas ? (
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: wheels6 ? 3 : 2 }).map((_, idx) => (
-                      <svg
-                        key={idx}
-                        viewBox="0 0 96 96"
-                        className={`h-10 w-10 ${isTestingDrive ? "animate-spin" : ""}`}
-                        dangerouslySetInnerHTML={{
-                          __html: renderPieceInnerSvg(equipped.ruedas!, roleCfg),
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-center font-mono text-[10px] text-slate-400">
-                    Wheels ({wheels6 ? "6×6" : "4×4"})
-                  </span>
-                )}
-              </div>
-
-              <div
-                onClick={() => setSelectedSlot("escudo")}
-                className={`flex min-h-[62px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 ${
-                  equipped.escudo
-                    ? "border-emerald-400 bg-slate-900/80"
-                    : "border-amber-400 border-dashed bg-amber-950/30"
-                }`}
-              >
-                {equipped.escudo ? (
-                  <>
-                    <svg
-                      viewBox="0 0 160 44"
-                      className="h-9 w-full"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPieceInnerSvg(equipped.escudo, roleCfg),
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-emerald-300">
-                      {equipped.escudo.name}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-center font-mono text-[10px] font-bold text-amber-300">
-                    ★ 2. Heat Shield (TPS)
-                  </span>
-                )}
-              </div>
-
-              <div
-                onClick={() => setSelectedSlot("deorbit")}
-                className={`flex min-h-[62px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-1.5 ${
-                  equipped.deorbit
-                    ? "border-emerald-400 bg-slate-900/80"
-                    : "border-amber-400 border-dashed bg-amber-950/30"
-                }`}
-              >
-                {equipped.deorbit ? (
-                  <>
-                    <svg
-                      viewBox="0 0 88 52"
-                      className="h-9 w-full"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPieceInnerSvg(equipped.deorbit, roleCfg),
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-emerald-300">
-                      {equipped.deorbit.name}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-center font-mono text-[10px] font-bold text-amber-300">
-                    ★ 2. Deorbit Thruster
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Assembly Base Plate */}
-            <div className="mt-2 flex w-full items-center justify-between rounded bg-[#14171D] px-4 py-1 text-[10px] font-bold tracking-wider text-slate-400">
-              <span className="h-2 w-4 rounded-sm bg-amber-400" />
-              <span>
-                VAB LUNAR & SPACECRAFT INTEGRATION STAND ·{" "}
-                {torqued ? "BOLTS TORQUED (T1) ✓" : "UNBOLTED"} ·{" "}
-                {wired ? "HARNESS WIRED (T2) ✓" : "UNWIRED"}
-              </span>
-              <span className="h-2 w-4 rounded-sm bg-amber-400" />
-            </div>
-          </div>
-
-          {/* Bottom Telemetry Bar (from Ismael's Taller Lunar) */}
-          <div className="grid grid-cols-3 gap-1.5 rounded-xl border-2 border-ink-black bg-slate-950/90 p-2 text-center font-mono text-xs sm:grid-cols-6">
-            <div>
-              <span className="block text-[10px] text-slate-400">BUS MASS</span>
-              <strong
-                className={
-                  stats.maxLoadKg > 0 && stats.dryMassKg > stats.maxLoadKg
-                    ? "text-rose-400"
-                    : "text-cyan-300"
-                }
-              >
-                {stats.dryMassKg}
-                {stats.maxLoadKg ? `/${stats.maxLoadKg}` : ""} kg
-              </strong>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400">SPEED</span>
-              <strong className="text-emerald-300">{stats.speedKmh} km/h</strong>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400">RANGE</span>
-              <strong className="text-emerald-300">{stats.rangeKm} km</strong>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400">TRACTION</span>
-              <strong className="text-amber-300">{stats.tractionPct}%</strong>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400">COST</span>
-              <strong className="text-white">${stats.costM}M</strong>
-            </div>
-            <div>
-              <span className="block text-[10px] text-slate-400">SCIENCE</span>
-              <strong className="text-violet-300">+{stats.sciencePts} pts</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Palette: Category Tabs + Clickable Piece Cards */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3 lg:col-span-5">
-          <div>
-            <div className="mb-2 flex flex-wrap gap-1">
-              {(
-                [
-                  ["all", "All"],
-                  ["chasis", "1. Chassis"],
-                  ["proteccion", "2. Shield/Deorbit"],
-                  ["energia", "2. Power"],
-                  ["ruedas", "Wheels"],
-                  ["cabina", "Cockpit"],
-                  ["equipo", "Science/Tools"],
-                ] as [CategoryId, string][]
-              ).map(([catId, label]) => (
-                <button
-                  key={catId}
-                  type="button"
-                  onClick={() => setActiveCategory(catId)}
-                  className={`rounded-lg border-2 border-ink-black px-2 py-1 text-[11px] font-bold transition ${
-                    activeCategory === catId
-                      ? "bg-cyan-400 text-ink-black"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                  }`}
-                >
-                  {label}
+            {/* parts tray for the selected slot */}
+            <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto rounded-xl border-[3px] border-ink-black bg-slate-900/80 p-2">
+              <div className="flex items-center justify-between font-mono text-[10px] font-bold uppercase text-slate-400">
+                <span>{SLOT_LABELS[selectedSlot ?? "chasis"].replace(/^\d\.\s*/, "")} parts</span>
+                <button type="button" onClick={handleLoadStarterBuild} disabled={isLocked}
+                  className="inline-flex items-center gap-1 rounded border border-slate-600 px-1.5 py-0.5 text-sky-glow hover:bg-slate-800">
+                  <Sparkles className="h-3 w-3" /> Auto
                 </button>
-              ))}
-            </div>
-
-            <div className="grid max-h-[290px] grid-cols-2 gap-2 overflow-y-auto pr-1">
-              {filteredPieces.map((piece) => {
-                const isEquipped = equipped[piece.slot]?.id === piece.id;
+              </div>
+              {!step1Done && selectedSlot !== "chasis" ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 p-3 text-center">
+                  <p className="text-sm font-bold">Mount the frame first.</p>
+                  <button type="button" onClick={() => setSelectedSlot("chasis")}
+                    className="paper-btn bg-status-warn px-3 py-1.5 text-sm text-ink-black">Go to frame</button>
+                </div>
+              ) : slotPieces.map((piece) => {
                 const [vbW, vbH] = SLOT_VIEWBOX[piece.slot];
+                const mounted = equipped[piece.slot]?.id === piece.id;
                 return (
                   <button
                     key={piece.id}
                     type="button"
                     disabled={isLocked}
-                    onClick={() => handleEquipPiece(piece)}
-                    className={`flex flex-col justify-between rounded-xl border-2 p-2 text-left transition ${
-                      isEquipped
-                        ? "border-emerald-400 bg-emerald-500/15"
-                        : piece.locked
-                        ? "border-slate-700 bg-slate-800/60 opacity-80"
-                        : "border-ink-black bg-slate-800/90 hover:border-cyan-400"
+                    onClick={() => {
+                      soundEngine.playClick();
+                      handleEquipPiece(piece);
+                    }}
+                    className={`flex items-center gap-2 rounded-lg border-[3px] p-1.5 text-left transition ${
+                      mounted ? "border-status-ok bg-emerald-950/50" : "border-ink-black bg-space-ink hover:bg-blueprint-navy"
                     }`}
                   >
-                    <div className="flex w-full items-center justify-between gap-1">
-                      <span className="truncate font-display text-xs font-bold text-white">
-                        {piece.name}
+                    <svg viewBox={`0 0 ${vbW} ${vbH}`} className="h-8 w-12 shrink-0"
+                      dangerouslySetInnerHTML={{ __html: renderPieceInnerSvg(piece, roleCfg) }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-bold">{piece.name}</span>
+                      <span className="font-mono text-[10px] text-slate-400">
+                        {piece.massKg} kg · ${piece.costM}M
                       </span>
-                      {piece.locked ? (
-                        <Lock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-                      ) : isEquipped ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                      ) : null}
-                    </div>
-                    <div className="my-1 flex h-11 w-full items-center justify-center rounded bg-slate-900/80 p-1">
-                      <svg
-                        viewBox={`0 0 ${vbW} ${vbH}`}
-                        className="h-9 w-full object-contain"
-                        dangerouslySetInnerHTML={{
-                          __html: renderPieceInnerSvg(piece, roleCfg),
-                        }}
-                      />
-                    </div>
-                    <div className="flex w-full items-center justify-between font-mono text-[10px] text-slate-300">
-                      <span>{piece.massKg} kg</span>
-                      <span className="text-amber-300">${piece.costM}M</span>
-                    </div>
+                    </span>
+                    {mounted && <CheckCircle2 className="h-4 w-4 shrink-0 text-status-ok" />}
+                    {piece.locked && <Lock className="h-4 w-4 shrink-0 text-slate-500" />}
                   </button>
                 );
               })}
             </div>
           </div>
-
-          {/* Selected Slot / Action Footer */}
-          <div className="mt-3 space-y-2 border-t border-slate-700 pt-2">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <span>
-                Est. Total Wet Mass:{" "}
-                <b className="font-mono text-cyan-300">
-                  {Math.round(liveMetrics.estimated_wet_mass_kg)} kg
-                </b>
-              </span>
-              {selectedSlot && equipped[selectedSlot] && (
-                <button
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => {
-                    const piece = equipped[selectedSlot];
-                    if (piece) handleEquipPiece(piece);
-                  }}
-                  className="flex items-center gap-1 text-rose-400 hover:underline"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Remove {SLOT_LABELS[selectedSlot]}
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => onSubmitTake(buildFinalPayload())}
-              className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-2.5 text-sm text-ink-black"
-            >
-              <Flame className="h-4 w-4" />
-              {isLocked ? "ASSEMBLY LOCKED ✓" : "CONFIRM SPACECRAFT ASSEMBLY"}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title="Ship">
+            <div className="space-y-2">
+              <Readout label="Mass" value={`${stats.dryMassKg} kg`} tone="info" />
+              <Readout label="Strength" value={`${integrityPct}%`} pct={integrityPct} tone={integrityPct >= 90 ? "ok" : integrityPct >= 75 ? "warn" : "bad"} />
+              <Readout label="Heat shield" value={stats.hasThermalProtection ? "Mounted" : "Missing"} tone={stats.hasThermalProtection ? "ok" : missionCfg.requires_thermal_protection ? "bad" : "warn"} />
+              <Readout label="Parts cost" value={`$${stats.costM}M`} tone="info" />
+            </div>
+          </PanelCard>
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock ship" onLock={() => onSubmitTake(buildFinalPayload())} />
+        </>
+      }
+    />
   );
 }
 

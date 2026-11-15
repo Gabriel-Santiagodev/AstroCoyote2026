@@ -4,7 +4,6 @@ import confetti from "canvas-confetti";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronDown, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
-import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
@@ -147,6 +146,10 @@ export function MissionReportDashboard({
     }
     setRevealedReport(report);
   }, [report]);
+  // No decoding loader any more: reveal the report (and play the fanfare) as soon as it arrives.
+  useEffect(() => {
+    if (isDecoding) finishDecoding();
+  }, [isDecoding, finishDecoding]);
 
   useEffect(() => setPriorAttempts(readStoredAttempts()), [report]);
 
@@ -197,19 +200,6 @@ export function MissionReportDashboard({
     });
   }, [isDecoding, report, reduceMotion]);
 
-  if (isDecoding) {
-    return (
-      <MissionLoadingScreen
-        variant="flight_to_report"
-        durationMs={1100}
-        allowSkip
-        missionId={missionId}
-        roleId={myRole}
-        isMobileClient={isMobileClient}
-        onComplete={finishDecoding}
-      />
-    );
-  }
 
   return (
     <main className="handheld-console-frame relative mx-3 max-w-6xl space-y-5 overflow-hidden px-3 pb-10 pt-12 text-paper-cream sm:space-y-6 sm:px-6 sm:pb-8 sm:pt-14 md:mx-auto">

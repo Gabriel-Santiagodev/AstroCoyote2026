@@ -20,7 +20,6 @@ import {
   CrewmateAvatar,
   ROLE_CHARACTER_PROFILE,
 } from "../components/paper/CrewmateAvatar";
-import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { soundEngine } from "../components/paper/SoundEngine";
 import type { DifficultyType, MissionIdType, RoleType } from "../types/game";
 
@@ -154,7 +153,6 @@ export function LobbyView({
   const [isNarrowScreen, setIsNarrowScreen] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
-  const [isLaunchingWave1, setIsLaunchingWave1] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -212,7 +210,7 @@ export function LobbyView({
 
   const triggerLaunch = () => {
     soundEngine.playComplete();
-    setIsLaunchingWave1(true);
+    onLaunchMission();
   };
 
   const humanCount = players && players.length > 0 ? players.length : 1;
@@ -220,21 +218,6 @@ export function LobbyView({
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 px-3 pb-6 pt-14 sm:px-5 sm:pt-16">
-      {isLaunchingWave1 && (
-        <MissionLoadingScreen
-          variant="lobby_to_wave1"
-          missionId={selectedMission}
-          roleId={selectedRole}
-          durationMs={850}
-          isMobileClient={isMobilePad}
-          allowSkip
-          onComplete={() => {
-            setIsLaunchingWave1(false);
-            onLaunchMission();
-          }}
-        />
-      )}
-
       {/* Header: back · step tracker · room PIN */}
       <header className="flash-panel flex flex-wrap items-center justify-between gap-3 overflow-hidden px-3 py-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">

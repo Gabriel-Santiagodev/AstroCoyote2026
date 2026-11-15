@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 interface MassModule {
   id: string;
@@ -294,298 +297,137 @@ export function Rol2B_MassBalanceTask({
     }
   }, [timeLeftSec, isLocked, onSubmitTake, buildPayload]);
 
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): top-down ship disc with 8 bays, live red CG dot and the green
+  // tolerance circle; tap a module, then a bay. Model above (CG math, payload) unchanged.
+  // ---------------------------------------------------------------------------
+  const DISC_R = 100; // SVG units for the ship disc radius
+  const BAY_SPAN_M = 0.75; // farthest bay distance in metres (MOUNTING_SLOTS)
+  const toSvg = (m: number) => (m / BAY_SPAN_M) * DISC_R * 0.72;
+  const moduleById = (id: string) => modules.find((m) => m.id === id);
+  const occupantOf = (slotId: string) => Object.keys(slotAssignments).find((mId) => slotAssignments[mId] === slotId);
+  const allPlaced = cgCalc.placements.length === modules.length;
+  const goals: Goal[] = [
+    { label: "Every module in a bay", done: allPlaced },
+    { label: "Red dot in the green circle", done: cgCalc.cgBalanced },
+  ];
+  const offPct = Math.min(100, (cgCalc.dCg / Math.max(0.01, rTolM * 2)) * 100);
+
   return (
-    <div className="space-y-3 text-slate-100">
-      {/* Top Status Banner */}
-      <div className="paper-card flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink-black bg-role-spacecraft font-display text-sm font-bold text-ink-black">
-            2B
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col sm:flex-row">
+          <PlayBackdrop tint="#22D3EE" />
+          {/* module tray */}
+          <div className="relative z-10 flex shrink-0 gap-1.5 overflow-x-auto p-2 sm:w-40 sm:flex-col sm:overflow-y-auto">
+            {modules.map((m) => {
+              const sel = m.id === selectedModuleId;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    soundEngine.playClick();
+                    setSelectedModuleId(m.id);
+                  }}
+                  className={`flex min-w-[7rem] items-center gap-2 rounded-lg border-[3px] px-2 py-1.5 text-left ${
+                    sel ? "border-paper-cream bg-blueprint-navy shadow-paper-sm" : "border-ink-black bg-space-ink"
+                  }`}
+                >
+                  <span className="h-4 w-4 shrink-0 rounded-full border-2 border-ink-black" style={{ backgroundColor: m.color }} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[11px] font-bold leading-tight">{m.name}</span>
+                    <span className="font-mono text-[10px] text-slate-400">{m.mass_kg} kg</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <h3 className="font-display text-base font-bold text-white">
-              Balance the weight
-            </h3>
-            <p className="text-xs text-slate-300">
-              Tap a part, then a bay. Keep the <b>red dot</b> in the <b>green circle</b>.
-            </p>
-          </div>
-        </div>
 
-        {/* Live CG Status Badge */}
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span
-            className={`rounded-xl border-2 border-ink-black px-3 py-1.5 font-extrabold ${
-              cgCalc.cgBalanced
-                ? "bg-emerald-400 text-ink-black"
-                : "bg-rose-500 text-white"
-            }`}
-          >
-            {cgCalc.cgBalanced
-              ? `BALANCED! d_CG = ${cgCalc.dCg.toFixed(2)}m (1.0x Burn)`
-              : `UNBALANCED! d_CG = ${cgCalc.dCg.toFixed(2)}m > ${rTolM}m (1.5x FUEL!)`}
-          </span>
-          <span className="rounded-xl border-2 border-ink-black bg-slate-950 px-3 py-1.5 text-cyan-300">
-            CML 4 Margin: <b>{cgCalc.massGrowthMarginPct}%</b>
-          </span>
-        </div>
-      </div>
-
-      {/* Main Grid: Left Module Tray + Center 8-Bay CG Grid + Right Radar & Ballast Controls */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* Left Column: Hardware Modules from Science (Rol 4A) & Propulsion */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3 lg:col-span-4">
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-display text-sm font-bold text-cyan-300">
-                1. Select Module to Move
-              </span>
-              <span className="font-mono text-xs text-slate-400">
-                Total: {cgCalc.totalMountedKg} kg
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {modules.map((mod) => {
-                const isSelected = mod.id === selectedModuleId;
-                const currentSlot = slotAssignments[mod.id] ?? "—";
+          {/* ship disc */}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center p-2">
+            <svg viewBox="-130 -130 260 260" className="h-full max-h-[420px] w-full max-w-[420px]" role="img" aria-label="Ship balance view">
+              <circle r={DISC_R + 14} fill="#334155" stroke="#0F172A" strokeWidth="6" />
+              <circle r={DISC_R} fill="#1E293B" stroke="#475569" strokeWidth="3" strokeDasharray="6 6" />
+              <line x1={-DISC_R} x2={DISC_R} y1="0" y2="0" stroke="#475569" strokeWidth="2" />
+              <line y1={-DISC_R} y2={DISC_R} x1="0" x2="0" stroke="#475569" strokeWidth="2" />
+              {/* tolerance circle */}
+              <circle r={Math.max(6, toSvg(rTolM))} fill="#22C55E33" stroke="#22C55E" strokeWidth="3" />
+              {/* bays */}
+              {MOUNTING_SLOTS.map((slot) => {
+                const occ = occupantOf(slot.slotId);
+                const mod = occ ? moduleById(occ) : undefined;
+                const cx = toSvg(slot.x_m);
+                const cy = -toSvg(slot.y_m);
                 return (
-                  <button
-                    key={mod.id}
-                    type="button"
-                    disabled={isLocked}
-                    onClick={() => setSelectedModuleId(mod.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border-2 p-2.5 text-left transition ${
-                      isSelected
-                        ? "border-cyan-400 bg-cyan-500/20 shadow-paper-sm"
-                        : "border-ink-black bg-slate-800/90 hover:border-slate-500"
-                    }`}
+                  <g
+                    key={slot.slotId}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Bay ${slot.slotId}${mod ? `: ${mod.name}` : " empty"}`}
+                    onClick={() => {
+                      if (isLocked) return;
+                      soundEngine.playClick();
+                      if (occ && occ !== selectedModuleId && !selectedModuleId) setSelectedModuleId(occ);
+                      else handleSelectSlot(slot.slotId);
+                    }}
+                    style={{ cursor: isLocked ? "default" : "pointer" }}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="h-4 w-4 shrink-0 rounded-full border border-ink-black"
-                        style={{ backgroundColor: mod.color }}
-                      />
-                      <div>
-                        <span className="block font-display text-xs font-bold text-white">
-                          {mod.name}
-                        </span>
-                        <span className="font-mono text-[11px] text-slate-300">
-                          {mod.mass_kg} kg · Mounted in <b>Bay {currentSlot}</b>
-                        </span>
-                      </div>
-                    </div>
-                    <ArrowDownUp className="h-4 w-4 text-slate-400" />
-                  </button>
+                    <circle cx={cx} cy={cy} r="22" fill={mod ? mod.color : "#0F172A"} stroke="#0F172A" strokeWidth="5"
+                      opacity={mod ? 1 : 0.85} />
+                    {!mod && <circle cx={cx} cy={cy} r="16" fill="none" stroke="#64748B" strokeWidth="2" strokeDasharray="4 4" />}
+                    {mod && (
+                      <text x={cx} y={cy + 4} textAnchor="middle" fontFamily="IBM Plex Mono, monospace" fontSize="11" fontWeight="700" fill="#0F172A">
+                        {mod.mass_kg}
+                      </text>
+                    )}
+                    {mod?.id === selectedModuleId && (
+                      <circle cx={cx} cy={cy} r="27" fill="none" stroke="#F8FAFC" strokeWidth="3" />
+                    )}
+                  </g>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Emergency Jettison Ballast Button */}
-          <div className="mt-3 space-y-2 border-t border-slate-700 pt-2.5">
-            <div className="rounded-xl border-2 border-rose-500/60 bg-rose-950/30 p-2.5 text-xs">
-              <div className="flex items-center justify-between font-bold text-rose-200">
-                <span>Emergency Mass Trim</span>
-                <span className="font-mono">-{ballastJettisonedKg} kg Jettisoned</span>
-              </div>
-              <p className="mt-0.5 text-[11px] text-slate-300">
-                Too heavy? Drop ballast (-40 kg).
-              </p>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={handleJettisonBallast}
-                className="paper-btn mt-2 flex w-full items-center justify-center gap-1.5 bg-rose-500 py-2 text-xs text-white"
-              >
-                <PackageMinus className="h-4 w-4" />
-                {ballastJettisonedKg >= 80
-                  ? "RESET BALLAST (0 kg)"
-                  : `JETTISON BALLAST (-40 kg) · Net Wet: ${cgCalc.adjustedWetMassKg} kg`}
+              {/* live CG dot */}
+              <motion.g initial={false} animate={{ x: toSvg(cgCalc.xCg), y: -toSvg(cgCalc.yCg) }} transition={{ type: "spring", stiffness: 160, damping: 16 }}>
+                <circle r="9" fill={cgCalc.cgBalanced ? "#22C55E" : "#EF4444"} stroke="#0F172A" strokeWidth="4" />
+                <circle r="3" fill="#F8FAFC" />
+              </motion.g>
+            </svg>
+            <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-2">
+              <button type="button" onClick={handleAutoBalanceHint} disabled={isLocked}
+                className="paper-btn inline-flex items-center gap-1 bg-space-ink px-2.5 py-1 text-xs text-paper-cream">
+                <Sparkles className="h-3.5 w-3.5 text-sky-glow" /> Hint
+              </button>
+              <button type="button" onClick={() => { soundEngine.playClick(); handleJettisonBallast(); }} disabled={isLocked}
+                className="paper-btn inline-flex items-center gap-1 bg-paper-cream px-2.5 py-1 text-xs text-ink-black">
+                <PackageMinus className="h-3.5 w-3.5" /> Ballast {ballastJettisonedKg > 0 ? `-${ballastJettisonedKg} kg` : ""}
               </button>
             </div>
           </div>
         </div>
-
-        {/* Center Column: 8-Slot 2D Spacecraft Bus Grid */}
-        <div className="paper-card blueprint-grid flex flex-col justify-between bg-[#162038] p-3 lg:col-span-5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-display font-bold text-white">
-              2. Click Any Bay to Place / Swap Module
-            </span>
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={handleAutoBalanceHint}
-              className="paper-btn flex items-center gap-1 bg-amber-400 px-2.5 py-1 text-[11px] text-ink-black"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Auto-Symmetrize Bays
-            </button>
-          </div>
-
-          {/* 3x3 Top-View Bus Grid (8 outer bays + Center CG Radar) */}
-          <div className="my-2 grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((row) =>
-              [0, 1, 2].map((col) => {
-                // Center cell (1,1) is the live 2D CG Radar Target!
-                if (row === 1 && col === 1) {
-                  const dotCx = 60 + cgCalc.xCg * 48;
-                  const dotCy = 60 - cgCalc.yCg * 48;
-                  const rPx = rTolM * 48;
-                  return (
-                    <div
-                      key="CENTER_RADAR"
-                      className="flex flex-col items-center justify-center rounded-xl border-2 border-ink-black bg-slate-950 p-1.5"
-                    >
-                      <svg viewBox="0 0 120 120" className="h-24 w-24">
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="52"
-                          fill="#0B1021"
-                          stroke="#334155"
-                          strokeWidth="1.5"
-                        />
-                        <line x1="8" y1="60" x2="112" y2="60" stroke="#334155" strokeDasharray="3 3" />
-                        <line x1="60" y1="8" x2="60" y2="112" stroke="#334155" strokeDasharray="3 3" />
-                        {/* Green Tolerance Circle */}
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r={Math.max(6, rPx)}
-                          fill="rgba(34, 197, 94, 0.22)"
-                          stroke="#22C55E"
-                          strokeWidth="2.2"
-                        />
-                        {/* Red Live CG Dot */}
-                        <circle
-                          cx={dotCx}
-                          cy={dotCy}
-                          r="5.5"
-                          fill={cgCalc.cgBalanced ? "#22C55E" : "#EF4444"}
-                          stroke="#FFFFFF"
-                          strokeWidth="1.8"
-                        />
-                      </svg>
-                      <span className="font-mono text-[10px] font-bold text-slate-300">
-                        CG ({cgCalc.xCg >= 0 ? `+${cgCalc.xCg}` : cgCalc.xCg},{" "}
-                        {cgCalc.yCg >= 0 ? `+${cgCalc.yCg}` : cgCalc.yCg}) m
-                      </span>
-                    </div>
-                  );
-                }
-
-                const slot = MOUNTING_SLOTS.find(
-                  (s) => s.gridPos[0] === row && s.gridPos[1] === col
-                )!;
-                const occupantMod = modules.find((m) => slotAssignments[m.id] === slot.slotId);
-                const isSelectedOccupant = occupantMod?.id === selectedModuleId;
-
-                return (
-                  <button
-                    key={slot.slotId}
-                    type="button"
-                    disabled={isLocked}
-                    onClick={() => handleSelectSlot(slot.slotId)}
-                    className={`flex min-h-[96px] flex-col justify-between rounded-xl border-2 p-2 text-left transition ${
-                      isSelectedOccupant
-                        ? "border-cyan-400 bg-cyan-500/25 shadow-paper-sm"
-                        : occupantMod
-                        ? "border-emerald-400/70 bg-slate-900/90 hover:border-cyan-300"
-                        : "border-dashed border-slate-600 bg-slate-900/40 hover:border-amber-400"
-                    }`}
-                  >
-                    <div className="flex w-full items-center justify-between font-mono text-[10px] text-slate-400">
-                      <span className="font-bold text-white">BAY {slot.slotId}</span>
-                      <span>
-                        ({slot.x_m},{slot.y_m})
-                      </span>
-                    </div>
-
-                    {occupantMod ? (
-                      <div className="my-1">
-                        <span
-                          className="inline-block rounded px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-ink-black"
-                          style={{ backgroundColor: occupantMod.color }}
-                        >
-                          {occupantMod.mass_kg} kg
-                        </span>
-                        <span className="mt-1 block truncate font-display text-xs font-bold text-white">
-                          {occupantMod.name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="my-auto text-center font-mono text-[10px] text-slate-500">
-                        Empty Bay (Tap to Place)
-                      </span>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <div className="text-center font-mono text-[11px] text-slate-300">
-            Tip: put heavy parts on <b>opposite</b> bays.
-          </div>
-        </div>
-
-        {/* Right Column: Physics Telemetry & Confirm Take */}
-        <div className="paper-card flex flex-col justify-between bg-slate-900/95 p-3 lg:col-span-3">
-          <div className="space-y-2.5 text-xs">
-            <h4 className="flex items-center gap-1.5 font-display text-sm font-bold text-white">
-              <Crosshair className="h-4 w-4 text-cyan-400" /> CG & Thrust Telemetry
-            </h4>
-
-            <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-slate-950 p-2.5 font-mono">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Radial Offset d_CG:</span>
-                <strong className={cgCalc.cgBalanced ? "text-emerald-300" : "text-rose-400"}>
-                  {cgCalc.dCg.toFixed(3)} m
-                </strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Mission Limit R_tol:</span>
-                <strong className="text-white">{rTolM.toFixed(2)} m</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Fuel Burn Mult:</span>
-                <strong className={cgCalc.cgBalanced ? "text-emerald-300" : "text-rose-400"}>
-                  {cgCalc.fuelBurnMultiplier.toFixed(1)}x
-                </strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">DSN Pointing Drift:</span>
-                <strong className={cgCalc.cgBalanced ? "text-emerald-300" : "text-amber-300"}>
-                  {cgCalc.cgBalanced ? "1.0x Nominal" : "1.5x High Drift"}
-                </strong>
-              </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title="Balance">
+            <div className="space-y-2">
+              <Readout label="Off-center" value={`${cgCalc.dCg.toFixed(2)} m`} pct={offPct}
+                tone={cgCalc.cgBalanced ? "ok" : offPct < 75 ? "warn" : "bad"} />
+              <Readout label="Allowed" value={`${rTolM.toFixed(2)} m`} tone="info" />
+              <Readout label="Fuel burn" value={`${cgCalc.fuelBurnMultiplier.toFixed(1)}×`} tone={cgCalc.cgBalanced ? "ok" : "bad"} />
+              <Readout label="Ship weight" value={`${cgCalc.adjustedWetMassKg.toLocaleString()} kg`} tone="info" />
             </div>
-
-            <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-2.5 text-[11px] leading-relaxed text-slate-300">
-              <strong className="block text-cyan-300">Why it matters</strong>
-              Off-center = <b>1.5× fuel</b> and a shaky antenna.
+          </PanelCard>
+          {!cgCalc.cgBalanced && allPlaced && (
+            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-warn px-2.5 py-1.5 text-xs font-bold text-ink-black">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> Put heavy parts on opposite sides.
             </div>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={() => onSubmitTake(buildPayload())}
-              className="paper-btn flex w-full items-center justify-center gap-2 bg-status-ok py-2.5 text-sm text-ink-black"
-            >
-              {cgCalc.cgBalanced ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <Flame className="h-4 w-4" />
-              )}
-              {isLocked ? "CG BALANCE LOCKED ✓" : "CONFIRM MASS & CG BALANCE"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          )}
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock balance" onLock={() => onSubmitTake(buildPayload())} />
+        </>
+      }
+    />
   );
 }
 

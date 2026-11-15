@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps, MissionIdType } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 interface InstrumentCatalogItem {
   id: string;
@@ -335,292 +338,147 @@ export function Rol4A_SpectralLabTask({
     setWorkflowToast("Diagnostic spectral window isolated cleanly.");
   };
 
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): two steps in one window. 1) load instruments into the payload
+  // bay; 2) clean the light spectrum and tap its peaks. Model above (payload, marks) unchanged.
+  // ---------------------------------------------------------------------------
+  const expectedPeaks = activeChallenge.expected_peaks?.length || activeChallenge.detected_peaks?.length || 1;
+  const goals: Goal[] = [
+    { label: "Instruments loaded", done: selectedInstruments.length > 0 },
+    { label: "Spectrum baseline flattened", done: baselineCleaned },
+    { label: `Peaks marked (${Math.min(marks.length, expectedPeaks)}/${expectedPeaks})`, done: marks.length >= expectedPeaks },
+  ];
+  const markToSvgX = (x: number) =>
+    chartGeom.padX + ((x - chartGeom.minX) / Math.max(1e-6, chartGeom.maxX - chartGeom.minX)) * (chartGeom.w - chartGeom.padX * 1.5);
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black bg-role-science px-2.5 py-0.5 font-mono text-xs font-bold text-paper-cream">
-            <Microscope className="h-3.5 w-3.5" />
-            STATION 1 · PAYLOAD &amp; SPECTRAL LAB
-          </span>
-          <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Pick the science
-          </h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowConceptGuide((v) => !v)}
-          className="paper-btn flex items-center gap-1.5 bg-blueprint-navy px-3 py-1.5 text-xs text-paper-cream"
-        >
-          <HelpCircle className="h-4 w-4 text-role-science" />
-          {showConceptGuide ? "Hide Science Guide" : "Science Guide"}
-        </button>
-      </div>
-
-      {showConceptGuide && (
-        <div className="rounded-xl border-2 border-role-science bg-space-ink/90 p-3 text-xs leading-relaxed text-slate-200">
-          <p className="font-bold text-role-science">
-            {activeChallenge.educational_guide?.title ?? "Spectral Calibration Basics"}
-          </p>
-          <p className="mt-1">{activeChallenge.educational_guide?.concept_summary}</p>
-          <p className="mt-1 text-slate-300">{activeChallenge.educational_guide?.how_to_read_chart}</p>
-        </div>
-      )}
-
-      {/* Phase Navigation */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setPhase("payload")}
-          className={`paper-btn flex-1 px-3 py-2 text-xs sm:text-sm ${
-            phase === "payload"
-              ? "bg-role-science text-paper-cream"
-              : "bg-space-ink text-slate-300"
-          }`}
-        >
-          1. Instruments ({selectedInstruments.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setPhase("spectral")}
-          className={`paper-btn flex-1 px-3 py-2 text-xs sm:text-sm ${
-            phase === "spectral"
-              ? "bg-role-science text-paper-cream"
-              : "bg-space-ink text-slate-300"
-          }`}
-        >
-          2. Spectral Lab ({marks.length} marks)
-        </button>
-      </div>
-
-      {phase === "payload" ? (
-        <div className="space-y-3">
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {missionInstruments.map((inst) => {
-              const active = selectedIds.includes(inst.id);
-              return (
-                <button
-                  key={inst.id}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => toggleInstrument(inst)}
-                  className={`rounded-xl border-2 p-3 text-left transition ${
-                    active
-                      ? "border-role-science bg-role-science/20 shadow-paper"
-                      : "border-ink-black bg-space-ink/75 hover:border-slate-400"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-display text-sm font-bold text-paper-cream">
-                      {inst.name}
-                    </span>
-                    {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-status-ok" />}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[11px] text-slate-300">
-                    <span>{inst.mass_kg} kg</span>
-                    <span>{inst.power_w} W</span>
-                    <span>{inst.data_gbit_day} Gbit/d</span>
-                    <span className="text-status-ok">+{inst.science_value} Sci</span>
-                  </div>
-                </button>
-              );
-            })}
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col">
+          <PlayBackdrop tint="#A855F7" />
+          <div className="relative z-10 flex gap-1.5 p-2">
+            {(["payload", "spectral"] as const).map((p, i) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  setPhase(p);
+                }}
+                className={`paper-btn flex-1 py-1.5 text-sm ${phase === p ? "bg-paper-cream text-ink-black" : "bg-space-ink text-slate-300"}`}
+              >
+                {i + 1}. {p === "payload" ? "Load the bay" : "Read the light"}
+              </button>
+            ))}
           </div>
 
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 border-ink-black bg-space-ink/80 p-3">
-            <div className="flex items-center gap-2.5">
-              <Eye className="h-5 w-5 text-role-science" />
-              <div>
-                <div className="font-display text-sm font-bold text-paper-cream">
-                  Visual Autopilot (Natural Feature Tracking)
-                </div>
-                <div className="text-xs text-slate-300">
-                  Self-driving landing (+10 science).
-                </div>
+          {phase === "payload" ? (
+            <div className="relative grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-y-auto p-2 pt-0 sm:grid-cols-2">
+              {missionInstruments.map((inst) => {
+                const on = selectedIds.includes(inst.id);
+                return (
+                  <motion.button
+                    key={inst.id}
+                    type="button"
+                    disabled={isLocked}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      soundEngine.playClick();
+                      toggleInstrument(inst);
+                    }}
+                    className={`flex items-center gap-2 rounded-xl border-[3px] p-2 text-left ${
+                      on ? "border-status-ok bg-emerald-950/50" : "border-ink-black bg-space-ink hover:bg-blueprint-navy"
+                    }`}
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-ink-black ${on ? "bg-status-ok text-ink-black" : "bg-blueprint-navy text-role-science"}`}>
+                      {on ? <CheckCircle2 className="h-5 w-5" /> : <Microscope className="h-5 w-5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-bold">{inst.name}</span>
+                      <span className="font-mono text-[10px] text-slate-400">
+                        {inst.mass_kg} kg · {inst.power_w} W · +{inst.science_value} sci
+                      </span>
+                    </span>
+                  </motion.button>
+                );
+              })}
+              <button
+                type="button"
+                disabled={isLocked}
+                onClick={() => {
+                  soundEngine.playClick();
+                  setHasVisualAutonomy((v) => !v);
+                }}
+                className={`flex items-center gap-2 rounded-xl border-[3px] border-dashed p-2 text-left ${hasVisualAutonomy ? "border-sky-glow bg-sky-950/40" : "border-slate-600"}`}
+              >
+                <Eye className="h-5 w-5 shrink-0 text-sky-glow" />
+                <span className="text-xs font-bold">Self-driving camera {hasVisualAutonomy ? "ON" : "OFF"} (+10 sci)</span>
+              </button>
+            </div>
+          ) : (
+            <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2 pt-0">
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" disabled={isLocked || baselineCleaned} onClick={() => { soundEngine.playComplete(); handleBaselineStep(); }}
+                  className={`paper-btn inline-flex items-center gap-1 px-2.5 py-1 text-xs ${baselineCleaned ? "bg-status-ok text-ink-black" : "animate-pulse bg-status-warn text-ink-black"}`}>
+                  <Activity className="h-3.5 w-3.5" /> {baselineCleaned ? "Baseline flat" : "1 · Flatten baseline"}
+                </button>
+                <button type="button" disabled={isLocked} onClick={() => { soundEngine.playClick(); handleCropStep(); }}
+                  className="paper-btn inline-flex items-center gap-1 bg-space-ink px-2.5 py-1 text-xs text-paper-cream">
+                  <Sparkles className="h-3.5 w-3.5" /> 2 · Zoom
+                </button>
+                <button type="button" disabled={isLocked || marks.length === 0} onClick={() => setMarks([])}
+                  className="paper-btn inline-flex items-center gap-1 bg-space-ink px-2.5 py-1 text-xs text-paper-cream">
+                  <Trash2 className="h-3.5 w-3.5" /> Clear
+                </button>
+              </div>
+              {workflowToast && (
+                <div className="rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 text-xs font-bold text-ink-black">{workflowToast}</div>
+              )}
+              <div className="relative min-h-0 flex-1 rounded-xl border-[3px] border-ink-black bg-slate-950">
+                <svg
+                  ref={svgRef}
+                  viewBox={`0 0 ${chartGeom.w} ${chartGeom.h}`}
+                  preserveAspectRatio="none"
+                  className="absolute inset-0 h-full w-full cursor-crosshair"
+                  onClick={(e) => {
+                    if (isLocked) return;
+                    soundEngine.playClick();
+                    handleChartClick(e);
+                  }}
+                  role="img"
+                  aria-label="Light spectrum: tap the peaks"
+                >
+                  {chartGeom.basePoly && <polyline points={chartGeom.basePoly} fill="none" stroke="#F97316" strokeWidth="2" strokeDasharray="6 5" />}
+                  <polyline points={chartGeom.poly} fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                  {marks.map((m, i) => (
+                    <line key={`${m}-${i}`} x1={markToSvgX(m)} x2={markToSvgX(m)} y1="6" y2={chartGeom.h - 6} stroke="#EF4444" strokeWidth="2.5" />
+                  ))}
+                </svg>
+                <span className="pointer-events-none absolute bottom-1 left-2 rounded border border-ink-black bg-paper-cream px-1.5 font-mono text-[10px] font-bold text-ink-black">
+                  Tap the tall peaks
+                </span>
               </div>
             </div>
-            <input
-              type="checkbox"
-              disabled={isLocked}
-              checked={hasVisualAutonomy}
-              onChange={(e) => setHasVisualAutonomy(e.target.checked)}
-              className="h-5 w-5 accent-purple-500"
-            />
-          </label>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* Interactive Pipeline Controls (Plantilla) */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={isLocked || baselineCleaned}
-              onClick={handleBaselineStep}
-              className="paper-btn flex items-center gap-1.5 bg-role-science px-3 py-1.5 text-xs text-paper-cream"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              {baselineCleaned ? "1. Baseline Clean" : "1. Clean Baseline"}
-            </button>
-            <button
-              type="button"
-              disabled={isLocked}
-              onClick={handleCropStep}
-              className="paper-btn bg-blueprint-navy px-3 py-1.5 text-xs text-paper-cream"
-            >
-              2. {croppedView ? "Full Axis" : "Crop Region"}
-            </button>
-            <button
-              type="button"
-              disabled={isLocked || marks.length === 0}
-              onClick={() => setMarks([])}
-              className="paper-btn flex items-center gap-1 bg-space-ink px-3 py-1.5 text-xs text-slate-200"
-            >
-              <RotateCcw className="h-3.5 w-3.5" /> Clear Marks
-            </button>
-          </div>
-
-          {workflowToast && (
-            <div className="rounded-lg border-2 border-ink-black bg-space-ink/90 px-3 py-1.5 font-mono text-xs text-status-warn">
-              {workflowToast}
-            </div>
-          )}
-
-          {/* Clickable SVG Spectrum Canvas */}
-          <div className="rounded-xl border-2 border-ink-black bg-space-ink p-2">
-            <div className="mb-1 flex items-center justify-between px-1 font-mono text-[11px] text-slate-300">
-              <span>
-                {activeChallenge.y_label} vs. {activeChallenge.x_unit} (Click crests to mark peaks)
-              </span>
-              <span className="text-role-science">{activeChallenge.archetype}</span>
-            </div>
-            <svg
-              ref={svgRef}
-              viewBox={`0 0 ${chartGeom.w} ${chartGeom.h}`}
-              onClick={handleChartClick}
-              className="h-48 w-full cursor-crosshair select-none rounded-lg bg-[#070B18]"
-              aria-label="Interactive Spectral Plot"
-            >
-              {/* Grid lines */}
-              <line x1={chartGeom.padX} y1={chartGeom.h - chartGeom.padY} x2={chartGeom.w - 14} y2={chartGeom.h - chartGeom.padY} stroke="#334155" strokeWidth="1.5" />
-              <line x1={chartGeom.padX} y1={10} x2={chartGeom.padX} y2={chartGeom.h - chartGeom.padY} stroke="#334155" strokeWidth="1.5" />
-
-              {/* Baseline drift overlay before cleaning */}
-              {chartGeom.basePoly && (
-                <polyline
-                  points={chartGeom.basePoly}
-                  fill="none"
-                  stroke="#F59E0B"
-                  strokeWidth="1.5"
-                  strokeDasharray="5 4"
-                />
-              )}
-
-              {/* Spectrum curve */}
-              <polyline
-                points={chartGeom.poly}
-                fill="none"
-                stroke="#38BDF8"
-                strokeWidth="2.5"
-                strokeLinejoin="round"
-              />
-
-              {/* Suggested peak guides (subtle dots) */}
-              {(activeChallenge.detected_peaks ?? []).map((pk) => {
-                const sx =
-                  chartGeom.padX +
-                  ((pk - chartGeom.minX) / Math.max(1e-6, chartGeom.maxX - chartGeom.minX)) *
-                    (chartGeom.w - chartGeom.padX * 1.5);
-                if (sx < chartGeom.padX || sx > chartGeom.w - 10) return null;
-                return (
-                  <line
-                    key={`hint-${pk}`}
-                    x1={sx}
-                    y1={12}
-                    x2={sx}
-                    y2={chartGeom.h - chartGeom.padY}
-                    stroke="#A855F7"
-                    strokeWidth="1"
-                    strokeDasharray="2 3"
-                    opacity="0.55"
-                  />
-                );
-              })}
-
-              {/* User-placed spectral marks */}
-              {marks.map((m, idx) => {
-                const sx =
-                  chartGeom.padX +
-                  ((m - chartGeom.minX) / Math.max(1e-6, chartGeom.maxX - chartGeom.minX)) *
-                    (chartGeom.w - chartGeom.padX * 1.5);
-                return (
-                  <g key={`mark-${idx}-${m}`}>
-                    <line
-                      x1={sx}
-                      y1={14}
-                      x2={sx}
-                      y2={chartGeom.h - chartGeom.padY}
-                      stroke="#3DDC84"
-                      strokeWidth="2"
-                    />
-                    <circle cx={sx} cy={18} r="4.5" fill="#3DDC84" stroke="#0F172A" strokeWidth="1.5" />
-                  </g>
-                );
-              })}
-
-              <text x={chartGeom.padX} y={chartGeom.h - 4} fill="#94A3B8" fontSize="10" fontFamily="monospace">
-                {chartGeom.minX.toFixed(0)} {activeChallenge.x_unit}
-              </text>
-              <text x={chartGeom.w - 20} y={chartGeom.h - 4} textAnchor="end" fill="#94A3B8" fontSize="10" fontFamily="monospace">
-                {chartGeom.maxX.toFixed(0)} {activeChallenge.x_unit}
-              </text>
-            </svg>
-          </div>
-
-          {marks.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {marks.map((m, idx) => (
-                <button
-                  key={`${m}-${idx}`}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => setMarks((prev) => prev.filter((_, i) => i !== idx))}
-                  className="inline-flex items-center gap-1 rounded-full border border-ink-black bg-status-ok/25 px-2.5 py-0.5 font-mono text-xs text-status-ok"
-                >
-                  {m} {activeChallenge.x_unit}
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
           )}
         </div>
-      )}
-
-      {/* Footer Live Totals & Submit */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-ink-black bg-space-ink/80 p-3">
-        <div className="flex flex-wrap gap-4 font-mono text-xs">
-          <span>
-            Mass: <strong className="text-paper-cream">{totals.massKg.toFixed(1)} kg</strong>
-          </span>
-          <span>
-            Power: <strong className="text-paper-cream">{totals.powerW.toFixed(1)} W</strong>
-          </span>
-          <span>
-            Science: <strong className="text-status-ok">{totals.scienceVal.toFixed(0)} pts</strong>
-          </span>
-          {totals.costUsd > liveMetrics.remaining_budget_usd && (
-            <span className="font-bold text-status-crit">Over remaining budget!</span>
-          )}
-        </div>
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={() => onSubmitTake(buildPayload())}
-          className="paper-btn flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"
-        >
-          <Sparkles className="h-4 w-4" />
-          {isLocked ? "Science Locked" : "Submit Science & Calibration"}
-        </button>
-      </div>
-    </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title="Science payload">
+            <div className="space-y-2">
+              <Readout label="Weight" value={`${totals.massKg.toFixed(1)} kg`} tone="info" />
+              <Readout label="Power use" value={`${totals.powerW.toFixed(0)} W`}
+                tone={totals.powerW > liveMetrics.available_power_w ? "bad" : "ok"} />
+              <Readout label="Science value" value={`${totals.scienceVal.toFixed(0)}`} pct={totals.scienceVal} tone="ok" />
+              <Readout label="Data / day" value={`${totals.dataGbit.toFixed(1)} Gbit`} tone="info" />
+            </div>
+          </PanelCard>
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Lock science" onLock={() => onSubmitTake(buildPayload())} />
+        </>
+      }
+    />
   );
 }
+
+export default Rol4A_SpectralLabTask;

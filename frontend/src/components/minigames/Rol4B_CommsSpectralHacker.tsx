@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
 import type { MinigameProps } from "../../types/game";
+import { AnimatePresence, motion } from "framer-motion";
+import { soundEngine } from "../paper/SoundEngine";
+import { GameLayout, GoalList, LockButton, PanelCard, PlayBackdrop, Readout, type Goal } from "./kit/GameKit";
 
 interface HackerPayload {
   points?: Array<{ x: number; y: number }>;
@@ -218,311 +221,171 @@ export function Rol4B_CommsSpectralHacker({
   const keypadKeys = Object.keys(hackerData.dtmf_keypad ?? DEFAULT_DTMF).slice(0, 10);
   const dtmfPair = hackerData.dtmf_pair_hz ?? [770, 1336];
 
+  // ---------------------------------------------------------------------------
+  // Game window UI (2026-11-15): 1) chase the drifting Earth signal with the dish and lock it
+  // (the margin is captured at the lock, so nobody is punished for a drift after locking);
+  // 2) clean the noise and find the key whose two tones match the peaks.
+  // ---------------------------------------------------------------------------
+  const [capturedMarginDb, setCapturedMarginDb] = useState<number | null>(null);
+  const scopeRef = useRef<HTMLDivElement | null>(null);
+  const finalMarginDb = capturedMarginDb ?? linkMetrics.marginDb;
+  const finalEfficiency = Number(
+    ((finalMarginDb >= MIN_MARGIN_DB ? 0.65 : 0.3) + (linkMetrics.dtmfMatched ? 0.35 : 0)).toFixed(2)
+  );
+  const buildFinalPayload = () => ({
+    ...buildPayload(),
+    link_margin_db: finalMarginDb,
+    downlink_efficiency: finalEfficiency,
+  });
+  const onTarget = linkMetrics.marginDb >= MIN_MARGIN_DB;
+  const lockSignal = () => {
+    if (isLocked) return;
+    if (onTarget) soundEngine.playComplete();
+    else soundEngine.playError();
+    setCapturedMarginDb(linkMetrics.marginDb);
+    onLiveMutation({ downlink_rate_mbps: Number(bitrateMbps.toFixed(2)) });
+  };
+  const tapScope = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isLocked || !scopeRef.current || capturedMarginDb !== null) return;
+    const rect = scopeRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    steerReticle(x - reticlePos.x, y - reticlePos.y);
+  };
+  const goals: Goal[] = [
+    { label: "Dish locked on Earth", done: capturedMarginDb !== null && capturedMarginDb >= MIN_MARGIN_DB },
+    { label: "Noise cleaned", done: driftClean },
+    { label: "Signal code matched", done: linkMetrics.dtmfMatched },
+  ];
+  const signalPct = Math.max(0, Math.min(100, ((linkMetrics.marginDb + 6) / 14.5) * 100));
+  const keypad = hackerData.dtmf_keypad ?? DEFAULT_DTMF;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink-black bg-role-science px-2.5 py-0.5 font-mono text-xs font-bold text-paper-cream">
-            <Radio className="h-3.5 w-3.5" />
-            STATION 2 · DSN COMMS &amp; SPECTRUM HACKER
-          </span>
-          <h3 className="mt-1 font-display text-xl font-bold text-paper-cream">
-            Send data home
-          </h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowGuide((v) => !v)}
-          className="paper-btn flex items-center gap-1.5 bg-blueprint-navy px-3 py-1.5 text-xs text-paper-cream"
-        >
-          <HelpCircle className="h-4 w-4 text-role-science" />
-          {showGuide ? "Hide Guide" : "How DSN & DTMF Work"}
-        </button>
-      </div>
-
-      {showGuide && (
-        <div className="rounded-xl border-2 border-role-science bg-space-ink/90 p-3 text-xs text-slate-200">
-          <p className="font-bold text-role-science">Deep Space Communications Checklist:</p>
-          <ul className="mt-1 list-disc space-y-1 pl-4">
-            <li>
-              <strong>Antenna Tracking:</strong> Align your High-Gain Antenna crosshair over the
-              drifting Earth DSN beacon until Link Margin exceeds <strong>+{MIN_MARGIN_DB.toFixed(1)} dB</strong>.
-            </li>
-            <li>
-              <strong>DTMF Spectrum Hacker:</strong> Clean baseline drift first to ignore narrow
-              radiation glitches, then tap the keypad digit matching the two genuine frequencies.
-            </li>
-          </ul>
-        </div>
-      )}
-
-      {/* Alerts: Unbalanced CG 1.5x Drift + Mars Solar Conjunction */}
-      <div className="flex flex-wrap gap-2">
-        {!liveMetrics.cg_balanced && (
-          <div className="flex items-center gap-1.5 rounded-lg border-2 border-ink-black bg-status-crit/25 px-3 py-1.5 font-mono text-xs font-bold text-status-crit">
-            <ShieldAlert className="h-4 w-4" />
-            Unbalanced CG causing 1.5x antenna drift!
-          </div>
-        )}
-        {missionId === "mars_sample_return" && (
-          <div className="flex items-center gap-1.5 rounded-lg border-2 border-ink-black bg-status-warn/20 px-3 py-1.5 font-mono text-xs text-status-warn">
-            Solar Conjunction ahead: downlink 160 Gbit quickly!
-          </div>
-        )}
-      </div>
-
-      {/* Phase Tabs */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setPhase("dsn")}
-          className={`paper-btn flex-1 px-3 py-2 text-xs sm:text-sm ${
-            phase === "dsn" ? "bg-role-science text-paper-cream" : "bg-space-ink text-slate-300"
-          }`}
-        >
-          1. DSN Oscilloscope ({linkMetrics.marginDb >= MIN_MARGIN_DB ? "Locked" : "Aiming"})
-        </button>
-        <button
-          type="button"
-          onClick={() => setPhase("hacker")}
-          className={`paper-btn flex-1 px-3 py-2 text-xs sm:text-sm ${
-            phase === "hacker" ? "bg-role-science text-paper-cream" : "bg-space-ink text-slate-300"
-          }`}
-        >
-          2. Spectrum Hacker &amp; Bitrate
-        </button>
-      </div>
-
-      {phase === "dsn" ? (
-        <div className="grid gap-4 sm:grid-cols-12">
-          <div className="sm:col-span-7">
-            <svg
-              viewBox="0 0 100 100"
-              onClick={(e) => {
-                if (isLocked) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                setReticlePos({
-                  x: Math.max(8, Math.min(92, ((e.clientX - rect.left) / rect.width) * 100)),
-                  y: Math.max(8, Math.min(92, ((e.clientY - rect.top) / rect.height) * 100)),
-                });
-              }}
-              className="h-52 w-full cursor-crosshair rounded-xl border-2 border-ink-black bg-[#060B17]"
-              aria-label="DSN Oscilloscope Radar"
-            >
-              <circle cx="50" cy="50" r="36" fill="none" stroke="#1E293B" strokeWidth="1" />
-              <circle cx="50" cy="50" r="20" fill="none" stroke="#1E293B" strokeWidth="1" />
-              <line x1="50" y1="6" x2="50" y2="94" stroke="#1E293B" strokeWidth="0.8" />
-              <line x1="6" y1="50" x2="94" y2="50" stroke="#1E293B" strokeWidth="0.8" />
-
-              {/* Drifting Earth Target */}
-              <circle
-                cx={targetPos.x}
-                cy={targetPos.y}
-                r="10"
-                fill="none"
-                stroke="#3DDC84"
-                strokeWidth="1.5"
-                strokeDasharray="2 2"
-              />
-              <circle cx={targetPos.x} cy={targetPos.y} r="3.5" fill="#3DDC84" />
-
-              {/* User Antenna Crosshair */}
-              <g transform={`translate(${reticlePos.x}, ${reticlePos.y})`}>
-                <circle
-                  r="8"
-                  fill="none"
-                  stroke={linkMetrics.marginDb >= MIN_MARGIN_DB ? "#3DDC84" : "#A855F7"}
-                  strokeWidth="2"
-                />
-                <line x1="-11" y1="0" x2="11" y2="0" stroke="#F8FAFC" strokeWidth="1.2" />
-                <line x1="0" y1="-11" x2="0" y2="11" stroke="#F8FAFC" strokeWidth="1.2" />
-              </g>
-            </svg>
+    <GameLayout
+      play={
+        <div className="relative flex h-full flex-col">
+          <PlayBackdrop tint="#6366F1" />
+          <div className="relative z-10 flex gap-1.5 p-2">
+            {(["dsn", "hacker"] as const).map((p, i) => (
+              <button key={p} type="button" onClick={() => { soundEngine.playClick(); setPhase(p); }}
+                className={`paper-btn flex-1 py-1.5 text-sm ${phase === p ? "bg-paper-cream text-ink-black" : "bg-space-ink text-slate-300"}`}>
+                {i + 1}. {p === "dsn" ? "Aim the dish" : "Send the code"}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-col justify-between gap-3 sm:col-span-5">
-            <div className="paper-card bg-space-ink/80 p-3 font-mono text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">FSPL Loss (Rol 3A):</span>
-                <span>{liveMetrics.fspl_loss_db.toFixed(1)} dB</span>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span className="text-slate-400">Link Margin:</span>
-                <span
-                  className={
-                    linkMetrics.marginDb >= MIN_MARGIN_DB
-                      ? "font-bold text-status-ok"
-                      : "font-bold text-status-crit"
-                  }
-                >
-                  {linkMetrics.marginDb >= 0 ? "+" : ""}
-                  {linkMetrics.marginDb} dB
+          {phase === "dsn" ? (
+            <div className="relative flex min-h-0 flex-1 flex-col items-center gap-2 p-2 pt-0 sm:flex-row sm:items-stretch">
+              <div
+                ref={scopeRef}
+                onPointerDown={tapScope}
+                className="relative aspect-square h-full max-h-[340px] min-h-[180px] cursor-crosshair overflow-hidden rounded-full border-[4px] border-ink-black shadow-paper"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(34,197,94,0.18) 0 20%, transparent 21% 45%, rgba(34,197,94,0.14) 46% 47%, transparent 48% 72%, rgba(34,197,94,0.14) 73% 74%, transparent 75%), #0F172A",
+                }}
+                role="application"
+                aria-label="Dish aiming scope: keep the crosshair on the green signal"
+              >
+                <motion.span className="absolute inset-0" style={{ background: "conic-gradient(from 0deg, rgba(34,197,94,0.45), transparent 60deg)" }}
+                  animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />
+                {/* Earth signal */}
+                <span className="absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-ink-black bg-status-ok/80 shadow-[0_0_18px_rgba(34,197,94,0.8)]"
+                  style={{ left: `${targetPos.x}%`, top: `${targetPos.y}%` }} />
+                {/* crosshair */}
+                <span className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${reticlePos.x}%`, top: `${reticlePos.y}%` }}>
+                  <span className={`block h-10 w-10 rounded-full border-[3px] ${onTarget ? "border-status-ok" : "border-status-crit"}`} />
+                  <span className="absolute left-1/2 top-[-6px] h-[52px] w-0.5 -translate-x-1/2 bg-paper-cream/80" />
+                  <span className="absolute left-[-6px] top-1/2 h-0.5 w-[52px] -translate-y-1/2 bg-paper-cream/80" />
                 </span>
+                {capturedMarginDb !== null && (
+                  <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-display text-xl font-bold text-paper-cream drop-shadow-[2px_2px_0_#0F172A]">
+                    LOCKED
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-[11px] text-slate-300">
-                Keep the dot in the green zone.
-              </p>
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-48">
+                <Readout label="Signal" value={`${linkMetrics.marginDb.toFixed(1)} dB`} pct={signalPct} tone={onTarget ? "ok" : "warn"} />
+                <div className="grid grid-cols-3 gap-1 self-center">
+                  <div />
+                  <button type="button" aria-label="Aim up" onClick={() => steerReticle(0, -6)} className="paper-btn flex h-10 w-10 items-center justify-center bg-blueprint-navy text-paper-cream"><ArrowUp className="h-5 w-5" /></button>
+                  <div />
+                  <button type="button" aria-label="Aim left" onClick={() => steerReticle(-6, 0)} className="paper-btn flex h-10 w-10 items-center justify-center bg-blueprint-navy text-paper-cream"><ArrowLeft className="h-5 w-5" /></button>
+                  <button type="button" aria-label="Aim down" onClick={() => steerReticle(0, 6)} className="paper-btn flex h-10 w-10 items-center justify-center bg-blueprint-navy text-paper-cream"><ArrowDown className="h-5 w-5" /></button>
+                  <button type="button" aria-label="Aim right" onClick={() => steerReticle(6, 0)} className="paper-btn flex h-10 w-10 items-center justify-center bg-blueprint-navy text-paper-cream"><ArrowRight className="h-5 w-5" /></button>
+                </div>
+                <button type="button" disabled={isLocked} onClick={capturedMarginDb === null ? lockSignal : () => setCapturedMarginDb(null)}
+                  className={`paper-btn py-2 text-sm text-ink-black ${capturedMarginDb !== null ? "bg-slate-300" : onTarget ? "bg-status-ok" : "bg-status-warn"}`}>
+                  {capturedMarginDb !== null ? "Re-aim" : "Lock signal"}
+                </button>
+                <label className="space-y-1 font-mono text-[10px] font-bold uppercase text-slate-400">
+                  Data speed {bitrateMbps.toFixed(1)} Mbps
+                  <input type="range" min={0.5} max={6} step={0.5} value={bitrateMbps} disabled={isLocked}
+                    onChange={(e) => setBitrateMbps(Number(e.target.value))} className="w-full accent-sky-400" />
+                </label>
+              </div>
             </div>
-
-            <div className="mx-auto grid w-36 grid-cols-3 gap-1.5">
-              <div />
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => steerReticle(0, -8)}
-                className="paper-btn flex items-center justify-center bg-blueprint-navy p-2 text-paper-cream"
-              >
-                <ArrowUp className="h-4 w-4" />
-              </button>
-              <div />
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => steerReticle(-8, 0)}
-                className="paper-btn flex items-center justify-center bg-blueprint-navy p-2 text-paper-cream"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => setReticlePos({ ...targetPos })}
-                className="paper-btn bg-role-science p-2 font-mono text-[10px] text-paper-cream"
-              >
-                LOCK
-              </button>
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => steerReticle(8, 0)}
-                className="paper-btn flex items-center justify-center bg-blueprint-navy p-2 text-paper-cream"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <div />
-              <button
-                type="button"
-                disabled={isLocked}
-                onClick={() => steerReticle(0, 8)}
-                className="paper-btn flex items-center justify-center bg-blueprint-navy p-2 text-paper-cream"
-              >
-                <ArrowDown className="h-4 w-4" />
-              </button>
-              <div />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* DTMF Signal Plot + Filter */}
-          <div className="rounded-xl border-2 border-ink-black bg-space-ink p-2.5">
-            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-xs text-slate-300">
-                Detected Dual Tone: <strong className="text-role-science">{dtmfPair[0]} Hz + {dtmfPair[1]} Hz</strong>
-              </span>
-              <button
-                type="button"
-                disabled={isLocked || driftClean}
-                onClick={() => setDriftClean(true)}
-                className="paper-btn flex items-center gap-1 bg-role-science px-2.5 py-1 text-xs text-paper-cream"
-              >
-                <Waves className="h-3.5 w-3.5" />
-                {driftClean ? "Drift & Glitches Filtered" : "Filter Baseline + Flag Glitches"}
-              </button>
-            </div>
-            <svg viewBox="0 0 460 130" className="h-32 w-full rounded bg-[#070B18]">
-              <polyline points={spectrumSvg} fill="none" stroke="#A855F7" strokeWidth="2.2" />
-              {!driftClean && (
-                <text x="230" y="20" textAnchor="middle" fill="#F2C94C" fontSize="10" fontFamily="monospace">
-                  Solar drift + cosmic-ray spike active
-                </text>
-              )}
-              <text x="25" y="126" fill="#94A3B8" fontSize="9" fontFamily="monospace">550 Hz</text>
-              <text x="435" y="126" textAnchor="end" fill="#94A3B8" fontSize="9" fontFamily="monospace">1800 Hz</text>
-            </svg>
-          </div>
-
-          {/* Keypad + Bitrate Slider */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <p className="mb-1.5 font-mono text-xs font-bold text-slate-300">
-                Tap Matching ITU-T Q.23 Keypad Key:
-              </p>
+          ) : (
+            <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2 pt-0">
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={isLocked || driftClean} onClick={() => { soundEngine.playComplete(); setDriftClean(true); }}
+                  className={`paper-btn inline-flex items-center gap-1 px-2.5 py-1 text-xs text-ink-black ${driftClean ? "bg-status-ok" : "animate-pulse bg-status-warn"}`}>
+                  <Waves className="h-3.5 w-3.5" /> {driftClean ? "Noise cleaned" : "Clean the noise"}
+                </button>
+                <span className="font-mono text-[10px] text-slate-400">Find the 2 tall peaks</span>
+              </div>
+              <div className="relative min-h-[110px] flex-1 rounded-xl border-[3px] border-ink-black bg-slate-950">
+                <svg viewBox="0 0 460 130" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" role="img" aria-label="Signal spectrum">
+                  <polyline points={spectrumSvg} fill="none" stroke="#38BDF8" strokeWidth="2.5" />
+                  {[600, 800, 1000, 1200, 1400, 1600].map((hz) => {
+                    const pts = hackerData.points ?? [];
+                    const minX = pts[0]?.x ?? 550;
+                    const maxX = pts[pts.length - 1]?.x ?? 1800;
+                    const x = 20 + ((hz - minX) / Math.max(1, maxX - minX)) * 420;
+                    return <text key={hz} x={x} y="128" fontSize="9" textAnchor="middle" fill="#94A3B8" fontFamily="IBM Plex Mono, monospace">{hz}</text>;
+                  })}
+                </svg>
+              </div>
               <div className="grid grid-cols-5 gap-1.5">
                 {keypadKeys.map((k) => {
-                  const pair = (hackerData.dtmf_keypad ?? DEFAULT_DTMF)[k];
-                  const active = selectedKey === k;
+                  const pair = keypad[k] ?? [0, 0];
+                  const sel = selectedKey === k;
                   return (
-                    <button
-                      key={k}
-                      type="button"
-                      disabled={isLocked}
-                      onClick={() => setSelectedKey(k)}
-                      className={`paper-btn px-2 py-1.5 text-center ${
-                        active
-                          ? "bg-status-ok text-ink-black"
-                          : "bg-blueprint-navy text-paper-cream"
-                      }`}
-                    >
-                      <div className="font-display text-sm font-bold">{k}</div>
-                      <div className="font-mono text-[9px] opacity-75">
-                        {pair[0]}/{pair[1]}
-                      </div>
+                    <button key={k} type="button" disabled={isLocked}
+                      onClick={() => { soundEngine.playClick(); setSelectedKey(k); }}
+                      className={`rounded-lg border-[3px] py-1 text-center ${sel ? (linkMetrics.dtmfMatched ? "border-status-ok bg-emerald-900" : "border-status-crit bg-rose-950") : "border-ink-black bg-space-ink hover:bg-blueprint-navy"}`}>
+                      <span className="block font-display text-lg font-bold leading-none">{k}</span>
+                      <span className="font-mono text-[9px] text-slate-400">{pair[0]}·{pair[1]}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
-
-            <div className="paper-card bg-space-ink/80 p-3 font-mono text-xs">
-              <div className="flex justify-between">
-                <span>Downlink Bitrate:</span>
-                <strong className="text-role-orbit">{bitrateMbps.toFixed(1)} Mbps</strong>
-              </div>
-              <input
-                type="range"
-                disabled={isLocked}
-                min={0.5}
-                max={6.0}
-                step={0.5}
-                value={bitrateMbps}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setBitrateMbps(val);
-                  onLiveMutation({ downlink_rate_mbps: val });
-                }}
-                className="mt-2 w-full accent-purple-500"
-              />
-              <div className="mt-2 space-y-0.5 text-[11px] text-slate-300">
-                <div>
-                  RF Power Draw:{" "}
-                  <strong className={linkMetrics.powerExceeded ? "text-status-crit" : "text-status-ok"}>
-                    {linkMetrics.rfWattsRequired} W / {liveMetrics.available_power_w.toFixed(0)} W
-                  </strong>
-                </div>
-                <div>
-                  160 Gbit Recorder Clear Time: <strong>{linkMetrics.hoursToClear.toFixed(1)} h</strong>
-                </div>
-              </div>
+          )}
+        </div>
+      }
+      panel={
+        <>
+          <GoalList goals={goals} />
+          <PanelCard title="Link to Earth">
+            <div className="space-y-2">
+              <Readout label="Locked signal" value={capturedMarginDb === null ? "—" : `${capturedMarginDb.toFixed(1)} dB`}
+                tone={capturedMarginDb !== null && capturedMarginDb >= MIN_MARGIN_DB ? "ok" : "warn"} />
+              <Readout label="Needed" value={`${MIN_MARGIN_DB} dB`} tone="info" />
+              <Readout label="Radio power" value={`${linkMetrics.rfWattsRequired} W`} tone={linkMetrics.powerExceeded ? "bad" : "ok"} />
+              <Readout label="Data delivered" value={`${Math.round(finalEfficiency * 100)}%`} pct={finalEfficiency * 100} tone={finalEfficiency >= 0.9 ? "ok" : "warn"} />
             </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="font-mono text-xs text-slate-300">
-          Efficiency Estimate: <strong className="text-status-ok">{(linkMetrics.downlinkEfficiency * 100).toFixed(0)}%</strong>
-        </div>
-        <button
-          type="button"
-          disabled={isLocked}
-          onClick={() => onSubmitTake(buildPayload())}
-          className="paper-btn flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"
-        >
-          <Sparkles className="h-4 w-4" />
-          {isLocked ? "Downlink Locked" : "Confirm Downlink & Telemetry"}
-        </button>
-      </div>
-    </div>
+          </PanelCard>
+          {liveMetrics.cg_balanced === false && (
+            <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-warn px-2.5 py-1.5 text-xs font-bold text-ink-black">
+              <ShieldAlert className="h-4 w-4 shrink-0" /> Ship off-balance: the signal drifts faster.
+            </div>
+          )}
+          <LockButton isLocked={isLocked} ready={goals.every((g) => g.done)} label="Send data" onLock={() => onSubmitTake(buildFinalPayload())} />
+        </>
+      }
+    />
   );
 }
+
+export default Rol4B_CommsSpectralHacker;

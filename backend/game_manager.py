@@ -32,24 +32,29 @@ class GameManager:
     def __init__(
         self,
         sio: socketio.AsyncServer,
-        wave_duration_sec: float = 30.0,
-        sync_delay_sec: float = 5.0,
-        flight_round_sec: float = 15.0,
+        wave_duration_sec: float = 0.0,
+        sync_delay_sec: float = 2.0,
+        flight_round_sec: float = 0.0,
         flight_feedback_sec: float = 4.0,
-        station_grace_sec: float = 6.0,
-        launch_transition_sec: float = 4.0,
+        station_grace_sec: float = 2.0,
+        launch_transition_sec: float = 3.0,
+        wave_backstop_sec: float = 150.0,
+        flight_backstop_sec: float = 90.0,
     ) -> None:
         self.sio = sio
+        # 0 = untimed (docs/03, 2026-11-15): players lock when ready. The client shows no clock.
         self.wave_duration_sec = wave_duration_sec
         self.sync_delay_sec = sync_delay_sec
         self.flight_round_sec = flight_round_sec
         self.flight_feedback_sec = flight_feedback_sec
-        # The client clock starts after the walk (1.5 s) and the READY breather (3 s) in
-        # LinearStationTrack.tsx, so the server waits that long plus ~1.5 s of network slack before
-        # forcing a timeout; a player who locks in during their last second is never cut off (docs/04).
+        # Extra slack before a *timed* station is forced (client walk animation + network).
         self.station_grace_sec = station_grace_sec
         # Walk to the launchpad (1.5 s) + loading screen (2.5 s) in LinearStationTrack/App.tsx.
         self.launch_transition_sec = launch_transition_sec
+        # Hidden AFK backstops for untimed play: an idle player can never block the room forever.
+        # Not shown to players; generous enough that nobody playing normally ever hits them.
+        self.wave_backstop_sec = wave_backstop_sec
+        self.flight_backstop_sec = flight_backstop_sec
 
         self.rooms: dict[str, dict[str, Any]] = {}
         self.locks: dict[str, asyncio.Lock] = {}
@@ -63,7 +68,10 @@ class GameManager:
 
     def _cancel_timer(self, pin: str) -> None:
         task = self.timers.pop(pin, None)
-        if task and not task.done():
+        # Never cancel the task we are running in: a timeout handler that advances the match
+        # (e.g. an auto-answered flight round) would otherwise cancel itself mid-transition and
+        # the next question / wave would never be emitted (frozen "0s" screen).
+        if task and not task.done() and task is not asyncio.current_task():
             task.cancel()
 
     def _generate_pin(self) -> str:
@@ -350,12 +358,18 @@ class GameManager:
                 room=pin,
             )
 
-            if self.wave_duration_sec > 0:
+            if self._wave_limit_sec() > 0:
                 self.timers[pin] = asyncio.create_task(self._wave1_timeout(pin))
+
+    def _wave_limit_sec(self) -> float:
+        return self.wave_duration_sec if self.wave_duration_sec > 0 else self.wave_backstop_sec
+
+    def _flight_limit_sec(self) -> float:
+        return self.flight_round_sec if self.flight_round_sec > 0 else self.flight_backstop_sec
 
     async def _wave1_timeout(self, pin: str) -> None:
         try:
-            await asyncio.sleep(self.wave_duration_sec + self.station_grace_sec)
+            await asyncio.sleep(self._wave_limit_sec() + self.station_grace_sec)
             await self._transition_to_wave2(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
@@ -484,12 +498,12 @@ class GameManager:
                 room=pin,
             )
 
-            if self.wave_duration_sec > 0:
+            if self._wave_limit_sec() > 0:
                 self.timers[pin] = asyncio.create_task(self._wave2_timeout(pin))
 
     async def _wave2_timeout(self, pin: str) -> None:
         try:
-            await asyncio.sleep(self.sync_delay_sec + self.wave_duration_sec + self.station_grace_sec)
+            await asyncio.sleep(self.sync_delay_sec + self._wave_limit_sec() + self.station_grace_sec)
             await self._transition_to_flight(pin, forced_by_timeout=True)
         except asyncio.CancelledError:
             return
@@ -602,14 +616,14 @@ class GameManager:
                 room=pin,
             )
 
-            if self.flight_round_sec > 0:
+            if self._flight_limit_sec() > 0:
                 self.timers[pin] = asyncio.create_task(
                     self._flight_round_timeout(pin, round_num)
                 )
 
     async def _flight_round_timeout(self, pin: str, round_num: int) -> None:
         try:
-            await asyncio.sleep(self.flight_round_sec)
+            await asyncio.sleep(self._flight_limit_sec())
             room = self.rooms.get(pin)
             if not room or room.get("phase") != "flight" or room.get("round") != round_num:
                 return
