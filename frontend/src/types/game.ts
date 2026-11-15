@@ -26,6 +26,7 @@ export interface LiveMetrics {
   downlink_rate_mbps?: number;      // Rol 4B link speed
   downlink_hours_needed?: number;   // hours of radio contact per day needed to send the data home
   mission_duration_days?: number;   // transit time of the chosen route (catalog transit_days)
+  dry_mass_kg?: number;             // bus dry mass after Rol 2A/2B (Rol 3A sizes fuel on it)
 }
 
 export interface MinigameProps {

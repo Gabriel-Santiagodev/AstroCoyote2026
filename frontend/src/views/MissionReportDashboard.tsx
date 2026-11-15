@@ -16,6 +16,8 @@ export interface MissionOutcomeUI {
   failed_or_degraded_gate: string | null;
   causal_chain_explanation: string;
   nasa_real_world_fact: string;
+  /** Optional since 2026-11-15: server points per scoring part + tips (docs/08). */
+  score_breakdown?: ScoreBreakdownUI;
 }
 
 export interface RoleContributionUI {
@@ -28,6 +30,8 @@ export interface ScoreBreakdownUI {
   objective_points?: number;
   science_f1_points?: number;
   efficiency_points?: number;
+  success_floor_points?: number;
+  tips?: string[];
 }
 
 interface MissionReportDashboardProps {
@@ -43,7 +47,7 @@ const SCORE_MAX = 1_000;
 const SCORE_COUNT_MS = 1_200;
 const SCORE_WEIGHTS = [
   { key: "objective_points", label: "Objective", weight: 50, maximum: 500, color: "bg-role-spacecraft", Icon: Target },
-  { key: "science_f1_points", label: "Science F1", weight: 30, maximum: 300, color: "bg-role-science", Icon: FlaskConical },
+  { key: "science_f1_points", label: "Science", weight: 30, maximum: 300, color: "bg-role-science", Icon: FlaskConical },
   { key: "efficiency_points", label: "Efficiency", weight: 20, maximum: 200, color: "bg-role-orbit", Icon: Gauge },
 ] as const;
 const ROLES: RoleType[] = ["finance_launch", "spacecraft_mass", "orbit_power", "science_comms"];
@@ -54,10 +58,10 @@ const GATE_ROLE: Record<string, RoleType> = {
   NODE_4_DOWNLINK: "science_comms",
 };
 const GATE_DETAILS = [
-  { id: "NODE_1_LAUNCH", title: "Launch manifest", focus: "Launcher mass, fairing fit, and UFE budget" },
-  { id: "NODE_2_PROPULSION", title: "Orbital propulsion", focus: "Delta-v margin, propellant, and center of gravity" },
-  { id: "NODE_3_EVENT", title: "Space event", focus: "Thermal shielding, power reserve, and hazard response" },
-  { id: "NODE_4_DOWNLINK", title: "DSN downlink", focus: "Spectral quality, link margin, and science data return" },
+  { id: "NODE_1_LAUNCH", title: "Launch", focus: "Rocket capacity, nose-cone fit and budget" },
+  { id: "NODE_2_PROPULSION", title: "Engine & fuel", focus: "Enough fuel and push to reach the target, ship balance" },
+  { id: "NODE_3_EVENT", title: "Space hazard", focus: "Heat shield, power reserve and hazard response" },
+  { id: "NODE_4_DOWNLINK", title: "Call Earth", focus: "Instrument quality, radio signal and data sent home" },
 ] as const;
 const ATTEMPTS_STORAGE_KEY = "astro-squad.report-attempts.v1";
 
@@ -154,11 +158,12 @@ export function MissionReportDashboard({
   report: rawReport,
   onRetry,
   roleContributions: rawRoleContributions,
-  scoreBreakdown,
+  scoreBreakdown: scoreBreakdownProp,
   missionId,
   myRole,
 }: MissionReportDashboardProps) {
   const report = useMemo(() => humanizeDeep(rawReport), [rawReport]);
+  const scoreBreakdown = scoreBreakdownProp ?? report.score_breakdown;
   const roleContributions = useMemo(
     () => (rawRoleContributions ? humanizeDeep(rawRoleContributions) : rawRoleContributions),
     [rawRoleContributions]
@@ -257,7 +262,7 @@ export function MissionReportDashboard({
           <h1 className="font-display text-2xl font-black uppercase tracking-tight sm:text-4xl">Flight Report</h1>
         </div>
         <p className="rounded-full border-2 border-paper-cream/60 px-3 py-1 font-mono text-xs uppercase tracking-wider">
-          Attempt #{attemptNumber} · 4 node decision tree
+          Attempt #{attemptNumber} · 4 mission checkpoints
         </p>
         </div>
       </header>
@@ -325,7 +330,7 @@ export function MissionReportDashboard({
         const rows: Array<[string, number, string]> = [
           ["Stations locked by the crew", collab.own_locks_pct, `${collab.own_locks_pct}%`],
           ["Flight calls answered", collab.answered_pct, `${collab.answered_pct}%`],
-          ["Gates ready at liftoff", (collab.gates_ready_at_liftoff / 4) * 100, `${collab.gates_ready_at_liftoff}/4`],
+          ["Checkpoints ready at liftoff", (collab.gates_ready_at_liftoff / 4) * 100, `${collab.gates_ready_at_liftoff}/4`],
         ];
         return (
           <section className="flash-panel p-4" aria-label="Crew collaboration">
@@ -422,7 +427,7 @@ export function MissionReportDashboard({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-lg font-black uppercase">Score weighting</h2>
             <span className="font-mono text-[10px] font-semibold uppercase text-blueprint-navy">
-              Tactical turns can adjust the total
+              Where your points came from
             </span>
           </div>
           <div className="mt-3 flex h-5 overflow-hidden rounded-full border-2 border-ink-black">
@@ -451,6 +456,21 @@ export function MissionReportDashboard({
               );
             })}
           </div>
+          {(scoreBreakdown?.success_floor_points ?? 0) > 0 && (
+            <p className="mt-2 font-mono text-[11px] font-bold text-blueprint-navy">
+              + {scoreBreakdown?.success_floor_points} pts mission-success floor
+            </p>
+          )}
+          {scoreBreakdown?.tips && scoreBreakdown.tips.length > 0 && score < SCORE_MAX && (
+            <div className="mt-3 rounded-xl border-2 border-ink-black bg-white p-3">
+              <p className="font-display text-sm font-black">How to reach 1,000</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs font-semibold text-slate-700">
+                {scoreBreakdown.tips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         </div>
       </section>
@@ -508,8 +528,8 @@ export function MissionReportDashboard({
       <section className="flash-panel min-w-0 p-3 sm:p-5" aria-label="Flight node inspector">
         <div className="mb-3">
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-role-spacecraft">Captain's flight archive</p>
-          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Inspect the four gates</h2>
-          <p className="mt-1 text-xs text-slate-300">Open a chapter to review its engineering focus and any node telemetry returned by Mission Control.</p>
+          <h2 className="font-display text-xl font-black uppercase sm:text-2xl">Inspect the four checkpoints</h2>
+          <p className="mt-1 text-xs text-slate-300">Open a checkpoint to see what it tests and what Mission Control measured.</p>
         </div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           {GATE_DETAILS.map((gate, index) => {
@@ -525,7 +545,7 @@ export function MissionReportDashboard({
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block break-all font-mono text-[9px] font-bold text-blueprint-navy">{gate.id}</span>
+                    <span className="block font-mono text-[9px] font-bold uppercase text-blueprint-navy">Checkpoint {index + 1}</span>
                     <span className="block font-display text-sm font-black">{gate.title}</span>
                   </span>
                   <ChevronDown size={18} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-180" />

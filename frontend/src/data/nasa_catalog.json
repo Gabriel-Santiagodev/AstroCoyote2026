@@ -31,7 +31,7 @@
       "default_required_dv_ms": 1803.6,
       "earth_link_fspl_db": [222.6, 222.6],
       "earth_link_fuente": "Earth-Moon 384,400 km (https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html), X-band 8.4 GHz, ITU-R P.525",
-      "science_goal": "Capture >= 2 lunar polar & radiation science packages and survive 40,000 km/h Earth reentry.",
+      "science_goal": "Bring home at least 2 lunar science packages and survive the 40,000 km/h plunge back through Earth's atmosphere.",
       "nasa_real_world_fact": "NASA's Artemis I (2022) flew Orion to a distant retrograde orbit around the Moon and tested its heat shield on a reentry at nearly 40,000 km/h; Artemis II flies its crew on a free-return path around the Moon.",
       "fuente": "https://www.nasa.gov/mission/artemis-i/ & https://www.nasa.gov/mission/artemis-ii/ & docs/06-datos-nasa.md",
       "estado": "estimado del juego + verificado NASA"
@@ -46,7 +46,7 @@
       "requires_thermal_protection": false,
       "min_ufe_event_pct": 15,
       "default_required_dv_ms": 1803.6,
-      "science_goal": "Complete 100% mineralogical spectral mapping and downlink >= 80 Gbit using autonomous optical navigation.",
+      "science_goal": "Map every mineral on the asteroid and send at least 80 Gbit of data home, steering with a self-driving camera.",
       "nasa_real_world_fact": "NASA OSIRIS-REx used Natural Feature Tracking (visual autonomy) at asteroid Bennu because deep-space light-time delay prevented real-time Earth piloting.",
       "fuente": "https://science.nasa.gov/mission/osiris-rex/ & docs/06-datos-nasa.md",
       "estado": "estimado del juego + verificado NASA"
@@ -64,7 +64,7 @@
       "default_required_dv_ms": 1803.6,
       "earth_link_fspl_db": [265.7, 283.0],
       "earth_link_fuente": "Earth-Mars 54.6-401.4 million km (https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html), X-band 8.4 GHz, ITU-R P.525",
-      "science_goal": "Preserve >= 15 sealed Martian sample tubes, survive dust storms with RTG/UFE, and downlink before Solar Conjunction.",
+      "science_goal": "Keep at least 15 sealed Mars sample tubes safe, ride out dust storms with steady power and a reserve fund, and send your data before the Sun blocks the signal.",
       "budget_note": "Game-scaled budget: NASA's independent review (2023) estimated the real Mars Sample Return campaign at several billion dollars more, which is why NASA re-planned it.",
       "budget_note_fuente": "https://science.nasa.gov/mission/mars-sample-return/",
       "nasa_real_world_fact": "Over 52% of NASA MRO's 2,180 kg launch mass was propellant (1,149 kg), and its 3 m High-Gain Antenna downlinks up to 6 Mbps to the Deep Space Network from a 160 Gbit solid-state recorder.",

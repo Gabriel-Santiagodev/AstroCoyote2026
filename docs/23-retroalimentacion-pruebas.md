@@ -41,26 +41,26 @@ Ritmo medido con script (bloqueando rápido): ~90 s hasta el vuelo; con humanos 
 
 1. ✅ **Resuelto (2026-11-15): curva de dificultad por peligros (ver `docs/04`).** Antes: **el juego era demasiado fácil.** 3 de 3 corridas terminaron en éxito total con decisiones por defecto, incluida **Marte (difícil) con energía solar**. Propuesta: umbrales por dificultad en `nasa_catalog.json` (con fuente), IA de autopiloto que no siempre elija lo seguro en *medium/hard*, y en Marte exigir RTG o batería alta para la tormenta de polvo. *Dueño sugerido: Schoenstadt (árbol) + Abraham (catálogo).*
 2. ✅ **Resuelto (2026-11-15): compuertas *Not decided · waits ROL* hasta que su rol actúa.** Antes: **el pronóstico arrancaba todo en verde** antes de que nadie decida (son los valores por defecto/IA). Propuesta: mostrar cada compuerta como *Not decided* hasta que su rol la toque. *Leonardo.*
-3. **Se perdió el trade-off de lanzadores:** solo Falcon 9 y Falcon Heavy tienen capacidad de escape con fuente, así que casi siempre gana Falcon 9. Propuesta: añadir capacidades TLI/escape con fuente (Vulcan Centaur — guía de usuario de ULA; Electron + Photon — misión CAPSTONE; Falcon Heavy expendable). *Abraham.*
+3. ✅ **Parcial (2026-11-15): Luna con capacidad TLI con fuente para Vulcan (11 500 kg) y Electron + Photon (25 kg); ver `docs/24`.** Antes: **se perdió el trade-off de lanzadores:** solo Falcon 9 y Falcon Heavy tienen capacidad de escape con fuente, así que casi siempre gana Falcon 9. Propuesta: añadir capacidades TLI/escape con fuente (Vulcan Centaur — guía de usuario de ULA; Electron + Photon — misión CAPSTONE; Falcon Heavy expendable). *Abraham.*
 4. ✅ **Resuelto (2026-11-15): HUD con DATA y TIME derivados del catálogo; Data afecta *Call Earth* (ver `docs/24`).** Antes: **faltaban dos recursos del reto: Data y Time.** Para *Data* hace falta una cifra con fuente de horas de contacto DSN por día (capacidad de bajada vs datos generados); para *Time*, la duración por ruta ya existe (`transit_days`) pero no se evalúa. *Rubén + Schoenstadt.*
 
 ### P1 — Claridad y racionalidad
 
-5. **Bitácora de vuelo con mucha jerga** (~124 palabras por entrada: *Translunar Injection*, *cislunar*, *UFE*, *F1*). Propuesta: reescribir `story_tree.json` en lenguaje simple (≤40 palabras) y mostrar el efecto de cada opción como íconos (+combustible, −batería…). *Schoenstadt.*
-6. **Reporte con jerga** (*UFE*, *F1*, *DSN*, *dB*, *4 node decision tree*). Propuesta: glosario emergente o sustituir por *reserva*, *calidad científica*, *señal*. *Leonardo.*
-7. **La IA del piloto elige motor Hall (Isp 1600 s) con energía de celda de combustible** sin revisar la potencia. Propuesta: regla de margen de potencia (`generación − instrumentos − motor`) en backend y en `randomizer.py`. *Schoenstadt.*
-8. **Rol 3A calcula el propelente con una masa seca estimada (620 kg)**, no con la real de la nave; una nave más pesada queda corta de combustible. *Abraham.*
+5. ✅ **Resuelto (2026-11-15): bitácora reescrita en lenguaje simple con efectos en cada opción.** Antes: **bitácora de vuelo con mucha jerga** (~124 palabras por entrada: *Translunar Injection*, *cislunar*, *UFE*, *F1*). Propuesta: reescribir `story_tree.json` en lenguaje simple (≤40 palabras) y mostrar el efecto de cada opción como íconos (+combustible, −batería…). *Schoenstadt.*
+6. ✅ **Resuelto (2026-11-15): explicaciones causales, resúmenes por rol, puntos de control, cabina y objetivos de misión en lenguaje simple (sin UFE/F1/DSN/ids crudos).** Antes: **reporte con jerga** (*UFE*, *F1*, *DSN*, *dB*, *4 node decision tree*). Propuesta: glosario emergente o sustituir por *reserva*, *calidad científica*, *señal*. *Leonardo.*
+7. ✅ **Resuelto (2026-11-15): regla de margen de potencia en `randomizer.py` + compuerta `engine_power_short`.** Antes: **la IA del piloto elige motor Hall (Isp 1600 s) con energía de celda de combustible** sin revisar la potencia. Propuesta: regla de margen de potencia (`generación − instrumentos − motor`) en backend y en `randomizer.py`. *Schoenstadt.*
+8. ✅ **Resuelto (2026-11-15): Rol 3A usa `LiveMetrics.dry_mass_kg`.** Antes: **Rol 3A calculaba el propelente con una masa seca estimada (620 kg)**, no con la real de la nave; una nave más pesada queda corta de combustible. *Abraham.*
 9. **El costo de los instrumentos no entra al presupuesto** y en Artemis la reserva casi no afecta las compuertas. *Rubén.*
-10. **El Nodo 1 se reevalúa con el estado después del vuelo** (respuestas de vuelo cambian un despegue ya ocurrido). Propuesta: `launch_snapshot`. *Rubén.*
+10. ✅ **Resuelto (2026-11-15): `launch_state` congela el despegue.** Antes: **el Nodo 1 se reevaluaba con el estado después del vuelo** (respuestas de vuelo cambian un despegue ya ocurrido). Propuesta: `launch_snapshot`. *Rubén.*
 
 ### P2 — Pulido y despliegue
 
-11. `herramientas/jugar.mjs` imprime la IP de un adaptador virtual (192.168.56.1); usar la de la ruta por defecto (como ya hace `/health`). *Rubén.*
-12. El id del invitado se resuelve por apodo: dos jugadores con el mismo apodo pueden confundirse. Propuesta: que `unirse_sala` devuelva `player_id`. *Rubén.*
+11. ✅ **Resuelto (2026-11-15).** `herramientas/jugar.mjs` imprimía la IP de un adaptador virtual (192.168.56.1); usar la de la ruta por defecto (como ya hace `/health`). *Rubén.*
+12. ✅ **Resuelto (2026-11-15): el cliente se identifica por su `socket.id` (igual al `sid` del servidor); el apodo queda como respaldo. Verificado con dos jugadores llamados igual.** Antes: el id del invitado se resolvía por apodo: dos jugadores con el mismo apodo pueden confundirse. Propuesta: que `unirse_sala` devuelva `player_id`. *Rubén.*
 13. En pestañas en segundo plano las animaciones de transición se pausan (comportamiento del navegador); probar en teléfonos reales antes de la demo.
 14. Datos por validar con fuente: costo de MSR ($2.5B vs estimaciones de NASA), pérdida de señal real Tierra–Luna/Marte, potencia real de un MMRTG (~110 W).
-15. El puntaje (811/1000 con éxito total) necesita una explicación visible de qué faltó para 1000.
-16. El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
+15. ✅ **Resuelto (2026-11-15): `score_breakdown` con puntos por parte y consejos “How to reach 1,000”.** El puntaje (811/1000 con éxito total) necesitaba una explicación visible de qué faltó para 1000.
+16. ✅ **Verificado (2026-11-15): no se usa en ninguna vista.** El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
 
 ## 5. Siguiente paso recomendado
 

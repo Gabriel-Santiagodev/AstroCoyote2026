@@ -15,17 +15,26 @@ import socketio
 if __package__:
     from . import decision_tree, physics_engine, randomizer
     from .juegos_espectrales import adaptadores_web
-    from .models.subsystems import get_launcher, get_mission
+    from .models.subsystems import get_catalog, get_launcher, get_mission
 else:
     import decision_tree
     import physics_engine
     import randomizer
     from juegos_espectrales import adaptadores_web
-    from models.subsystems import get_launcher, get_mission
+    from models.subsystems import get_catalog, get_launcher, get_mission
 
 ALL_ROLES = ["finance_launch", "spacecraft_mass", "orbit_power", "science_comms"]
 VALID_MISSIONS = {"artemis_moon", "asteroid_hunter", "mars_sample_return"}
 VALID_DIFFICULTIES = {"easy", "medium", "hard"}
+
+
+# Player-facing names for the power_source values (naming only, no game numbers).
+_POWER_NAMES = {
+    "rtg_nuclear": "nuclear battery (RTG)",
+    "solar_standard": "solar panels",
+    "fuel_cell": "fuel cells",
+    "battery_heavy": "big batteries",
+}
 
 
 class GameManager:
@@ -631,6 +640,8 @@ class GameManager:
             room["flight_state"] = {
                 k: v for k, v in room["live_state"].items() if not str(k).startswith("_")
             }
+            # Liftoff snapshot: Node 1 is judged on the design that actually launched.
+            room["launch_state"] = dict(room["flight_state"])
             # Survival phase: one random hazard per match (seeded by PIN), softened by good design.
             room["launch_gates"] = self._gate_forecast(room, room["flight_state"])
             room["attempt"] = int(room.get("attempt", 0)) + 1
@@ -816,38 +827,60 @@ class GameManager:
             return float(value) if isinstance(value, (int, float)) else None
 
         parts: list[str] = []
+        catalog = get_catalog()
+
+        def named(kind: str, item_id: Any) -> str:
+            """Catalog display name for an id (launchers, orbits, engines...), else the id."""
+            for item in catalog.get(kind, []) or []:
+                if item.get("id") == item_id:
+                    return str(item.get("name") or item_id)
+            return str(item_id)
+
+        def route_name(trajectory: str) -> str:
+            route_id, _, orbit_id = trajectory.partition("__")
+            for routes in (catalog.get("mission_routes") or {}).values():
+                for r in routes:
+                    if r.get("id") == route_id:
+                        return str(r.get("name") or route_id)
+            return named("orbits", orbit_id or route_id)
+
         if role_id == "finance_launch":
             eng, sci = num("budget_engineering_usd"), num("budget_science_usd")
             if eng is not None and sci is not None:
                 parts.append(f"Budget split ${eng / 1e6:.0f}M engineering / ${sci / 1e6:.0f}M science")
             if num("ufe_reserve_pct") is not None:
-                parts.append(f"UFE vault {num('ufe_reserve_pct'):.0f}%")
+                parts.append(f"reserve fund {num('ufe_reserve_pct'):.0f}%")
             if take.get("selected_launcher"):
-                parts.append(f"launcher {take['selected_launcher']}")
+                parts.append(f"rocket {named('launchers', take['selected_launcher'])}")
         elif role_id == "spacecraft_mass":
             mass = num("bus_dry_mass_kg") if num("bus_dry_mass_kg") is not None else num("dry_mass_kg")
             if mass is not None:
-                parts.append(f"Bus dry mass {mass:.0f} kg")
+                parts.append(f"Ship body {mass:.0f} kg")
             if "has_thermal_protection" in take:
                 parts.append("heat shield fitted" if take["has_thermal_protection"] else "NO heat shield")
             if "cg_balanced" in take:
-                parts.append("CG balanced" if take["cg_balanced"] else "CG UNBALANCED (1.5x fuel burn)")
+                parts.append("well balanced" if take["cg_balanced"] else "UNBALANCED (burns 1.5x fuel)")
         elif role_id == "orbit_power":
             if take.get("trajectory_choice"):
-                parts.append(f"Trajectory {take['trajectory_choice']}")
-            if num("isp_seconds") is not None:
-                parts.append(f"Isp {num('isp_seconds'):.0f} s")
+                parts.append(f"Route: {route_name(str(take['trajectory_choice']))}")
+            isp = num("isp_seconds")
+            if isp is not None:
+                engine = next(
+                    (e for e in catalog.get("engines", []) if abs(float(e.get("isp_seconds", -1)) - isp) < 0.5),
+                    None,
+                )
+                parts.append(f"engine {engine['name']}" if engine else f"engine efficiency {isp:.0f} s")
             if num("propellant_mass_kg") is not None:
-                parts.append(f"propellant {num('propellant_mass_kg'):.0f} kg")
+                parts.append(f"fuel {num('propellant_mass_kg'):.0f} kg")
             if take.get("power_source"):
-                parts.append(f"power {take['power_source']}")
+                parts.append(f"power: {_POWER_NAMES.get(str(take['power_source']), str(take['power_source']))}")
         elif role_id == "science_comms":
             if num("instruments_mass_kg") is not None:
                 parts.append(f"Instruments {num('instruments_mass_kg'):.0f} kg")
             if num("science_calibration_f1") is not None:
-                parts.append(f"spectral F1 {num('science_calibration_f1'):.2f}")
+                parts.append(f"calibration quality {num('science_calibration_f1'):.2f} of 1.00")
             if num("link_margin_db") is not None:
-                parts.append(f"DSN link margin {num('link_margin_db'):+.1f} dB")
+                parts.append(f"radio signal margin {num('link_margin_db'):+.1f} dB")
         text = ", ".join(parts) if parts else "No decisions recorded for this role"
         return f"{text} (AI autopilot)" if is_ai else text
 
@@ -859,7 +892,7 @@ class GameManager:
             room["phase"] = "report"
             self._cancel_timer(pin)
             outcome = decision_tree.evaluate_mission_deployment(
-                room["mission_id"], room["flight_state"]
+                room["mission_id"], room["flight_state"], room.get("launch_state") or None
             )
             human_roles = {p["role"] for p in room["players"].values() if p.get("role")}
             role_contributions = [
@@ -906,6 +939,7 @@ class GameManager:
             room["random_events"] = []
             room["human_fallbacks"] = []
             room["launch_gates"] = {}
+            room["launch_state"] = {}
             room["decision_history"] = []
             room["round"] = 1
             room["round_answered"] = False

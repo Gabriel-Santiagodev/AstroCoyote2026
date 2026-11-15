@@ -60,5 +60,6 @@
 | `iniciar_vuelo_60s` | `preliminary_gates` (ahora relleno) y `random_event` | `random_event = { event_id, title, description, mitigated, mitigation_text, applied_effects, fuente }`: el evento de supervivencia aplicado al despegar (semilla = PIN de sala). |
 | `reporte_final_mision` | `random_event` | El mismo resumen, para el análisis causal del reporte. |
 | `iniciar_vuelo_60s` y `reporte_final_mision` | `random_events` | Lista de todos los eventos de la partida (*hard* recibe dos); `random_event` sigue siendo el primero por compatibilidad. |
+| `reporte_final_mision` | `score_breakdown` | `{ objective_points, science_f1_points, efficiency_points, success_floor_points, tips[] }`: puntos por parte (500 / 300 / 200), el piso de éxito (mín. 400 parcial, 800 total) y hasta 4 consejos en lenguaje simple de qué faltó para 1 000. Solo en `PARTIAL_SUCCESS` y `FULL_SUCCESS`. |
 | `reporte_final_mision` | `collaboration` | `{ score 0–100, humans, own_locks_pct, answered_pct, gates_ready_at_liftoff }`: 40 % estaciones bloqueadas por humanos (sin respaldo de IA), 30 % llamadas de vuelo respondidas, 30 % compuertas `PASS` al despegar. |
 | `mutacion_en_vivo` | `quiet` | `true` en el refresco que el servidor manda tras un bloqueo: la UI actualiza métricas y pronóstico sin toast. |

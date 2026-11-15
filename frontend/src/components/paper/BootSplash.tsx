@@ -34,7 +34,7 @@ export function BootSplash({ ready, onDone }: { ready: boolean; onDone: () => vo
       <motion.h1
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="relative font-display text-5xl font-black uppercase text-paper-cream sm:text-7xl"
+        className="relative px-4 text-center font-display text-4xl font-black uppercase leading-none text-paper-cream min-[400px]:text-5xl sm:text-7xl"
         style={{ textShadow: "4px 4px 0 #0F172A, -2px -2px 0 #0F172A, 2px -2px 0 #0F172A, -2px 2px 0 #0F172A" }}
       >
         Astro Squad
