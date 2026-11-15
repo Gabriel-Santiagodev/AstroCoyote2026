@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Owner: Leonardo (Task LEO-01 / LEO-02) — Shared Paper Mario x Among Us + NASA HUD theme tokens
+// Owner: Leonardo (Task LEO-01 / LEO-02) — Shared 2D Flash-Game Astro Squad & NASA HUD theme tokens
 export default {
   content: [
     "./index.html",
@@ -25,7 +25,11 @@ export default {
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
         sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
       },
+      borderWidth: {
+        3: "3px",
+      },
       boxShadow: {
+        "paper-sm": "2px 2px 0px #0F172A",
         paper: "4px 4px 0px #0F172A",
         "paper-lg": "6px 6px 0px #0F172A",
       },

@@ -461,13 +461,13 @@ Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo 
 
 # 04 · El juego
 
-**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo *Among Us*, pista lineal de estaciones en cadena, vuelo de 60 segundos con preguntas por turnos y reporte educativo NASA.  
+**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo Kahoot/PIN, pista lineal de preparación en cadena (donde empacas/diseñas tus subsistemas), fase de travesía y supervivencia inspirada en el videojuego ***60 Seconds! / 60 Parsecs!*** (cabina 2D + bitácora de crisis + saltos de escena con pantallas de carga) y reporte educativo NASA.  
 **Dueños:** Schoenstadt, Rubén  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (22:20 h)
 
 ## En una frase
 
-Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estilo **Paper Mario × Among Us**, donde cada ingeniero recorre una **pista lineal automática de estaciones** resolviendo minijuegos en paralelo cuyas decisiones se afectan en cadena en tiempo real, para luego enfrentar un **vuelo espacial de 60 segundos con crisis por turnos** y recibir retroalimentación científica real de la NASA.
+Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estética **2D Flash Arcade (`ASTRO SPRITES`) + supervivencia en cabina estilo *60 Seconds! / 60 Parsecs!***, donde cada ingeniero diseña y equipa los subsistemas en dos estaciones cronometradas de 30 s, para después encerrarse en la **cabina de la nave espacial**, enfrentar las 4 compuertas de crisis consultando la **Bitácora del Capitán** con **saltos entre escenas y pantallas de carga**, y recibir retroalimentación científica real de la NASA.
 
 ---
 
@@ -475,11 +475,11 @@ Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con
 
 | Fase | Pantalla principal | Qué ocurre | Duración |
 |---|---|---|---|
-| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Si es multi, entrar por PIN tipo *Among Us*, elegir rol (1–4) y seleccionar 1 de 3 misiones + dificultad. | ~0:30 |
-| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | El personaje camina automáticamente a la Estación 1. Los roles ejecutan su primer minijuego de 30 s en paralelo; las decisiones mutan restricciones en vivo. | ~1:00 |
-| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | El personaje avanza automáticamente a la Estación 2. Cada rol juega su segundo minijuego (30 s) adaptado a lo que acaban de decidir sus compañeros. | ~1:00 |
-| **3 · Vuelo de 60 Segundos** | `Flight60sView` | Vemos el cohete/nave viajar por el espacio. Se atraviesan los 4 Nodos del Árbol de Decisiones con **4 rondas de preguntas/crisis por turnos** (15 s c/u). | 1:00 |
-| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Se revela éxito total, parcial o fallo con cadena causal numérica exacta, dato real NASA y botón de Reintentar / Rediseñar. | ~1:30 |
+| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Pantalla Principal en Host (PC/TV) y entrada por PIN en celulares; elegir especialista `ASTRO SPRITES` (1–4) y 1 de 3 misiones + dificultad. | ~0:30 |
+| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | Los especialistas avanzan automáticamente a la Estación 1 y equipan presupuesto, chasis/escudo térmico, órbita e instrumentos (30 s, mutación en vivo). *(Equivalente a la fase de recolección rápida de 60 Seconds!)*. | ~1:00 |
+| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | Tras la pantalla de carga `wave1_to_wave2` (5 s), cada rol equipa lanzador, balanceo CG, energía 3D y enlace DSN (30 s) antes del salto al lanzamiento. | ~1:00 |
+| **3 · Travesía en Cabina estilo *60 Seconds!*** | `Flight60sView` | **Cabina 2D estilo *60 Seconds! / 60 Parsecs!*:** vemos a los 4 Astro Sprites dentro de la nave rodeados de los subsistemas que sí diseñaron, abriendo la **Bitácora de Crisis** en 4 rondas por turnos (15 s c/u) con **saltos de escena y pantallas de carga** entre cada compuerta. | 1:00 |
+| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Tras la pantalla de carga de decodificación (`flight_to_report`), se revela éxito total, parcial o fallo con cadena causal numérica, dato real NASA e historial comparativo. | ~1:30 |
 
 ---
 
@@ -541,19 +541,25 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 
 ---
 
-## Paso 3 · Dinámica de 60 Segundos de Vuelo Espacial (Por Turnos)
+## Paso 3 · Fase de Supervivencia en Cabina estilo *60 Seconds!* (`Flight60sView`)
 
-Al terminar la Estación 2, el estado consolidado se vuelve inmutable y comienza el **Vuelo Espacial de 60 Segundos (`Flight60sView`)**:
+Al terminar la Estación 2 (como cuando termina la recolección y se cierra la escotilla en *60 Seconds! / 60 Parsecs!*), el estado consolidado se vuelve inmutable y la tripulación salta a la **Fase de Travesía y Supervivencia en Cabina (`Flight60sView`)** dividida en **4 escenas / capítulos de 15 segundos por turnos** (60 s en total):
 
-1. **Visualización en vivo:** Vemos el cohete despegar desde la plataforma, cruzar la órbita y viajar hacia la Luna / Asteroide / Marte mientras un reloj de `60s` desciende y una línea temporal muestra los **4 Nodos de Decisión**.
-2. **Evaluación + 4 Preguntas / Crisis por Turnos (15 s por ronda):**
-   - El servidor recorre el árbol causal (`decision_tree.py` + `story_tree.json`) adaptado a lo que el equipo **sí construyó** en las estaciones.
-   - **Ronda 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Pregunta/decisión de crisis en lanzamiento (ej. si la masa o costo quedaron al límite, el **Turno de Rol 1** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *abortar carga no crítica*). Si el veto físico es imposible ($m_{\text{wet}} > m_{\max}$ por mucho), igual se dispara la secuencia de análisis para que el jugador vea exactamente dónde reventó la estructura.
-   - **Ronda 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de Rol 3 / Rol 2** enfrenta la maniobra crítica de frenado o corrección de $\Delta v$ (ej. si el CG quedó desbalanceado a `1.5x`, aparece una alerta de vibración en el motor y el jugador en turno decide maniobra de compensación o aerofrenado de emergencia).
-   - **Ronda 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Se dispara la contingencia real de la misión (*Tormenta Solar Cislunar*, *Nube de Polvo y Micro-rocas* o *Tormenta de Polvo Marciana + Atasque del Brazo*) junto con el chequeo de Escudo Térmico. El **Turno de Rol 2 / Rol 3** elige la respuesta táctica según la batería, RTG, Autonomía Visual o reserva UFE disponible.
-   - **Ronda 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de Rol 4** decide cómo priorizar el enlace de $160\text{ Gbit}$ antes de la Conjunción Solar o pérdida de ventana (comprimir espectroscopía, sacrificar fotos de contexto o forzar potencia de antena).
-   - **En Singleplayer:** El jugador responde las 4 rondas consecutivas (una cada 15 s) mientras el cohete vuela.
-   - **En Multiplayer:** Cada pregunta se asigna por turno rotativo a un jugador conectado (`¡TURNO DE [NOMBRE]!`), mientras los demás observan la alerta en pantalla y animan al compañero.
+1. **Escenario Diorama 2D estilo *60 Seconds!* (Cabina de Mando + Estantes de Subsistemas):**
+   - La pantalla principal muestra el **interior ilustrado 2D de la cabina/módulo de mando** (panel metálico, ventana espacial hacia Luna/Asteroide/Marte, indicadores de salud de la nave y estantería con los objetos/subsistemas que el equipo realmente logró configurar en Estación 1 y 2: caja de Reserva UFE, Escudo Térmico TPS, Tanque/Giroscopio de CG, Banco de Energía y Rack Espectral/Antena DSN).
+   - Los **4 `ASTRO SPRITES`** (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) aparecen dentro de la cabina reaccionando en vivo (`idle`, `work`, `panic` si `rocket_health_pct` baja o hay alerta crítica, `cheer` al superar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Decisiones + 4 Compuertas por Turnos (15 s por ronda):**
+   - En cada ronda el jugador activo abre la **Bitácora / Portapapeles de Crisis** (inspirado en el diario ilustrado de *60 Seconds!*) adaptado a lo que el equipo **sí construyó** en las estaciones.
+   - **Escena 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Crisis en plataforma; el **Turno de `ASTRO_ENGINEER` (Rol 1)** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *arriesgar carga*.
+   - **Escena 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de `ASTRO_SOLDIER` (Rol 3 / Rol 2)** enfrenta la maniobra de $\Delta v$ o vibración de CG desbalanceado (`1.5x`).
+   - **Escena 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Contingencia espacial real (*Tormenta Solar Cislunar*, *Nube de Polvo*, *Tormenta Marciana*) + chequeo de Escudo Térmico. El **Turno de `ASTRO_MEDIC` (Rol 2 / Rol 3)** elige la respuesta táctica según batería/RTG/escudo disponible.
+   - **Escena 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de `ASTRO_DEFENDER` (Rol 4)** prioriza el enlace de $160\text{ Gbit}$ antes de perder la ventana con la Tierra.
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al responder cada compuerta, aparece la consecuencia inmediata en la Bitácora (`resultado_turno_vuelo`: `PASS`, `DEGRADED`, `CRITICAL` + animación de daños/chispas o estabilización en la cabina) y acto seguido se ejecuta un **Salto de Escena con cortina / pantalla de carga de transición** (ej. `"DAY / STAGE 02 — ENTERING DEEP SPACE TRANSIT..."`) antes de pasar al siguiente capítulo o al desenlace `flight_to_report`.
+4. **Host Main Stage vs. Celular por PIN:**
+   - **En pantalla Principal (Host):** diorama completo de cabina, los 4 Astro Sprites reaccionando, barra de los 4 Nodos y alerta gigante de quién tiene la Bitácora en su mano.
+   - **En el Celular (Jugador en turno):** tarjeta portátil estilo Bitácora de *60 Seconds!* con botones táctiles grandes (`1–4`) y reloj de 15 s; si es turno de otro compañero, muestra un visor compacto de espera con el personaje activo.
+   - **En Singleplayer:** el jugador humano resuelve las 4 páginas consecutivas de la Bitácora (una cada 15 s).
 
 ---
 
@@ -942,23 +948,23 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 <!-- Archivo: docs/09-arte-y-sonido.md -->
 > **Archivo: `docs/09-arte-y-sonido.md`**
 
-# 09 · Arte y Sonido (Paper Mario × Among Us + HUD NASA)
+# 09 · Arte y Sonido (2D Flash Arcade `ASTRO SPRITES` × *60 Seconds!* Cabin + HUD NASA)
 
-**Qué contiene:** identidad visual oficial del videojuego para evitar el aspecto genérico de simulador (*AI slop*), paleta de colores, anatomía de los personajes recortables 2.5D, animaciones de pista lineal y vuelo, tipografía y reglas legales de arte/IA.  
+**Qué contiene:** identidad visual oficial del videojuego para evitar el aspecto genérico de simulador (*AI slop*), paleta de colores, anatomía de los 4 personajes 2D (`ASTRO SPRITES`), estética de cabina y bitácora estilo *60 Seconds! / 60 Parsecs!*, transiciones con pantallas de carga, tipografía y reglas legales de arte/IA.  
 **Dueño:** Leonardo  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (22:20 h)
 
 ---
 
-## Concepto Visual: *Paper Mario × Among Us + HUD NASA* (`[DECIDIDO]`)
+## Concepto Visual: *2D Flash Arcade (`ASTRO SPRITES`) × Cabina 60 Seconds! + HUD NASA* (`[DECIDIDO]` / `[ACTUALIZADO]`)
 
-Queremos un juego con personalidad propia e inolvidable frente a los jueces:
-- **De *Among Us*:** Tripulantes/ingenieros espaciales adorables y expresivos con visor brillante, mochila de soporte vital y silueta clara reconocible a distancia (ideal en celulares y en el video de 30 s). Además, la vibra de sala de espera en el Lobby y consolas de tarea por estación.
-- **De *Paper Mario*:** Todo personaje, nave, ficha, cohete y tarjeta se siente como un **recorte de cartulina gruesa 2.5D**:
-  - **Doble borde tipo sticker:** Borde blanco interior (`3px solid #FFFFFF`) + contorno grueso de tinta oscura (`3px solid #0F172A`) + sombra sólida sin difuminado (`box-shadow: 4px 4px 0px #0F172A` o `drop-shadow(4px 4px 0px #0F172A)`).
-  - **Movimiento tipo papel:** Cuando el personaje camina automáticamente en `LinearStationTrack`, hace pequeños saltos con inclinación (`rotate: [-4deg, 4deg]`) y al voltear o aparecer realiza un giro plano (`scaleX` / `rotateY` de papel en Framer Motion).
-  - **Profundidad por capas (*Diorama*):** Fondo estelar con `tsParticles`, planetas de cartulina en capas parallax detrás de la pista lineal y tarjetas de minijuego que caen o se despliegan como sobres/carpetas de ingeniería.
-- **Del *HUD Aeroespacial NASA*:** Telemetría de precisión en tipografía monoespaciada (`IBM Plex Mono`), barras segmentadas de recursos y etiquetas técnicas reales (`MASS 2,180 / 4,020 kg`, `DSN +3.4 dB`, `UFE 26 %`).
+Queremos un juego con personalidad propia, visual profesional de **videojuego 2D estilo Flash Arcade** e inolvidable frente a los jueces:
+- **De los `ASTRO SPRITES` (Originales 2D — Cero Copyright):** Reemplazamos cualquier silueta tipo frijol (*Among Us*) por **4 astronautas SVG de cuerpo completo con contornos gruesos `#0F172A`**, visor LED animado, mochila propulsora, rodilleras y equipamiento específico de rol (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`), sin ningún riesgo de derechos de autor.
+- **De *60 Seconds! / 60 Parsecs!* (Cabina, Bitácora y Saltos de Escena):** Tras la fase de preparación cronometrada en las estaciones (Estación 1 y 2), la fase de vuelo/travesía (`Flight60sView`) adopta la jugabilidad clásica de **cabina 2D + Bitácora del Capitán**: los personajes dentro del módulo espacial con sus subsistemas visibles en estantes/consolas, decisiones de supervivencia tipo diario ilustrado y **saltos de escena con pantallas de carga temáticas** entre cada nodo.
+- **De *Paper Mario* / Cartulina 2D Arcade:**
+  - Contorno de tinta oscura (`3px solid #0F172A`), paneles metálicos `.flash-panel`, consolas portátiles para celular `.handheld-console-frame`, cintas `.hazard-stripe-bar` y sombras sólidas sin difuminado (`5px 5px 0px #0F172A`).
+  - Fondo estelar con `tsParticles` + planetas parallax detrás del módulo/pista.
+- **Del *HUD Aeroespacial NASA*:** Telemetría de precisión en tipografía monoespaciada (`IBM Plex Mono`), barras segmentadas de recursos (`ResourceHUD`) y etiquetas técnicas reales (`MASS 2,180 / 4,020 kg`, `DSN +3.4 dB`, `UFE 26 %`).
 
 ---
 
@@ -997,20 +1003,21 @@ Queremos un juego con personalidad propia e inolvidable frente a los jueces:
 
 ---
 
-## Reglas para Componentes Estilo *Paper Mario × Among Us* (Para Ismael, Abraham y Leonardo)
+## Reglas para Componentes Estilo *2D Flash Arcade & Diorama NASA* (Para Ismael, Abraham y Leonardo)
 
-Para que los minijuegos de **Ismael** y **Abraham** se vean idénticos a la UI de **Leonardo**, Tailwind CSS tendrá clases utilitarias compartidas en `frontend/src/index.css`:
+Para que los minijuegos de **Ismael** y **Abraham** se vean coherentes con la UI de **Leonardo**, Tailwind CSS tiene clases utilitarias compartidas en `frontend/src/index.css`:
 
-- `.paper-card`: fondo `#162347` o `#F8FAFC`, `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
+- `.paper-card` / `.flash-panel`: fondo `#162347` / degradado metálico de cabina, `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
 - `.paper-btn`: efecto físico al presionar (`active:translate-x-[3px] active:translate-y-[3px] active:shadow-none`) con sombra dura `4px 4px 0px #0F172A`.
-- `<CrewmateAvatar role={role} state="idle | walk | work | panic | cheer" />`: componente SVG modular creado por **Leonardo** reutilizado en Lobby, Pista Lineal, Vuelo 60 s y Podio final. **Importante:** dibujado en SVG original por nuestro equipo (cero sprites extraídos de otros juegos con copyright).
+- `.handheld-console-frame` y `.hazard-stripe-bar`: consola portátil para jugadores en celular y cintas industriales arcade.
+- `<CrewmateAvatar role={role} state="idle | walk | work | panic | cheer" />`: componente SVG modular de nuestros **4 `ASTRO SPRITES` 2D completos** creado por **Leonardo** (junto con `ROLE_CHARACTER_PROFILE` y `<MissionLoadingScreen />` en `frontend/src/components/paper/LoadingScreen.tsx`) reutilizado en Lobby, Pista Lineal, Cabina estilo *60 Seconds!* y Podio final.
 
 ---
 
 ## Audio y Efectos de Sonido (Extra después de H18)
 
 - Si sobra tiempo tras el MVP en H18, usar únicamente audio **CC0 / dominio público** (paquetes *Kenney Sci-Fi Sounds* / *Interface Sounds*) o tonos sintetizados con la **Web Audio API** nativa del navegador (cero archivos pesados, carga instantánea).
-- Sonidos clave: clic de cartulina, campana de estación completada, alerta de mutación en cadena, cuenta regresiva de 5 s, propulsor en vuelo de 60 s y fanfarria/alarma final.
+- Sonidos clave: clic de cartulina, campana de estación completada, alerta de mutación en cadena, cuenta regresiva de 5 s, paso de página de bitácora / salto de escena estilo *60 Seconds!* y fanfarria/alarma final.
 - Siempre incluir un botón `Mute / Unmute` en la esquina superior derecha.
 
 ---
@@ -1018,7 +1025,7 @@ Para que los minijuegos de **Ismael** y **Abraham** se vean idénticos a la UI d
 ## Reglas Legales de Arte e IA (Space Apps)
 
 1. **NUNCA usar el logo oficial de la NASA** en pantallas, naves ni portada.
-2. **Nada de sprites con copyright externo:** Los tripulantes estilo *Among Us* y estilo *Paper Mario* son **homenaje estético original dibujado en SVG/CSS por el equipo**, jamás assets extraídos de los juegos originales de Innersloth o Nintendo.
+2. **Nada de sprites con copyright externo (cero siluetas Among Us):** Los 4 especialistas `ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER` y `ASTRO_DEFENDER` son **personajes originales dibujados en SVG por el equipo** en `CrewmateAvatar.tsx`, sin ningún asset ni parecido protegido por Innersloth o Nintendo.
 3. **Si se usa cualquier imagen o video generado por IA**, debe llevar **marca de agua visible** y declararse en `referencias.md` y en la sección *AI Use* de la entrega. (Al dibujar todo en SVG + CSS + Three.js procedural evitamos este riesgo por completo).
 
 ---
@@ -1427,15 +1434,15 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
-| [ ] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
-| [ ] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
-| [ ] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
-| [ ] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
-| [ ] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
-| [ ] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
-| [ ] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
-| [ ] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
+| [x] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
+| [x] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
+| [x] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
+| [x] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
+| [x] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
+| [x] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
+| [x] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
+| [x] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
+| [x] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
 
 ---
 
@@ -1493,9 +1500,9 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Extra | Dueño | Terminado cuando |
 |---|---|---|---|---|
-| [ ] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
-| [ ] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
-| [ ] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |
+| [x] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
+| [x] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
+| [x] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |
 
 ---
 
@@ -2158,9 +2165,9 @@ Requisitos estrictos:
 <!-- Archivo: docs/21-roadmap-leonardo.md -->
 > **Archivo: `docs/21-roadmap-leonardo.md`**
 
-# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte *Paper Mario × Among Us*, Pista Lineal, Vuelo 60s y Dashboard)
+# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte 2D Flash `ASTRO SPRITES`, Cabina estilo *60 Seconds!*, Host/Móvil y Dashboard)
 
-**Tu misión en estas 24 horas:** Darle al juego su alma, estética y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **Paper Mario × Among Us**, los menús, el Lobby PIN, la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox` (para enchufar sin dolor el trabajo de Ismael y Abraham), la escena del **Vuelo de 60 Segundos** y el **Dashboard Final de Retroalimentación NASA**.
+**Tu misión en estas 24 horas:** Darle al juego su alma, estética de **videojuego Flash 2D profesional** y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **`ASTRO SPRITES` (cero Among Us por derechos de autor)**, las pantallas de carga divididas (`LoadingScreen.tsx`), los menús, el Lobby PIN (**Host Main Stage vs. Phone Crew Pad**), la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox`, la **Cabina de Supervivencia y Bitácora estilo *60 Seconds! / 60 Parsecs!*** (`Flight60sView.tsx`) con **saltos entre escenas y pantallas de carga**, y el **Dashboard Final de Retroalimentación NASA**.
 
 ---
 
@@ -2177,23 +2184,25 @@ space-apps-juego/
     ├── vite.config.ts
     └── src/
         ├── main.tsx                     # Montaje React
-        ├── App.tsx                      # Router de vistas y ruta /dev-sandbox (LEO-01)
-        ├── index.css                    # Clases compartidas .paper-card / .paper-btn (LEO-02)
+        ├── App.tsx                      # Router de vistas (Host Stage / Phone Console) y /dev-sandbox (LEO-01)
+        ├── index.css                    # .paper-card, .flash-panel, .handheld-console-frame, .hazard-stripe-bar (LEO-02)
         ├── socket.ts                    # Cliente Socket.IO hacia backend
         ├── types/game.ts                # CONTRATO SAGRADO: RoleType, LiveMetrics, MinigameProps
         └── components/
             ├── MinigameShell.tsx        # Reloj 30s, 1-toma, toast mutacion_en_vivo, fallback (LEO-03)
-            └── paper/                   # Sistema visual Paper Mario x Among Us (LEO-02)
-                ├── CrewmateAvatar.tsx
+            └── paper/                   # Sistema visual 2D Flash ASTRO SPRITES y Audio (LEO-02, EXT-01)
+                ├── CrewmateAvatar.tsx   # 4 Astro Sprites articulados + ROLE_CHARACTER_PROFILE + actionEffect
+                ├── LoadingScreen.tsx    # Pantallas de carga por transición (boot, wave1→2, launch, report)
+                ├── SoundEngine.tsx      # Web Audio API SFX + Ambient Synth + <SoundControlPill /> (EXT-01)
                 ├── PaperCard.tsx
                 ├── Starfield.tsx
-                └── ResourceHUD.tsx      # Barras en vivo compartidas (LEO-05)
+                └── ResourceHUD.tsx      # Barras en vivo (Host completo / móvil compacto) (LEO-05)
         └── views/
-            ├── HomeMenu.tsx             # Singleplayer / Multiplayer (LEO-04)
-            ├── LobbyView.tsx            # PIN estilo Among Us + Rol + 3 Misiones/Dificultad (LEO-04)
+            ├── HomeMenu.tsx             # Singleplayer / Host Multi / Join PIN móvil + Showcase Astro Squad (LEO-04)
+            ├── LobbyView.tsx            # PIN Host Main Stage vs Phone Crew Pad + 3 Misiones NASA (LEO-04)
             ├── LinearStationTrack.tsx   # Pista lineal automática Estación 1 -> Sync -> Estación 2 (LEO-05)
-            ├── Flight60sView.tsx        # Cohete viajando 60s + 4 rondas por turnos de 15s (LEO-06)
-            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA siempre presente (LEO-07)
+            ├── Flight60sView.tsx        # Cabina 2D + Bitácora estilo 60 Seconds! + saltos de escena (LEO-06)
+            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA + historial EXT-03 (LEO-07)
             └── DevSandboxView.tsx       # Probador aislado /dev-sandbox para Ismael y Abraham (LEO-03)
 ```
 
@@ -2212,14 +2221,12 @@ space-apps-juego/
 
 ---
 
-## Paso 2 · Sistema Visual *Paper Mario × Among Us* (`LEO-02` | Meta: H3)
+## Paso 2 · Sistema Visual *2D Flash Arcade (`ASTRO SPRITES`)* (`LEO-02` | Meta: H3)
 
 1. Configura Google Fonts en `frontend/index.html`: `Space Grotesk` + `IBM Plex Mono` + `IBM Plex Sans`.
-2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham:
-   - `.paper-card`: fondo `#162347` (o `#F8FAFC` claro), `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
-   - `.paper-btn`: botón táctil de cartulina con hundimiento al presionar (`active:translate-x-[3px] active:translate-y-[3px] active:shadow-none`).
+2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham (`.paper-card`, `.paper-btn`) más las utilidades 2D Flash (`.flash-panel`, `.handheld-console-frame`, `.hazard-stripe-bar`).
 3. Crea **`Starfield.tsx`** con `tsParticles` (estrellas sutiles + planetas de cartulina en capas parallax).
-4. Crea **`CrewmateAvatar.tsx`**: componente SVG original (cero logos NASA ni assets con copyright) con estética de tripulante espacial estilo *Among Us* envuelto en doble borde tipo sticker de *Paper Mario* (borde blanco interno + borde negro `#0F172A` + sombra dura), visor brillante y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`. Al caminar hace rebote e inclinación de recorte de papel con Framer Motion.
+4. Crea **`CrewmateAvatar.tsx`** (cero Among Us ni copyright externo): 4 astronautas SVG 2D de cuerpo completo (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) + `ROLE_CHARACTER_PROFILE` y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`, más **`LoadingScreen.tsx`** para pantallas de carga por fase.
 
 ---
 
@@ -2233,15 +2240,12 @@ space-apps-juego/
 
 ---
 
-## Paso 4 · Menú Principal y Lobby estilo *Among Us / Kahoot* (`LEO-04` | Meta: H4)
+## Paso 4 · Menú Principal y Lobby Host vs. Celular por PIN (`LEO-04` | Meta: H4)
 
 1. **`HomeMenu.tsx`:**
-   - Título del juego, 4 avatares *Paper Mario × Among Us* flotando suavemente, y dos botones gigantes: **`SINGLEPLAYER`** y **`MULTIPLAYER`**.
-   - Un botón secundario **`Join with PIN`** para entrar directo desde el celular.
+   - Showcase interactivo de los 4 `ASTRO SPRITES`, inspector de rol en frontend (`ROLE_CHARACTER_PROFILE`), entrada Host (`SINGLEPLAYER` / `HOST MULTIPLAYER`) y consola portátil **`PHONE CREW CONSOLE` (Join with PIN)** + pantalla de carga `boot`.
 2. **`LobbyView.tsx`:**
-   - Muestra el código PIN en grande (ej. `MARS26`), lista en vivo de los 1 a 4 tripulantes conectados con sus avatares *Paper Mario*, selector de **Rol** (los ocupados aparecen con el nombre del compañero; los vacíos muestran etiqueta `AI Autopilot Ready`).
-   - Selector visual de las **3 Misiones NASA** (*Artemis Moon · Easy*, *Asteroid Hunter · Medium*, *Mars Sample Return · Hard*) + Dificultad (`Easy` / `Medium` / `Hard`).
-   - Botón `LAUNCH MISSION SEQUENCE`.
+   - Código PIN grande + vista diferenciada **Host Main Stage** (hangar 4 bahías) vs. **Phone Handheld Terminal** (selector táctil para cada jugador por PIN), 3 Misiones NASA + Dificultad, y pantalla de carga `lobby_to_wave1`.
 
 ---
 
@@ -2259,28 +2263,30 @@ space-apps-juego/
 
 ---
 
-## Paso 6 · `Flight60sView.tsx` (Vuelo 60s por Turnos) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
+## Paso 6 · `Flight60sView.tsx` (Cabina estilo *60 Seconds!* + Saltos de Escena) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
 
-### `Flight60sView.tsx`
-1. Muestra el espacio profundo desplazándose rápido mientras un **cohete/nave estilo recorte de papel** avanza por una ruta hacia la Luna / Asteroide / Marte con barra superior de **4 Nodos (`Launch` $\rightarrow$ `Orbit` $\rightarrow$ `Event` $\rightarrow$ `DSN Downlink`)** y reloj global de `60s`.
-2. Al recibir `pregunta_vuelo_60s`:
-   - Resalta con un foco quién tiene el turno (`YOUR TURN!` en grande si `active_role === myRole`, o `WAITING FOR [NOMBRE]...` si es turno de otro compañero).
-   - Despliega de 2 a 4 botones `.paper-btn` de decisión con barra de `15s` y el hint de ingeniería (`engineering_tradeoff_hint`).
-3. Al recibir `resultado_turno_vuelo`: anima la nave reaccionando (chispas/escudo/propulsor/rayo DSN) y muestra el feedback de 2 segundos antes de la siguiente ronda.
+### `Flight60sView.tsx` (Inspirado en la jugabilidad del videojuego *60 Seconds! / 60 Parsecs!*)
+1. **Diorama de Cabina 2D + Inventario Físico de Subsistemas:**
+   - Reemplaza un simple cohete genérico por el **interior 2D estilo *60 Seconds!* de la cabina espacial** (con ventana al espacio/destino, consola central de salud `rocket_health_pct`, estantes con los subsistemas que el equipo equipó en las estaciones y los **4 `ASTRO SPRITES`** dentro de la cabina reaccionando en tiempo real según su estado: `idle`, `work`, `panic` si hay alerta/daño o `cheer` al pasar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Crisis por Turnos (`pregunta_vuelo_60s`):**
+   - Muestra el evento como una página de **Bitácora de Supervivencia** (*"DAY / LOG 01–04"*) con la insignia del concepto NASA, quién tiene el turno (`YOUR TURN!` gigante con botones `.paper-btn` de 15 s y teclas `1–4` en el celular activo, o visor de cabina/espera con el Astro Sprite del compañero en turno en Host y otros celulares).
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al recibir `resultado_turno_vuelo` muestra la consecuencia visual en cabina durante ~2 s (`PASS` / `DEGRADED` / `CRITICAL`), y ejecuta un **Salto de Escena con pantalla de carga temática** (capítulo siguiente: `NODE_1_LAUNCH` $\rightarrow$ `NODE_2_PROPULSION` $\rightarrow$ `NODE_3_EVENT` $\rightarrow$ `NODE_4_DOWNLINK` $\rightarrow$ Reporte) para dar sensación real de campaña por episodios estilo *60 Seconds!*.
 
 ### `MissionReportDashboard.tsx`
-1. Se muestra **SIEMPRE** tras el vuelo (gane o pierda).
-2. Banner gigante estilo sello de cartulina: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
+1. Muestra pantalla de carga de decodificación (`flight_to_report`) y se presenta **SIEMPRE** tras la travesía (gane o pierda).
+2. Banner gigante estilo sello arcade: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
 3. Contador animado de **Score (0 – 1,000 pts)** con desglose `Objective 50%` + `Science F1 30%` + `Efficiency 20%`.
-4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`).
-5. Aporte por cada uno de los 4 roles y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
+4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`) + historial comparativo de intentos en sesión (`EXT-03`).
+5. Aporte por cada uno de los 4 `ASTRO SPRITES` y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
 
 ---
 
-## Paso 7 · Conexión Final de los 8 Minijuegos (`LEO-08`, `LEO-09` | H10 y H15)
+## Paso 7 · Conexión Final de los 8 Minijuegos, Audio y Pulido Final (`LEO-08`, `LEO-09`, `EXT-01`–`EXT-03` | H10 – H15)
 
 - **Para H10:** Mapea en un registro limpio los primeros 4 (`Rol1A`, `Rol2A` de Ismael; `Rol3A`, `Rol4A` de Abraham) dentro de `LinearStationTrack` y verifica el flujo completo con Rubén y Schoenstadt.
 - **Para H15:** Mapea los 4 restantes (`Rol1B`, `Rol2B` de Ismael; `Rol3B`, `Rol4B` de Abraham) y pule transiciones de cartulina y responsividad móvil.
+- **Estado implementado en `leo-branch` (2026-11-15):** Completadas las 8 fases del frontend de Leonardo (`LEO-01`–`LEO-09`, `EXT-01`–`EXT-03`): extremidades articuladas y efectos `complete`/`error`/`scan`/`thruster` en `CrewmateAvatar.tsx`, sintetizador `SoundEngine.tsx`, sello `STATION LOCKED`, cortinillas 2D Flash, chispas de propulsor, trazabilidad `stationLoadout` (`CREW PACKED` vs `AI AUTOPILOT`), *page flip* de Bitácora en `Flight60sView.tsx` y tarjetas causales expandibles en `MissionReportDashboard.tsx`. Listo para Pull Request / Merge Request e integración final con `backend/`.
 
 ---
 
@@ -2291,11 +2297,11 @@ Paso 0 (Automático): Antes de empezar, verifica e instala las dependencias de f
 Lee AGENTS.md, docs/04-juego.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/22-como-trabajar-y-hacer-merge.md y docs/21-roadmap-leonardo.md.
 Trabaja únicamente en tus archivos asignados de frontend/src/ (no edites backend/ ni frontend/src/components/minigames/).
 Vamos a construir el frontend en React 18 + TypeScript + Vite + Tailwind + Framer Motion + Lucide + socket.io-client + @tsparticles/react:
-1. Estética híbrida Paper Mario x Among Us + HUD aeroespacial NASA: bordes gruesos #0F172A, doble contorno tipo sticker, sombras sólidas 4px 4px 0 #0F172A, avatares SVG originales (<CrewmateAvatar />) y cero logos de NASA.
+1. Estética 2D Flash Arcade (`ASTRO SPRITES`: `ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER` — cero Among Us) + Cabina y Bitácora estilo *60 Seconds! / 60 Parsecs!* + HUD aeroespacial NASA: bordes gruesos #0F172A, `.flash-panel`, `.handheld-console-frame`, sombras sólidas 5px 5px 0 #0F172A, y cero logos de NASA.
 2. Todo en inglés en la UI visible.
 3. Usa exactamente frontend/src/types/game.ts (MinigameProps y LiveMetrics) y construye DevSandboxView.tsx (/dev-sandbox) primero para que Ismael y Abraham desarrollen sus minijuegos en paralelo.
-4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo.
-5. En Flight60sView.tsx anima el cohete viajando durante 60 segundos con 4 rondas de 15s por turnos (pregunta_vuelo_60s -> respuesta_turno_vuelo) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
+4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo y pantallas de carga entre fases.
+5. En Flight60sView.tsx implementa la jugabilidad estilo el videojuego 60 Seconds! (cabina 2D con los 4 Astro Sprites + objetos/subsistemas visibles, Bitácora del Capitán de 4 rondas por turnos y saltos entre escenas con pantallas de carga entre nodos) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
 ```
 
 ---
