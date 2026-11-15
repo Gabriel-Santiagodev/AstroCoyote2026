@@ -1,7 +1,13 @@
-// Owner: Leonardo (Task LEO-06) — Server-driven, four-round mission flight.
+// Owner: Leonardo (Task LEO-06) — Server-driven, four-chapter cabin survival flight.
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
-import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
+import { BatteryCharging, Gauge, Radio, Shield, Wallet } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  CrewmateAvatar,
+  ROLE_CHARACTER_PROFILE,
+  type AvatarState,
+} from "../components/paper/CrewmateAvatar";
 import type { MissionIdType, RoleType } from "../types/game";
 
 export interface FlightQuestionOptionUI {
@@ -44,20 +50,54 @@ interface Flight60sViewProps {
 
 const ROUND_DURATION_SEC = 15;
 const FLIGHT_DURATION_SEC = 60;
-const RESULT_DISPLAY_MS = 2000;
-const GATES: Array<{ id: FlightQuestionUI["gate"]; label: string }> = [
-  { id: "NODE_1_LAUNCH", label: "LAUNCH" },
-  { id: "NODE_2_PROPULSION", label: "PROPULSION" },
-  { id: "NODE_3_EVENT", label: "SPACE EVENT" },
-  { id: "NODE_4_DOWNLINK", label: "DSN DOWNLINK" },
+const FEEDBACK_DISPLAY_MS = 1750;
+const SCENE_JUMP_MS = 850;
+const HULL_ALARM_THRESHOLD_PCT = 75;
+const CREW_PANIC_THRESHOLD_PCT = 65;
+const VIEWPORT_QUERY = "(max-width: 767px)";
+
+const GATES: Array<{
+  id: FlightQuestionUI["gate"];
+  label: string;
+  chapter: string;
+}> = [
+  { id: "NODE_1_LAUNCH", label: "LAUNCH", chapter: "LAUNCH PAD" },
+  { id: "NODE_2_PROPULSION", label: "PROPULSION", chapter: "ORBITAL PROPULSION" },
+  { id: "NODE_3_EVENT", label: "SPACE EVENT", chapter: "DEEP SPACE HAZARD" },
+  { id: "NODE_4_DOWNLINK", label: "DSN DOWNLINK", chapter: "DSN DOWNLINK" },
 ];
+
+const CREW_ROLES: RoleType[] = [
+  "finance_launch",
+  "spacecraft_mass",
+  "orbit_power",
+  "science_comms",
+];
+
 const TARGET_NAMES: Record<MissionIdType, string> = {
   artemis_moon: "THE MOON",
   asteroid_hunter: "THE ASTEROID",
   mars_sample_return: "MARS",
 };
-const VIEWPORT_QUERY = "(max-width: 767px)";
-const STATION_POSITIONS = ["12%", "36%", "60%", "84%"] as const;
+
+const RACK_ITEMS: Array<{
+  id: string;
+  label: string;
+  shortLabel: string;
+  gateIndex: number;
+  icon: LucideIcon;
+}> = [
+  { id: "ufe", label: "UFE Vault", shortLabel: "UFE", gateIndex: 0, icon: Wallet },
+  { id: "tps", label: "Thermal Shield TPS", shortLabel: "TPS", gateIndex: 2, icon: Shield },
+  { id: "cg", label: "CG & Propulsion Tank", shortLabel: "CG/TANK", gateIndex: 1, icon: Gauge },
+  { id: "power", label: "Power Cells", shortLabel: "POWER", gateIndex: 2, icon: BatteryCharging },
+  { id: "dsn", label: "DSN Spectral Array", shortLabel: "DSN", gateIndex: 3, icon: Radio },
+];
+
+interface SceneJump {
+  fromRound: number;
+  toGateIndex: number;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -65,21 +105,22 @@ function clamp(value: number, min: number, max: number) {
 
 function MissionTarget({ missionId }: { missionId: MissionIdType }) {
   return (
-    <svg viewBox="0 0 180 180" aria-hidden="true" className="h-full w-full drop-shadow-[5px_5px_0px_#0F172A]">
+    <svg viewBox="0 0 180 180" aria-hidden="true" className="h-full w-full drop-shadow-[4px_4px_0px_#0F172A]">
       {missionId === "asteroid_hunter" ? (
         <>
-          <path d="M27 63 49 29 91 19 126 34 158 67 151 112 116 151 74 157 32 130 17 94Z" fill="#A77A64" stroke="#F8FAFC" strokeWidth="10" strokeLinejoin="round" />
-          <path d="M27 63 49 29 91 19 126 34 158 67 151 112 116 151 74 157 32 130 17 94Z" fill="none" stroke="#0F172A" strokeWidth="5" strokeLinejoin="round" />
+          <path d="M27 63 49 29 91 19 126 34 158 67 151 112 116 151 74 157 32 130 17 94Z"
+            fill="#A77A64" stroke="#0F172A" strokeWidth="7" strokeLinejoin="round" />
           <ellipse cx="66" cy="65" rx="18" ry="12" fill="#805647" stroke="#0F172A" strokeWidth="4" />
           <ellipse cx="114" cy="105" rx="24" ry="15" fill="#805647" stroke="#0F172A" strokeWidth="4" />
         </>
       ) : (
         <>
-          <circle cx="90" cy="90" r="73" fill="#F8FAFC" stroke="#0F172A" strokeWidth="8" />
-          <circle cx="90" cy="90" r="68" fill={missionId === "mars_sample_return" ? "#EA785D" : "#D9E2EB"} stroke="#F8FAFC" strokeWidth="4" />
+          <circle cx="90" cy="90" r="73" fill={missionId === "mars_sample_return" ? "#EA785D" : "#D9E2EB"}
+            stroke="#0F172A" strokeWidth="8" />
           {missionId === "mars_sample_return" ? (
             <>
-              <path d="M37 115c25-20 43-10 63-21 23-13 34-13 56-7M30 83c23 5 39-9 53-18 25-15 39-9 59-7" fill="none" stroke="#AD4C45" strokeWidth="9" strokeLinecap="round" />
+              <path d="M37 115c25-20 43-10 63-21 23-13 34-13 56-7M30 83c23 5 39-9 53-18 25-15 39-9 59-7"
+                fill="none" stroke="#AD4C45" strokeWidth="9" strokeLinecap="round" />
               <path d="M65 34c25-11 52-8 75 11" fill="none" stroke="#FFD3B0" strokeWidth="9" strokeLinecap="round" />
             </>
           ) : (
@@ -95,65 +136,42 @@ function MissionTarget({ missionId }: { missionId: MissionIdType }) {
   );
 }
 
-type Reaction = "thruster" | "shield" | "sparks" | "downlink" | null;
-
-function PaperShip({ reaction, healthPct }: { reaction: Reaction; healthPct: number }) {
-  const damage = (100 - clamp(healthPct, 0, 100)) / 100;
-  const flameScale = reaction === "thruster" ? 1.8 : 0.8 + clamp(healthPct, 0, 100) / 170;
+function CabinBackdrop() {
   return (
-    <svg viewBox="0 0 320 170" role="img" aria-label="Multistage paper rocket traveling through space"
-      className="h-full w-full overflow-visible drop-shadow-[6px_6px_0px_#0F172A]">
-      <motion.g animate={{ opacity: [0.25, 0.8, 0.25], x: [-3, -18, -3] }}
-        transition={{ duration: 0.65, repeat: Infinity, ease: "easeInOut" }} strokeLinecap="round">
-        <path d="M52 66H11M48 84H2M52 103H11" stroke="#38BDF8" strokeWidth="6" />
-        <path d="M40 75H16M40 93H16" stroke="#F2C94C" strokeWidth="3" />
-      </motion.g>
-      {[67, 85, 103].map((cy, index) => (
-        <motion.g key={cy} style={{ transformOrigin: "64px " + cy + "px" }}
-          animate={{ scaleX: [flameScale * 0.75, flameScale, flameScale * 0.82], opacity: [0.75, 1, 0.8] }}
-          transition={{ duration: 0.28 + index * 0.05, repeat: Infinity, ease: "easeInOut" }}>
-          <path d={"M62 " + (cy - 8) + " 13 " + cy + " 62 " + (cy + 8) + " 50 " + cy + "Z"}
-            fill="#F59E0B" stroke="#0F172A" strokeWidth="3" />
-          <path d={"M61 " + (cy - 4) + " 30 " + cy + " 61 " + (cy + 4) + "Z"} fill="#FEF3C7" />
-        </motion.g>
+    <svg viewBox="0 0 1200 560" preserveAspectRatio="none" aria-hidden="true"
+      className="pointer-events-none absolute inset-0 h-full w-full">
+      <defs>
+        <linearGradient id="cabin-wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#42577B" />
+          <stop offset="0.55" stopColor="#26395D" />
+          <stop offset="1" stopColor="#172644" />
+        </linearGradient>
+        <linearGradient id="cabin-floor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#475569" />
+          <stop offset="1" stopColor="#172033" />
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="560" fill="url(#cabin-wall)" />
+      <path d="M0 0H1200V40H0ZM0 0h84l78 392H0Zm1200 0h-84l-78 392h162Z"
+        fill="#64748B" stroke="#0F172A" strokeWidth="10" />
+      <path d="M0 50h1200M110 0l91 405M1090 0l-91 405M0 347h1200"
+        fill="none" stroke="#0F172A" strokeWidth="11" />
+      <path d="M0 364 600 312l600 52v196H0Z" fill="url(#cabin-floor)" stroke="#0F172A" strokeWidth="10" />
+      <path d="M0 406h1200M0 474h1200M600 312 350 560M600 312 850 560M600 312 80 560M600 312l520 248"
+        fill="none" stroke="#94A3B8" strokeOpacity=".32" strokeWidth="4" />
+      <path d="M440 352h320l55 152H385Z" fill="#17243F" stroke="#0F172A" strokeWidth="10" />
+      <path d="M465 361h270l28 95H437Z" fill="#075985" stroke="#0F172A" strokeWidth="8" />
+      <path d="M520 400h160M555 420h90" fill="none" stroke="#67E8F9" strokeWidth="9" strokeLinecap="round" />
+      <path d="M395 505h410l22 55H373Z" fill="#334155" stroke="#0F172A" strokeWidth="8" />
+      <path d="M70 210h75v110H70ZM1055 210h75v110h-75Z" fill="#1E293B" stroke="#0F172A" strokeWidth="8" />
+      <path d="M81 233h53M81 259h53M81 285h53M1066 233h53M1066 259h53M1066 285h53"
+        stroke="#38BDF8" strokeWidth="7" />
+      {[80, 230, 380, 530, 680, 830, 980, 1120].map((x) => (
+        <g key={x}>
+          <circle cx={x} cy="20" r="6" fill="#CBD5E1" stroke="#0F172A" strokeWidth="3" />
+          <circle cx={x} cy="346" r="5" fill="#CBD5E1" stroke="#0F172A" strokeWidth="3" />
+        </g>
       ))}
-      <path d="M67 48 45 23 90 38 109 53ZM67 122 45 147 90 132 109 117Z"
-        fill="#06B6D4" stroke="#F8FAFC" strokeWidth="10" strokeLinejoin="round" />
-      <path d="M67 48 45 23 90 38 109 53ZM67 122 45 147 90 132 109 117Z"
-        fill="none" stroke="#0F172A" strokeWidth="5" strokeLinejoin="round" />
-      <path d="M66 51 233 40 305 85 233 130 66 119Z"
-        fill="#F8FAFC" stroke="#F8FAFC" strokeWidth="14" strokeLinejoin="round" />
-      <path d="M66 51 233 40 305 85 233 130 66 119Z"
-        fill="#E2E8F0" stroke="#0F172A" strokeWidth="6" strokeLinejoin="round" />
-      <path d="M66 52 119 49 119 121 66 118Z" fill="#CBD5E1" stroke="#0F172A" strokeWidth="4" />
-      <path d="M123 49 222 42 222 128 123 121Z" fill="#F8FAFC" stroke="#0F172A" strokeWidth="4" />
-      <path d="M231 41 305 85 231 129Z" fill="#F59E0B" stroke="#0F172A" strokeWidth="5" strokeLinejoin="round" />
-      <path d="M121 51 121 120M130 51 130 121M220 45 220 125M228 43 228 127"
-        stroke="#0F172A" strokeWidth="3" />
-      <path d="M139 57 208 52M139 113 208 118" stroke="#06B6D4" strokeWidth="6" strokeLinecap="round" />
-      <path d="M79 64 111 61M79 106 111 109" stroke="#64748B" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="169" cy="85" r="21" fill="#06B6D4" stroke="#0F172A" strokeWidth="5" />
-      <circle cx="163" cy="79" r="7" fill="#E0F2FE" />
-      <path d="M247 74 279 85 247 96" fill="none" stroke="#F8FAFC" strokeWidth="5" strokeLinecap="round" />
-      {[80, 97, 145, 197].map((cx) => <circle key={cx} cx={cx} cy="85" r="3" fill="#334155" />)}
-      {reaction === "shield" && (
-        <motion.ellipse cx="177" cy="85" rx="139" ry="69" fill="none" stroke="#3DDC84" strokeWidth="6"
-          strokeDasharray="13 8" animate={{ opacity: [0.15, 1, 0.3], scale: [0.94, 1.04, 1] }}
-          transition={{ duration: 0.7, repeat: Infinity }} />
-      )}
-      {(damage > 0 || reaction === "sparks") && (
-        <motion.g stroke="#FF5A4E" strokeWidth="5" strokeLinecap="round"
-          animate={{ opacity: [0, Math.max(damage, reaction === "sparks" ? 0.9 : 0), 0], scale: [0.85, 1.2, 1] }}
-          transition={{ duration: reaction === "sparks" ? 0.32 : 0.8, repeat: Infinity }}>
-          <path d="m132 23 12-18M194 22l9-17M241 28l13-13M135 139l-8 19M218 144l13 17" />
-        </motion.g>
-      )}
-      {reaction === "downlink" && (
-        <motion.g animate={{ opacity: [0.1, 1, 0.2] }} transition={{ duration: 0.55, repeat: Infinity }}>
-          <path d="M170 61V16m-12 10q12-13 24 0m-34-12q22-23 44 0" fill="none" stroke="#A855F7"
-            strokeWidth="5" strokeLinecap="round" />
-        </motion.g>
-      )}
     </svg>
   );
 }
@@ -172,6 +190,192 @@ function useNarrowViewport() {
   return isNarrow;
 }
 
+function CabinScene({
+  isPhoneConsole,
+  missionId,
+  activeGateIndex,
+  flightProgress,
+  healthValue,
+  alarm,
+  visibleResult,
+  reactionRole,
+  activeRole,
+  sceneJump,
+  onSkipJump,
+}: {
+  isPhoneConsole: boolean;
+  missionId: MissionIdType;
+  activeGateIndex: number;
+  flightProgress: number;
+  healthValue: number | undefined;
+  alarm: boolean;
+  visibleResult: FlightTurnResultUI | null;
+  reactionRole: RoleType | null;
+  activeRole: RoleType;
+  sceneJump: SceneJump | null;
+  onSkipJump: () => void;
+}) {
+  const crewState = (role: RoleType): AvatarState => {
+    if (visibleResult && role === reactionRole) {
+      return visibleResult.gate_status === "PASS" ? "cheer" : "panic";
+    }
+    if ((healthValue ?? 100) < CREW_PANIC_THRESHOLD_PCT ||
+      (visibleResult && visibleResult.gate_status === "CRITICAL")) return "panic";
+    return role === activeRole ? "work" : "idle";
+  };
+
+  return (
+    <section aria-label="Spacecraft cabin and station loadout" className="flash-panel min-w-0 overflow-hidden">
+      <div className={"relative overflow-hidden " + (isPhoneConsole ? "h-[84px]" : "h-[430px] 2xl:h-[490px]")}>
+        <CabinBackdrop />
+        <div className={"absolute z-10 overflow-hidden rounded-[35%] border-[5px] border-ink-black bg-space-ink shadow-[inset_0_0_0_5px_#94A3B8] " +
+          (isPhoneConsole ? "left-[26%] right-[5%] top-[10%] h-[55%]" : "left-[19%] right-[19%] top-[8%] h-[47%]")}>
+          <motion.div className="absolute inset-0 opacity-70"
+            style={{ backgroundImage: "radial-gradient(#F8FAFC 1.5px, transparent 2px)", backgroundSize: "39px 41px" }}
+            animate={{ backgroundPositionX: [0, -39] }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }} />
+          <div className={"absolute right-[9%] top-[4%] " + (isPhoneConsole ? "h-12 w-12" : "h-28 w-28")}>
+            <MissionTarget missionId={missionId} />
+          </div>
+          <div className={"absolute left-[6%] top-[8%] font-mono font-bold text-role-spacecraft " +
+            (isPhoneConsole ? "text-[8px]" : "text-[11px] tracking-widest")}>
+            DESTINATION // {TARGET_NAMES[missionId]}
+          </div>
+          <div className="absolute bottom-[10%] left-[6%] right-[6%] h-2 overflow-hidden rounded-full border border-slate-300 bg-blueprint-navy">
+            <motion.div className="h-full bg-role-spacecraft" animate={{ width: flightProgress + "%" }}
+              transition={{ duration: 0.45 }} />
+          </div>
+        </div>
+        <div className={"absolute left-2 top-2 z-20 rounded-md border-2 border-ink-black bg-paper-cream px-1.5 py-0.5 font-mono font-black text-ink-black " +
+          (isPhoneConsole ? "text-[8px]" : "text-[10px]")}>
+          CABIN // CH {String(activeGateIndex + 1).padStart(2, "0")}
+        </div>
+        <div className={"absolute right-2 top-2 z-20 rounded-md border-2 border-ink-black px-1.5 py-0.5 font-mono font-black tabular-nums text-ink-black " +
+          (alarm ? "bg-status-crit" : "bg-status-ok") + (isPhoneConsole ? " text-[8px]" : " text-[10px]")}>
+          HULL {healthValue === undefined ? "--" : Math.round(healthValue) + "%"}
+        </div>
+        {alarm && (
+          <motion.div className="absolute left-2 top-9 z-20 rounded-md border-2 border-ink-black bg-status-crit px-2 py-0.5 font-mono text-[9px] font-black text-ink-black"
+            animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 0.6, repeat: Infinity }}>
+            HULL ALERT
+          </motion.div>
+        )}
+        <div className={"absolute bottom-1 left-1 right-1 z-20 grid grid-cols-4 gap-1 " +
+          (isPhoneConsole ? "" : "bottom-5 left-5 right-5 gap-3")}>
+          {CREW_ROLES.map((role) => {
+            const profile = ROLE_CHARACTER_PROFILE[role];
+            const isActive = role === activeRole;
+            return (
+              <div key={role} className={"relative flex min-w-0 flex-col items-center rounded-lg border-2 border-ink-black bg-space-ink/85 text-center " +
+                (isPhoneConsole ? "px-0.5 pb-0.5 pt-0" : "pb-2 pt-1")}
+                style={{ boxShadow: isActive ? "inset 0 0 0 2px " + profile.glow : undefined }}
+                aria-label={profile.codename + " at cabin station, " + crewState(role)}>
+                <div className={"absolute inset-x-2 top-0 h-1 rounded-b " + (isActive ? "bg-status-ok" : "bg-slate-600")} />
+                <CrewmateAvatar role={role} state={crewState(role)} size={isPhoneConsole ? 28 : 88} />
+                <span className={"block max-w-full truncate font-mono font-bold " +
+                  (isPhoneConsole ? "text-[8px]" : "text-[10px]")}>
+                  {isPhoneConsole ? profile.short : profile.codename}
+                </span>
+                {!isPhoneConsole && <span className="max-w-full truncate font-mono text-[9px] text-slate-300">
+                  {profile.squadClass}
+                </span>}
+              </div>
+            );
+          })}
+        </div>
+        <AnimatePresence>
+          {visibleResult && (
+            <motion.div key={visibleResult.round + "-" + visibleResult.gate_status} role="status"
+              className={"absolute left-[18%] right-[18%] top-[45%] z-30 rounded-xl border-[3px] border-ink-black p-2 text-center font-mono font-black text-ink-black shadow-paper " +
+                (visibleResult.gate_status === "PASS" ? "bg-status-ok" :
+                  visibleResult.gate_status === "DEGRADED" ? "bg-status-warn" : "bg-status-crit") +
+                (isPhoneConsole ? " text-[10px]" : " text-sm")}
+              initial={{ opacity: 0, y: 15, rotate: -3 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
+              exit={{ opacity: 0, y: -10 }}>
+              {visibleResult.gate_status} // CHAPTER {String(visibleResult.round).padStart(2, "0")}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {visibleResult?.gate_status === "PASS" && (
+          <motion.div aria-hidden="true" className="pointer-events-none absolute inset-[12%] z-20 rounded-[45%] border-[5px] border-status-ok"
+            animate={{ opacity: [0, 0.75, 0], scale: [0.92, 1.05, 1.13] }}
+            transition={{ duration: 0.75, repeat: Infinity }} />
+        )}
+        {visibleResult?.gate_status !== undefined && visibleResult.gate_status !== "PASS" && (
+          <motion.svg aria-hidden="true" viewBox="0 0 120 70"
+            className="pointer-events-none absolute right-[8%] top-[39%] z-20 h-16 w-28"
+            animate={{ opacity: [0, 1, 0.2], rotate: [-6, 5, -3] }}
+            transition={{ duration: 0.4, repeat: Infinity }}>
+            <path d="m7 55 27-23-10-8 30-17-6 25 20 2-24 29M65 63l16-22-5-11 34-16-9 24 15 5-23 19"
+              fill="none" stroke="#FF5A4E" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          </motion.svg>
+        )}
+        <AnimatePresence>
+          {sceneJump && (
+            <motion.div key={sceneJump.toGateIndex} role="status" aria-live="polite"
+              className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center bg-space-ink/95 px-3 text-center"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}>
+              <button type="button" onClick={onSkipJump} aria-label="Skip chapter jump"
+                className="paper-btn pointer-events-auto absolute right-2 top-2 bg-paper-cream px-2 py-1 font-mono text-[10px] text-ink-black">
+                SKIP &gt;&gt;
+              </button>
+              <div className="mb-2 h-10 w-10 rounded-full border-[5px] border-role-spacecraft border-t-transparent"
+                aria-hidden="true" />
+              <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-role-spacecraft">
+                STAGE JUMP // DAY {String(sceneJump.toGateIndex + 1).padStart(2, "0")}
+              </p>
+              <h3 className={"mt-1 font-display font-black " + (isPhoneConsole ? "text-base" : "text-2xl sm:text-3xl")}>
+                ENTERING {GATES[sceneJump.toGateIndex].chapter}
+              </h3>
+              {!isPhoneConsole && <p className="mt-1 font-mono text-xs text-slate-300">
+                Cabin systems are moving to the next decision gate.
+              </p>}
+              <div className="mt-3 h-2 w-3/4 max-w-xs overflow-hidden rounded-full border border-paper-cream bg-blueprint-navy">
+                <motion.div className="h-full bg-status-ok" initial={{ width: "0%" }}
+                  animate={{ width: "100%" }} transition={{ duration: SCENE_JUMP_MS / 1000, ease: "linear" }} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <div className={"border-t-[3px] border-ink-black bg-[#111C34] " + (isPhoneConsole ? "p-1" : "p-3")}>
+        <div className={"flex items-center justify-between gap-2 font-mono font-bold tracking-widest text-slate-300 " +
+          (isPhoneConsole ? "mb-0.5 text-[7px]" : "mb-1.5 text-[9px]")}>
+          <span>STATION LOADOUT // CABIN SYSTEMS</span>
+          {!isPhoneConsole && <span>GATE-LINKED TELEMETRY</span>}
+        </div>
+        <ul className="grid grid-cols-5 gap-1 sm:gap-2" aria-label="Cabin subsystem rack">
+          {RACK_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isRelevant = item.gateIndex === activeGateIndex;
+            const isAlert = alarm || Boolean(
+              visibleResult && visibleResult.round === item.gateIndex + 1 &&
+              visibleResult.gate_status !== "PASS",
+            );
+            const status = isAlert ? "ALERT" : isRelevant ? "ARMED" : "NOMINAL";
+            return (
+              <li key={item.id} aria-label={item.label + ": " + status}
+                className={"min-w-0 rounded-md border-2 border-ink-black px-0.5 text-center " +
+                  (isPhoneConsole ? "py-0 " : "py-1 ") +
+                  (isAlert ? "bg-status-crit text-ink-black" :
+                    isRelevant ? "bg-status-warn text-ink-black" : "bg-blueprint-navy text-paper-cream")}>
+                <Icon size={isPhoneConsole ? 12 : 20} strokeWidth={2.5} aria-hidden="true" className="mx-auto" />
+                <span className={"mt-0.5 block truncate font-mono font-bold " +
+                  (isPhoneConsole ? "text-[7px]" : "text-[10px]")}>
+                  {isPhoneConsole ? item.shortLabel : item.label}
+                </span>
+                <span className={"block font-mono font-black " + (isPhoneConsole ? "text-[6px]" : "text-[9px]")}>
+                  {status}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export function Flight60sView({
   round, timeLeftSec, myRole, question, onAnswerOption,
   activePlayerName, globalTimeLeftSec, rocketHealthPct, lastTurnResult,
@@ -179,15 +383,39 @@ export function Flight60sView({
 }: Flight60sViewProps) {
   const isNarrow = useNarrowViewport();
   const isPhoneConsole = isNarrow || isHostStage === false;
-  const [submittedAnswer, setSubmittedAnswer] = useState<{ questionId: string; optionId: string } | null>(null);
+  const [submittedAnswer, setSubmittedAnswer] = useState<{ key: string; optionId: string } | null>(null);
+  const submittedKeyRef = useRef<string | null>(null);
   const [visibleResult, setVisibleResult] = useState<FlightTurnResultUI | null>(null);
+  const [reactionRole, setReactionRole] = useState<RoleType | null>(null);
+  const [sceneJump, setSceneJump] = useState<SceneJump | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
+  const jumpTimerRef = useRef<number | null>(null);
 
+  // App may deliver the next question before the cabin transition finishes.
+  // Only the cabin artwork is covered, so the new logbook page remains actionable.
   useEffect(() => {
     if (!lastTurnResult) return;
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+    if (jumpTimerRef.current !== null) window.clearTimeout(jumpTimerRef.current);
     setVisibleResult(lastTurnResult);
-    const timeout = window.setTimeout(() => setVisibleResult(null), RESULT_DISPLAY_MS);
-    return () => window.clearTimeout(timeout);
+    setReactionRole(question?.assigned_role ?? null);
+    setSceneJump(null);
+    feedbackTimerRef.current = window.setTimeout(() => {
+      feedbackTimerRef.current = null;
+      setVisibleResult(null);
+      if (lastTurnResult.round >= GATES.length) return;
+      setSceneJump({ fromRound: lastTurnResult.round, toGateIndex: lastTurnResult.round });
+      jumpTimerRef.current = window.setTimeout(() => {
+        jumpTimerRef.current = null;
+        setSceneJump(null);
+      }, SCENE_JUMP_MS);
+    }, FEEDBACK_DISPLAY_MS);
   }, [lastTurnResult]);
+
+  useEffect(() => () => {
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+    if (jumpTimerRef.current !== null) window.clearTimeout(jumpTimerRef.current);
+  }, []);
 
   const activeGateIndex = question
     ? Math.max(0, GATES.findIndex((gate) => gate.id === question.gate))
@@ -198,26 +426,32 @@ export function Flight60sView({
     0, FLIGHT_DURATION_SEC,
   );
   const flightProgress = ((FLIGHT_DURATION_SEC - globalLeft) / FLIGHT_DURATION_SEC) * 100;
-  const shipLeft = isPhoneConsole ? 2 + flightProgress * 0.48 : 5 + flightProgress * 0.58;
-  const isMyTurn = question?.assigned_role === myRole;
-  const hasSubmitted = submittedAnswer?.questionId === question?.question_id;
-  const canAnswer = Boolean(question && isMyTurn && roundLeft > 0 && !hasSubmitted && !visibleResult);
-  const health = visibleResult?.rocket_health_pct ?? rocketHealthPct;
-  const healthValue = health === undefined ? undefined : clamp(health, 0, 100);
   const activeRole = question?.assigned_role ?? myRole;
   const activeProfile = ROLE_CHARACTER_PROFILE[activeRole];
   const playerLabel = activePlayerName?.trim() || activeProfile.codename;
-  const reaction: Reaction = visibleResult
-    ? visibleResult.gate_status !== "PASS" ? "sparks"
-      : visibleResult.round === 4 ? "downlink"
-        : visibleResult.round === 3 ? "shield" : "thruster"
-    : null;
+  const isMyTurn = question?.assigned_role === myRole;
+  const questionKey = question ? round + ":" + question.question_id : "";
+  const hasSubmitted = submittedAnswer?.key === questionKey || submittedKeyRef.current === questionKey;
+  const resultIsCurrent = visibleResult?.round === round;
+  const canAnswer = Boolean(question && isMyTurn && roundLeft > 0 && !hasSubmitted && !resultIsCurrent);
+  const health = visibleResult?.rocket_health_pct ?? rocketHealthPct;
+  const healthValue = health === undefined ? undefined : clamp(health, 0, 100);
+  const alarm = (healthValue !== undefined && healthValue < HULL_ALARM_THRESHOLD_PCT) ||
+    Boolean(visibleResult && visibleResult.gate_status !== "PASS");
 
   const answer = useCallback((optionId: string) => {
-    if (!question || !canAnswer || !question.options.some((option) => option.option_id === optionId)) return;
-    setSubmittedAnswer({ questionId: question.question_id, optionId });
+    if (!question || !canAnswer || submittedKeyRef.current === questionKey ||
+      !question.options.some((option) => option.option_id === optionId)) return;
+    submittedKeyRef.current = questionKey;
+    setSubmittedAnswer({ key: questionKey, optionId });
     onAnswerOption(question.question_id, optionId);
-  }, [canAnswer, onAnswerOption, question]);
+  }, [canAnswer, onAnswerOption, question, questionKey]);
+
+  const skipJump = useCallback(() => {
+    if (jumpTimerRef.current !== null) window.clearTimeout(jumpTimerRef.current);
+    jumpTimerRef.current = null;
+    setSceneJump(null);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -234,232 +468,197 @@ export function Flight60sView({
   }, [answer, canAnswer, question]);
 
   return (
-    <main className={
-      "relative mx-auto flex flex-col text-paper-cream " + (isPhoneConsole ? "gap-3 " : "gap-5 ") +
+    <main className={"relative mx-auto flex min-w-0 flex-col text-paper-cream " +
       (isPhoneConsole
-        ? "handheld-console-frame my-2 w-[calc(100%-1rem)] max-w-md p-2.5"
-        : "max-w-7xl px-4 py-6 sm:px-6")
-    }>
-      <header className={"flash-panel order-1 overflow-hidden " +
-        (isPhoneConsole ? "space-y-2 p-2.5" : "space-y-4 p-5")}>
+        ? "handheld-console-frame my-2 w-[calc(100%-1rem)] max-w-md gap-3 p-2"
+        : "max-w-7xl gap-5 px-4 py-6 sm:px-6")}>
+      <header className={"flash-panel min-w-0 overflow-hidden " + (isPhoneConsole ? "p-2" : "p-5")}>
         <div className={"hazard-stripe-bar rounded-full " + (isPhoneConsole ? "h-1.5" : "h-2")} aria-hidden="true" />
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-role-spacecraft">
-              {isPhoneConsole ? "CREW HANDHELD // FLIGHT" : "HOST MAIN STAGE // LIVE TELEMETRY"}
+        <div className="mt-2 flex min-w-0 items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-role-spacecraft">
+              {isPhoneConsole ? "CREW PAD // CABIN" : "HOST MAIN STAGE // SURVIVAL FLIGHT"}
             </p>
-            <h1 className={"font-display font-black " + (isPhoneConsole ? "text-xl" : "text-2xl sm:text-4xl")}>
-              {isPhoneConsole ? TARGET_NAMES[missionId] + " FLIGHT" : "Flight to " + TARGET_NAMES[missionId]}
+            <h1 className={"font-display font-black leading-tight " +
+              (isPhoneConsole ? "text-base" : "text-2xl sm:text-4xl")}>
+              {isPhoneConsole ? "Flight to " + TARGET_NAMES[missionId] : "Cabin Flight to " + TARGET_NAMES[missionId]}
             </h1>
           </div>
-          <div className="flex gap-2 font-mono tabular-nums">
-            <div className={"rounded-xl border-2 border-ink-black bg-paper-cream px-3 py-2 text-center text-ink-black " + (isPhoneConsole ? "order-2" : "")}>
-              <div className="text-[10px] font-bold tracking-widest">FLIGHT</div>
-              <div className={isPhoneConsole ? "text-lg font-bold" : "text-xl font-bold sm:text-2xl"}>{Math.ceil(globalLeft)}s</div>
-            </div>
-            <div className={"rounded-xl border-2 border-ink-black px-3 py-2 text-center text-ink-black " +
-              (isPhoneConsole ? "hidden " : "") + (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
-              <div className="text-[10px] font-bold tracking-widest">ROUND</div>
-              <div className={isPhoneConsole ? "text-3xl font-black" : "text-xl font-bold sm:text-2xl"}>{Math.ceil(roundLeft)}s</div>
-            </div>
+          <div className="shrink-0 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 text-center font-mono font-black tabular-nums text-ink-black">
+            <span className="block text-[9px]">FLIGHT</span>
+            <span className={isPhoneConsole ? "text-lg" : "text-2xl"}>{Math.ceil(globalLeft)}s</span>
           </div>
         </div>
-        <div aria-label="Flight progress" className="h-3 overflow-hidden rounded-full border-2 border-ink-black bg-space-ink">
-          <motion.div className="h-full bg-role-spacecraft" animate={{ width: flightProgress + "%" }} transition={{ duration: 0.5 }} />
-        </div>
-        <ol className="grid grid-cols-4 gap-1.5 sm:gap-2" aria-label="Decision nodes">
+        <ol className={(isPhoneConsole ? "mt-1" : "mt-2") + " grid grid-cols-4 gap-1 " + (isPhoneConsole ? "" : "sm:gap-2")}
+          aria-label="Four flight chapters">
           {GATES.map((gate, index) => {
-            const isComplete = index < activeGateIndex || Boolean(lastTurnResult && lastTurnResult.round >= index + 1);
-            const isActive = index === activeGateIndex && !isComplete;
             const latestStatus = lastTurnResult?.round === index + 1 ? lastTurnResult.gate_status : null;
-            const nodeColor = latestStatus === "CRITICAL" ? "bg-status-crit text-ink-black"
-              : latestStatus === "DEGRADED" ? "bg-status-warn text-ink-black"
-                : latestStatus === "PASS" ? "bg-status-ok text-ink-black"
-                  : isComplete ? "bg-paper-cream text-ink-black"
-                    : isActive ? "bg-status-warn text-ink-black" : "bg-space-ink text-slate-300";
+            const complete = index < activeGateIndex || Boolean(latestStatus);
+            const active = index === activeGateIndex && !complete;
+            const color = latestStatus === "CRITICAL" ? "bg-status-crit text-ink-black" :
+              latestStatus === "DEGRADED" ? "bg-status-warn text-ink-black" :
+                latestStatus === "PASS" ? "bg-status-ok text-ink-black" :
+                  complete ? "bg-paper-cream text-ink-black" :
+                    active ? "bg-role-spacecraft text-ink-black" : "bg-space-ink text-slate-300";
             return (
-              <li key={gate.id} aria-current={isActive ? "step" : undefined}
-                aria-label={gate.id + (isActive ? " active" : isComplete ? " completed" : " pending")}
-                className={"min-w-0 rounded-xl border-2 border-ink-black p-1.5 text-center font-mono text-[10px] font-bold sm:p-3 sm:text-[11px] " + nodeColor}>
-                <span className="block tabular-nums">{"0" + (index + 1)}</span>
-                <span className={isPhoneConsole ? "sr-only" : "block"}>{gate.label}</span>
+              <li key={gate.id} aria-current={active ? "step" : undefined}
+                aria-label={gate.id + (active ? " active" : complete ? " completed" : " pending")}
+                className={"min-w-0 rounded-md border-2 border-ink-black p-1 text-center font-mono font-black " +
+                  (isPhoneConsole ? "text-[9px]" : "text-[11px]") + " " + color}>
+                <span className="tabular-nums">{String(index + 1).padStart(2, "0")}</span>
+                {!isPhoneConsole && <span className="ml-2">{gate.label}</span>}
               </li>
             );
           })}
         </ol>
       </header>
 
-      <section aria-label="Spacecraft flight scene" className={
-        "flash-panel relative overflow-hidden bg-space-ink " +
-        (isPhoneConsole ? "order-3 min-h-[205px]" : "order-2 min-h-[430px]")
-      }>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_38%,#253F78_0%,#101B39_33%,#090F25_78%)]" />
-        <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50"
-          style={{ backgroundImage: "radial-gradient(#F8FAFC 1px, transparent 1px)", backgroundSize: "29px 37px" }}
-          animate={{ backgroundPositionX: [0, -29] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />
-        <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40"
-          style={{ backgroundImage: "radial-gradient(#38BDF8 2px, transparent 2px)", backgroundSize: "97px 91px" }}
-          animate={{ backgroundPositionX: [0, -97] }} transition={{ duration: 9, repeat: Infinity, ease: "linear" }} />
-        <div aria-hidden="true" className="pointer-events-none absolute -left-24 -top-32 h-80 w-80 rounded-full border-[30px] border-role-spacecraft/10" />
-        <div aria-hidden="true" className="pointer-events-none absolute right-[10%] top-[18%] h-32 w-32 rounded-full bg-role-science/10 blur-2xl" />
-        <div className="absolute left-[8%] right-[12%] top-[53%] border-t-[3px] border-dashed border-slate-300/35" />
-        {GATES.map((gate, index) => (
-          <div key={gate.id} className={"absolute z-10 -translate-x-1/2 text-center " +
-            (isPhoneConsole ? "bottom-12" : "bottom-20")}
-            style={{ left: STATION_POSITIONS[index] }} aria-hidden="true">
-            <span className={"mx-auto block rounded-full border-[3px] border-ink-black shadow-paper " +
-              (isPhoneConsole ? "h-5 w-5" : "h-10 w-10") + " " +
-              (index < activeGateIndex ? "bg-status-ok" : index === activeGateIndex ? "bg-status-warn" : "bg-blueprint-navy")} />
-            {!isPhoneConsole && <span className="mt-1 block whitespace-nowrap rounded border border-slate-500/50 bg-space-ink/80 px-1.5 py-0.5 font-mono text-[9px] font-bold">{gate.label}</span>}
-          </div>
-        ))}
-        <div className={"absolute right-[1%] top-[14%] " + (isPhoneConsole ? "h-24 w-24" : "h-52 w-52")}>
-          <MissionTarget missionId={missionId} />
-        </div>
-        <div className="absolute right-2 top-2 rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 font-mono text-[9px] font-bold text-ink-black sm:right-5 sm:top-5">
-          TARGET // {TARGET_NAMES[missionId]}
-        </div>
-        {reaction === "downlink" && (
-          <motion.div aria-hidden="true" className="absolute top-1/2 z-10 border-t-4 border-dashed border-role-science drop-shadow-[0_0_8px_#A855F7]"
-            style={{ left: (shipLeft + 8) + "%", right: "12%" }}
-            initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.3] }} transition={{ duration: 0.6, repeat: Infinity }} />
-        )}
-        <motion.div className={"absolute z-20 " + (isPhoneConsole ? "top-[36%] h-20 w-40" : "top-[32%] h-40 w-[300px]")}
-          animate={{ left: shipLeft + "%" }} transition={{ duration: 0.8, ease: "easeOut" }}>
-          <motion.div animate={{ y: [-4, 5, -4], rotate: [-2, 2, -2] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}>
-            <PaperShip reaction={reaction} healthPct={healthValue ?? 100} />
-          </motion.div>
-        </motion.div>
-        <div className="absolute bottom-2 left-3 right-3 z-20 flex flex-wrap items-end justify-between gap-2 font-mono text-[10px] font-bold sm:bottom-4 sm:left-5 sm:right-5">
-          <span className="rounded-lg border-2 border-ink-black bg-blueprint-navy px-2 py-1">
-            NODE {activeGateIndex + 1} / {GATES.length}
-          </span>
-          <div className="rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-1 text-ink-black">
-            <div className="flex items-center justify-between gap-3 tabular-nums">
-              <span>HULL</span><span>{healthValue === undefined ? "--" : Math.round(healthValue) + "%"}</span>
-            </div>
-            <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-slate-300 sm:w-28">
-              {healthValue !== undefined && (
-                <motion.div className={"h-full " + (healthValue < 50 ? "bg-status-crit" : healthValue < 80 ? "bg-status-warn" : "bg-status-ok")}
-                  animate={{ width: healthValue + "%" }} transition={{ duration: 0.4 }} />
-              )}
-            </div>
-          </div>
-        </div>
-        <AnimatePresence>
-          {visibleResult && (
-            <motion.div key={visibleResult.round + "-" + visibleResult.immediate_feedback} role="status" aria-live="polite"
-              className={"absolute bottom-14 left-4 right-4 z-30 rounded-xl border-[3px] border-ink-black p-3 text-ink-black shadow-paper sm:left-1/4 sm:right-1/4 " +
-                (visibleResult.gate_status === "PASS" ? "bg-status-ok" : visibleResult.gate_status === "DEGRADED" ? "bg-status-warn" : "bg-status-crit")}
-              initial={{ opacity: 0, y: 20, rotate: -2 }} animate={{ opacity: 1, y: 0, rotate: 0 }} exit={{ opacity: 0, y: -12 }}>
-              <p className="font-mono text-xs font-bold tracking-widest">{visibleResult.gate_status} // NODE {visibleResult.round}</p>
-              <p className="mt-1 text-sm font-semibold">{visibleResult.immediate_feedback}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
+      <div className={"min-w-0 gap-5 " +
+        (isPhoneConsole ? "flex flex-col gap-3" : "grid grid-cols-1 xl:grid-cols-[minmax(0,1.55fr)_minmax(350px,1fr)]")}>
+        <CabinScene isPhoneConsole={isPhoneConsole} missionId={missionId}
+          activeGateIndex={activeGateIndex} flightProgress={flightProgress}
+          healthValue={healthValue} alarm={alarm} visibleResult={visibleResult}
+          reactionRole={reactionRole} activeRole={activeRole}
+          sceneJump={sceneJump} onSkipJump={skipJump} />
 
-      <section className={"flash-panel " + (isPhoneConsole ? "order-2 space-y-2 p-2.5" : "order-3 space-y-4 p-6")}
-        aria-label="Engineering decision">
-        <div className={"hazard-stripe-bar rounded-full " + (isPhoneConsole ? "h-1.5" : "h-2")} aria-hidden="true" />
-        {question ? (
-          <>
-            <div className={
-              "rounded-xl border-2 border-slate-500/50 bg-space-ink/70 " +
-              (isPhoneConsole ? "grid grid-cols-[48px_minmax(0,1fr)] items-center gap-x-2 gap-y-1 p-1.5" : "flex flex-wrap items-center gap-3 p-3")
-            }>
-              <CrewmateAvatar role={activeRole} state={isMyTurn ? "work" : "idle"}
-                size={isPhoneConsole ? 46 : 78} />
-              <div className="min-w-0 flex-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-role-spacecraft">
-                  {isPhoneConsole ? "ACTIVE CREW" : "ACTIVE CREW // " + activeProfile.squadClass}
+        <section aria-label="Captain's survival log" className="flash-panel min-w-0 p-2 sm:p-3">
+          <div className="paper-card-light relative min-w-0 overflow-hidden p-3 sm:p-5">
+            <div className="absolute left-1/2 top-0 h-4 w-24 -translate-x-1/2 rounded-b-lg border-x-[3px] border-b-[3px] border-ink-black bg-slate-300"
+              aria-hidden="true" />
+            <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] font-black uppercase tracking-[0.14em] text-blueprint-navy">
+                  SURVIVAL LOG // DAY {String(clamp(Math.floor(round), 1, GATES.length)).padStart(2, "0")}
                 </p>
-                <h2 className="font-display text-base font-black leading-tight sm:text-xl">{activeProfile.codename}</h2>
-                <p className="font-mono text-[10px] leading-tight text-slate-300">
-                  {activePlayerName ? activePlayerName + " · " : ""}{activeProfile.gearLabel}
-                </p>
+                <h2 className="font-display text-xl font-black leading-tight sm:text-2xl">
+                  Captain's Logbook
+                </h2>
               </div>
-              <span role="status" className={(isPhoneConsole ? "col-span-2 w-full " : "max-w-full ") +
-                "rounded-xl border-2 border-ink-black px-2 py-1 text-center font-display text-sm font-black text-ink-black sm:px-3 sm:text-base " +
-                (isMyTurn ? "bg-status-ok" : "bg-status-warn")}>
-                {isMyTurn ? "YOUR TURN!" : (isPhoneConsole ? "WAIT FOR " : "ON PHONE: ") + playerLabel.toUpperCase()}
-              </span>
+              <div role="timer" aria-label={Math.ceil(roundLeft) + " seconds left in decision round"}
+                className={"shrink-0 rounded-lg border-[3px] border-ink-black px-2 py-1 text-center font-mono font-black tabular-nums " +
+                  (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
+                <span className="block text-[9px]">DECIDE</span>
+                <span className="text-2xl">{Math.ceil(roundLeft)}s</span>
+              </div>
             </div>
-            {isPhoneConsole && !isMyTurn ? (
-              <div className="rounded-xl border-2 border-ink-black bg-blueprint-navy p-4 text-center">
-                <p className="font-mono text-xs font-bold text-status-warn">CREW TURN IN PROGRESS</p>
-                <h3 className="mt-2 font-display text-lg font-black">{question.title}</h3>
-                <p className="mt-2 text-sm text-slate-300">
-                  {playerLabel} is resolving this node on their handheld console.
+            <div className="mt-2 h-2 overflow-hidden rounded-full border border-ink-black bg-slate-300"
+              aria-label="Decision time remaining">
+              <motion.div className={"h-full " + (roundLeft <= 5 ? "bg-status-crit" : "bg-role-finance")}
+                animate={{ width: (roundLeft / ROUND_DURATION_SEC) * 100 + "%" }}
+                transition={{ duration: 0.35 }} />
+            </div>
+
+            {question ? (
+              <>
+                <div className="mt-3 flex min-w-0 items-center gap-2 rounded-lg border-2 border-ink-black bg-[#E2E8F0] p-1.5">
+                  <div className="shrink-0 rounded-md border-2 border-ink-black bg-blueprint-navy">
+                    <CrewmateAvatar role={activeRole}
+                      state={visibleResult && reactionRole === activeRole
+                        ? visibleResult.gate_status === "PASS" ? "cheer" : "panic"
+                        : "work"}
+                      size={isPhoneConsole ? 34 : 55} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[9px] font-bold text-blueprint-navy">
+                      {isPhoneConsole ? "LOGBOOK KEEPER" : "LOGBOOK KEEPER // " + activeProfile.squadClass}
+                    </p>
+                    <p className="break-words font-display text-sm font-black leading-tight sm:text-base">
+                      {activeProfile.codename}
+                    </p>
+                    <p className="truncate font-mono text-[10px] text-slate-600">
+                      {activePlayerName ? activePlayerName + " · " : ""}{activeProfile.gearLabel}
+                    </p>
+                  </div>
+                </div>
+                <div role="status" className={"mt-2 rounded-lg border-2 border-ink-black px-2 py-1 text-center font-display text-sm font-black " +
+                  (isMyTurn ? "bg-status-ok" : "bg-status-warn")}>
+                  {isMyTurn ? "YOUR TURN! OPEN THE LOGBOOK" :
+                    isPhoneConsole ? "LOGBOOK WITH " + playerLabel.toUpperCase() :
+                      playerLabel.toUpperCase() + " HAS THE LOGBOOK ON THEIR PHONE"}
+                </div>
+
+                {isPhoneConsole && !isMyTurn ? (
+                  <div className="mt-3 rounded-xl border-[3px] border-ink-black bg-blueprint-navy p-4 text-center text-paper-cream">
+                    <p className="font-mono text-xs font-bold text-status-warn">CREW DECISION IN PROGRESS</p>
+                    <p className="mt-2 break-words font-display text-lg font-black">{question.title}</p>
+                    <p className="mt-2 text-sm text-slate-200">
+                      {playerLabel} is resolving this chapter on their handheld console.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-3">
+                      <span className="inline-block max-w-full break-words rounded-md border-2 border-ink-black bg-role-spacecraft px-2 py-0.5 font-mono text-[10px] font-black">
+                        {question.nasa_concept_badge}
+                      </span>
+                      <p className="mt-2 font-mono text-[10px] font-bold tracking-wider text-blueprint-navy">
+                        ENTRY {String(activeGateIndex + 1).padStart(2, "0")} // {GATES[activeGateIndex].label}
+                      </p>
+                      <h3 className="mt-1 break-words font-display text-lg font-black leading-tight sm:text-xl">
+                        {question.title}
+                      </h3>
+                      <p className="mt-1 break-words text-sm leading-snug text-slate-700">
+                        {question.scenario_context}
+                      </p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2">
+                      {question.options.slice(0, 4).map((option, index) => (
+                        <button key={option.option_id} type="button" disabled={!canAnswer}
+                          onClick={() => answer(option.option_id)}
+                          aria-label={"Option " + (index + 1) + ": " + option.label + ". " + option.engineering_tradeoff_hint}
+                          className={"paper-btn min-w-0 p-2.5 text-left text-ink-black " +
+                            (isPhoneConsole ? "min-h-[78px] " : "min-h-[70px] ") +
+                            (hasSubmitted && submittedAnswer?.optionId === option.option_id
+                              ? "bg-status-ok" : "bg-paper-cream")}>
+                          <span className="flex min-w-0 items-start gap-2">
+                            <span className="shrink-0 rounded-md border-2 border-ink-black bg-role-finance px-2 py-0.5 font-mono text-sm font-black tabular-nums">
+                              {index + 1}
+                            </span>
+                            <span className="min-w-0 break-words">
+                              <span className="block font-display text-base font-black leading-tight">
+                                {option.label}
+                              </span>
+                              <span className="mt-0.5 block font-mono text-[11px] font-normal leading-snug text-slate-700">
+                                {option.engineering_tradeoff_hint}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-3 font-mono text-[10px] font-bold text-slate-600">
+                      {hasSubmitted ? "Decision sent to Mission Control." :
+                        isMyTurn ? "Tap an entry or press 1-4." : "Crew decision in progress."}
+                    </p>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="py-8 text-center">
+                <h3 className="font-display text-xl font-black">Awaiting flight telemetry</h3>
+                <p className="mt-2 font-mono text-xs text-slate-600">
+                  Mission Control is preparing the next log entry.
                 </p>
               </div>
-            ) : (
-              <>
-                <div>
-                  <span className={"rounded-lg border-2 border-ink-black bg-role-spacecraft px-2.5 py-1 font-mono text-xs font-bold text-ink-black " +
-                    (isPhoneConsole ? "sr-only" : "inline-block")}>
-                    {question.nasa_concept_badge}
-                  </span>
-                  <p className={"font-mono text-xs font-bold tracking-widest text-role-finance " + (isPhoneConsole ? "" : "mt-3")}>
-                    ROUND {Math.max(1, Math.floor(round))} / {GATES.length} // {question.gate}
-                  </p>
-                  <h3 className={"font-display font-bold " + (isPhoneConsole ? "mt-0.5 text-lg leading-tight" : "mt-1 text-xl sm:text-2xl")}>
-                    {question.title}
-                  </h3>
-                  <p className={"text-slate-200 " + (isPhoneConsole ? "mt-1 text-xs leading-snug" : "mt-2 text-sm leading-relaxed")}>
-                    {question.scenario_context}
-                  </p>
-                </div>
-                {isPhoneConsole && (
-                  <div className={"rounded-xl border-2 border-ink-black px-2 py-1 text-center font-mono font-black tabular-nums text-ink-black " +
-                    (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}>
-                    <span className="mr-2 text-xs">DECISION TIMER</span>
-                    <span className="text-3xl">{Math.ceil(roundLeft)}s</span>
-                  </div>
-                )}
-                <div className="h-2 overflow-hidden rounded-full border border-ink-black bg-space-ink"
-                  aria-label={Math.ceil(roundLeft) + " seconds left in round"}>
-                  <motion.div className={"h-full " + (roundLeft <= 5 ? "bg-status-crit" : "bg-status-warn")}
-                    animate={{ width: (roundLeft / ROUND_DURATION_SEC) * 100 + "%" }} transition={{ duration: 0.4 }} />
-                </div>
-                <div className={"grid gap-3 " + (isPhoneConsole ? "grid-cols-1" : "sm:grid-cols-2")}>
-                  {question.options.slice(0, 4).map((option, index) => (
-                    <button key={option.option_id} type="button" disabled={!canAnswer}
-                      onClick={() => answer(option.option_id)}
-                      className={"paper-btn p-3 text-left text-ink-black " +
-                        (isPhoneConsole ? "min-h-[96px] " : "min-h-[88px] ") +
-                        (hasSubmitted && submittedAnswer?.optionId === option.option_id ? "bg-status-ok" : "bg-paper-cream")}
-                      aria-label={"Option " + (index + 1) + ": " + option.label + ". " + option.engineering_tradeoff_hint}>
-                      <span className="flex items-start gap-3">
-                        <span className="rounded-md border-2 border-ink-black bg-role-finance px-2 py-0.5 font-mono text-sm font-bold tabular-nums">
-                          {index + 1}
-                        </span>
-                        <span>
-                          <span className={"block font-display font-bold " + (isPhoneConsole ? "text-lg" : "text-base")}>
-                            {option.label}
-                          </span>
-                          <span className="mt-1 block font-mono text-xs font-normal leading-snug text-slate-700">
-                            {option.engineering_tradeoff_hint}
-                          </span>
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <p className="font-mono text-[11px] text-slate-300">
-                  {hasSubmitted ? "Decision sent to Mission Control." : isMyTurn ? "Tap an option or press 1-4." : "Crew decision in progress."}
-                </p>
-              </>
             )}
-          </>
-        ) : (
-          <div className="space-y-2 py-6 text-center">
-            <h2 className="font-display text-xl font-bold">Awaiting flight telemetry</h2>
-            <p className="font-mono text-sm text-slate-300">Mission Control is preparing the next engineering decision.</p>
+            <AnimatePresence>
+              {visibleResult && (
+                <motion.div key={visibleResult.round + "-feedback"} role="status" aria-live="polite"
+                  className={"mt-3 rounded-xl border-[3px] border-ink-black p-3 shadow-paper " +
+                    (visibleResult.gate_status === "PASS" ? "bg-status-ok" :
+                      visibleResult.gate_status === "DEGRADED" ? "bg-status-warn" : "bg-status-crit")}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}>
+                  <p className="font-mono text-xs font-black">
+                    {visibleResult.gate_status} // CHAPTER {String(visibleResult.round).padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 break-words text-sm font-semibold">{visibleResult.immediate_feedback}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
