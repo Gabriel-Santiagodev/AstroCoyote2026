@@ -1,61 +1,379 @@
 // Owner: Leonardo (Task LEO-05) — Shared live telemetry HUD connected to mutacion_en_vivo
-import type { LiveMetrics } from "../../types/game";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  BatteryCharging,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Coins,
+  Database,
+  Radio,
+  Scale,
+  ShieldAlert,
+  ShieldCheck,
+  Weight,
+  XOctagon,
+} from "lucide-react";
+import nasaCatalog from "../../data/nasa_catalog.json";
+import { ROLE_CHARACTER_PROFILE } from "./CrewmateAvatar";
+import type { LiveMetrics, MissionIdType, RoleType } from "../../types/game";
 
 interface ResourceHUDProps {
   liveMetrics: LiveMetrics;
+  maxMassKg?: number;
+  missionBudgetUsd?: number;
+  missionId?: MissionIdType;
+  compact?: boolean;
+  activeRole?: RoleType;
 }
 
-export function ResourceHUD({ liveMetrics }: ResourceHUDProps) {
-  const budgetM = (liveMetrics.remaining_budget_usd / 1_000_000).toFixed(1);
+type StatusLevel = "OK" | "WARN" | "CRIT";
+
+/**
+ * Hours per day a deep-space mission really gets to send data through the DSN (MRO: ~16 h
+ * tracked, 10-11 h sending; nasa_catalog.json constants.dsn_data_hours_per_day + fuente).
+ */
+const DSN_DATA_HOURS_PER_DAY =
+  (nasaCatalog.constants as { dsn_data_hours_per_day?: number }).dsn_data_hours_per_day ?? 24;
+
+function StatusPill({ level }: { level: StatusLevel }) {
+  if (level === "OK") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-ok px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
+        <CheckCircle2 className="h-3 w-3" />
+        OK
+      </span>
+    );
+  }
+  if (level === "WARN") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-warn px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
+        <AlertTriangle className="h-3 w-3" />
+        WARN
+      </span>
+    );
+  }
   return (
-    <div className="paper-card grid grid-cols-2 gap-3 px-4 py-3 font-mono text-xs tabular-nums md:grid-cols-6">
-      <div>
-        <div className="text-slate-400">WET MASS</div>
-        <div className="text-sm font-bold text-paper-cream">
-          {liveMetrics.estimated_wet_mass_kg.toFixed(0)} kg
-        </div>
-      </div>
-      <div>
-        <div className="text-slate-400">BUDGET LEFT</div>
-        <div className="text-sm font-bold text-role-finance">${budgetM}M</div>
-      </div>
-      <div>
-        <div className="text-slate-400">UFE RESERVE</div>
-        <div
-          className={`text-sm font-bold ${
-            liveMetrics.ufe_reserve_pct >= 25
-              ? "text-status-ok"
-              : liveMetrics.ufe_reserve_pct >= 15
-              ? "text-status-warn"
-              : "text-status-crit"
-          }`}
-        >
-          {liveMetrics.ufe_reserve_pct.toFixed(0)}% (F={liveMetrics.funding_factor_F.toFixed(2)})
-        </div>
-      </div>
-      <div>
-        <div className="text-slate-400">CG STATUS</div>
-        <div
-          className={`text-sm font-bold ${
-            liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"
-          }`}
-        >
-          {liveMetrics.cg_balanced ? "OK 1.0x" : "WARN 1.5x"}
-        </div>
-      </div>
-      <div>
-        <div className="text-slate-400">POWER BUS</div>
-        <div className="text-sm font-bold text-role-orbit">
-          {liveMetrics.available_power_w.toFixed(0)} W
-        </div>
-      </div>
-      <div>
-        <div className="text-slate-400">DSN FSPL</div>
-        <div className="text-sm font-bold text-role-science">
-          {liveMetrics.fspl_loss_db.toFixed(1)} dB
-        </div>
-      </div>
+    <span className="inline-flex items-center gap-1 rounded border border-ink-black bg-status-crit px-1.5 py-0.5 text-[10px] font-bold text-ink-black">
+      <XOctagon className="h-3 w-3" />
+      RISK
+    </span>
+  );
+}
+
+function SegmentedBar({ pct, level }: { pct: number; level: StatusLevel }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const fillColor =
+    level === "OK"
+      ? "bg-status-ok"
+      : level === "WARN"
+      ? "bg-status-warn"
+      : "bg-status-crit";
+
+  return (
+    <div className="relative h-2.5 w-full overflow-hidden rounded-full border-2 border-ink-black bg-space-ink">
+      <div
+        className={`h-full transition-all duration-300 ${fillColor}`}
+        style={{ width: `${clamped}%` }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-30"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(90deg, transparent, transparent 18%, #0F172A 18%, #0F172A 20%)",
+        }}
+      />
     </div>
+  );
+}
+
+export function ResourceHUD({
+  liveMetrics,
+  maxMassKg,
+  missionBudgetUsd,
+  missionId = "artemis_moon",
+  compact = false,
+  activeRole,
+}: ResourceHUDProps) {
+  const [expandedMobile, setExpandedMobile] = useState(!compact);
+
+  const missionSpec = nasaCatalog.missions[missionId];
+  // Real Earth-to-target signal loss (NSSDC distance, X-band, ITU-R P.525), shown as context.
+  const earthLink = missionSpec as { earth_link_fspl_db?: number[]; earth_link_fuente?: string };
+  const earthLinkDb = earthLink.earth_link_fspl_db;
+  const earthLinkFuente = earthLink.earth_link_fuente;
+  const falcon9MarsCap =
+    nasaCatalog.launchers.find((l) => l.id === "falcon9_block5")?.max_mass_mars_kg ??
+    4020;
+  const maxPowerRefW =
+    nasaCatalog.engines.find((e) => e.id === "hall_thruster")?.power_demand_w ??
+    1200;
+  const maxFsplRefDb =
+    nasaCatalog.orbits.find((o) => o.id === "geo_35786")?.fspl_x_band_db ?? 202.9;
+  const leoFsplRefDb =
+    nasaCatalog.orbits.find((o) => o.id === "leo_350")?.fspl_s_band_db ??
+    nasaCatalog.orbits[0]?.fspl_s_band_db ??
+    161.6;
+
+  const capMassKg = maxMassKg ?? falcon9MarsCap;
+  const budgetCapUsd = missionBudgetUsd ?? missionSpec.budget_limit_usd;
+  const recommendedUfe = missionSpec.recommended_ufe_pct ?? 25;
+
+  const massPct = (liveMetrics.estimated_wet_mass_kg / capMassKg) * 100;
+  const massLevel: StatusLevel =
+    massPct <= 85 ? "OK" : massPct <= 100 ? "WARN" : "CRIT";
+
+  const budgetPct = (liveMetrics.remaining_budget_usd / budgetCapUsd) * 100;
+  const budgetLevel: StatusLevel =
+    budgetPct >= 20 ? "OK" : budgetPct > 0 ? "WARN" : "CRIT";
+  const budgetM = (liveMetrics.remaining_budget_usd / 1_000_000).toFixed(1);
+
+  const ufeLevel: StatusLevel =
+    liveMetrics.ufe_reserve_pct >= recommendedUfe
+      ? "OK"
+      : liveMetrics.ufe_reserve_pct >= 15
+      ? "WARN"
+      : "CRIT";
+
+  const cgLevel: StatusLevel =
+    liveMetrics.cg_balanced &&
+    (!missionSpec.requires_thermal_protection || liveMetrics.has_thermal_protection)
+      ? "OK"
+      : liveMetrics.cg_balanced || liveMetrics.has_thermal_protection
+      ? "WARN"
+      : "CRIT";
+
+  const powerPct = (liveMetrics.available_power_w / maxPowerRefW) * 100;
+  const powerLevel: StatusLevel =
+    liveMetrics.available_power_w >= 450
+      ? "OK"
+      : liveMetrics.available_power_w >= 200
+      ? "WARN"
+      : "CRIT";
+
+  const fsplSpan = Math.max(1, maxFsplRefDb - leoFsplRefDb);
+  const fsplPct = ((liveMetrics.fspl_loss_db - leoFsplRefDb) / fsplSpan) * 100;
+  const fsplLevel: StatusLevel =
+    liveMetrics.fspl_loss_db <= 178
+      ? "OK"
+      : liveMetrics.fspl_loss_db <= 192
+      ? "WARN"
+      : "CRIT";
+
+  // Challenge resources "Data" and "Time" (optional LiveMetrics fields, server-derived).
+  const dataGbitDay = liveMetrics.data_generated_gbit_day ?? 0;
+  const linkHoursNeeded = liveMetrics.downlink_hours_needed ?? 0;
+  const missionDays = liveMetrics.mission_duration_days ?? 0;
+  const dataLevel: StatusLevel = linkHoursNeeded > DSN_DATA_HOURS_PER_DAY ? "CRIT" : "OK";
+
+  const ownerRoleHighlight = (owner: RoleType) =>
+    activeRole === owner
+      ? "ring-2 ring-paper-cream bg-blueprint-navy"
+      : "bg-space-ink/85";
+
+  return (
+    <section
+      aria-label="Mission Resource HUD"
+      className="flash-panel px-3 py-2.5 font-mono text-xs tabular-nums sm:px-4 sm:py-3"
+    >
+      {/* Compact Handheld Header Bar (Always shown in compact mode & small phones) */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 ${
+          compact ? "" : "sm:hidden"
+        } ${expandedMobile ? "mb-2.5 border-b-2 border-ink-black pb-2" : ""}`}
+      >
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-spacecraft">
+            {liveMetrics.estimated_wet_mass_kg.toFixed(0)}kg
+          </span>
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-finance">
+            ${budgetM}M
+          </span>
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-orbit">
+            {liveMetrics.available_power_w.toFixed(0)}W
+          </span>
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-science">
+            {liveMetrics.fspl_loss_db.toFixed(1)}dB
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setExpandedMobile((v) => !v)}
+          className="paper-btn inline-flex items-center gap-1 bg-paper-cream px-2.5 py-1 text-[10px] text-ink-black"
+        >
+          {expandedMobile ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" />
+              LESS
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" />
+              MORE
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Full 6-Gauge Telemetry Rack */}
+      <div
+        className={`grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 ${
+          expandedMobile ? "grid" : compact ? "hidden" : "hidden sm:grid"
+        }`}
+      >
+        {/* 1. Wet Mass vs Reference Cap */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "spacecraft_mass"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.spacecraft_mass.codename} & ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Weight className="h-3.5 w-3.5 text-role-spacecraft" />
+              MASS
+            </span>
+            <StatusPill level={massLevel} />
+          </div>
+          <div className="text-sm font-bold text-paper-cream">
+            {liveMetrics.estimated_wet_mass_kg.toFixed(0)}
+            <span className="text-[11px] font-normal text-slate-400">
+              /{capMassKg}kg
+            </span>
+          </div>
+          <SegmentedBar pct={massPct} level={massLevel} />
+          <div className="flex flex-wrap gap-x-2 text-[10px] font-bold">
+            <span className={liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"}>
+              {liveMetrics.cg_balanced ? "Centered" : "Off-center"}
+            </span>
+            <span className={liveMetrics.has_thermal_protection ? "text-status-ok" : "text-status-crit"}>
+              {liveMetrics.has_thermal_protection ? "Shield" : "No shield"}
+            </span>
+          </div>
+        </div>
+
+        {/* 2. Remaining Budget */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "finance_launch"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Coins className="h-3.5 w-3.5 text-role-finance" />
+              BUDGET
+            </span>
+            <StatusPill level={budgetLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-finance">
+            ${budgetM}M
+            <span className="text-[11px] font-normal text-slate-400">
+              /{(budgetCapUsd / 1_000_000).toFixed(0)}M
+            </span>
+          </div>
+          <SegmentedBar pct={budgetPct} level={budgetLevel} />
+          <div className={`text-[10px] font-bold ${ufeLevel === "OK" ? "text-status-ok" : ufeLevel === "WARN" ? "text-status-warn" : "text-status-crit"}`}>
+            Reserve {liveMetrics.ufe_reserve_pct.toFixed(0)}%
+          </div>
+        </div>
+
+        {/* 3. DATA: science data per day vs what the link can send home (challenge resource) */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("science_comms")}`}
+          title="Science data made per day, and hours of radio contact per day needed to send it home"
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Database className="h-3.5 w-3.5 text-role-science" />
+              DATA
+            </span>
+            <StatusPill level={dataLevel} />
+          </div>
+          <div className="text-sm font-bold text-paper-cream">
+            {dataGbitDay.toFixed(0)}
+            <span className="text-[11px] font-normal text-slate-400"> Gbit/day</span>
+          </div>
+          <SegmentedBar pct={(linkHoursNeeded / DSN_DATA_HOURS_PER_DAY) * 100} level={dataLevel} />
+          <div className="text-[10px] font-bold text-slate-300">
+            {linkHoursNeeded > 0
+              ? `${linkHoursNeeded.toFixed(1)} / ${DSN_DATA_HOURS_PER_DAY} h DSN/day`
+              : "Link speed not set"}
+          </div>
+        </div>
+
+        {/* 4. TIME: how long the chosen route takes to reach the target (challenge resource) */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight("orbit_power")}`}
+          title="Travel time of the chosen route (catalog transit days)"
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Clock className="h-3.5 w-3.5 text-role-orbit" />
+              TIME
+            </span>
+            <StatusPill level={missionDays > 0 ? "OK" : "WARN"} />
+          </div>
+          <div className="text-sm font-bold text-paper-cream">
+            {missionDays > 0 ? missionDays.toFixed(0) : "—"}
+            <span className="text-[11px] font-normal text-slate-400"> days to target</span>
+          </div>
+          <div className="text-[10px] font-bold text-slate-300">
+            {missionDays > 0 ? "Route chosen" : "Waiting for a route"}
+          </div>
+        </div>
+
+        {/* 5. Available Power Bus */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "orbit_power"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.orbit_power.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <BatteryCharging className="h-3.5 w-3.5 text-role-orbit" />
+              POWER
+            </span>
+            <StatusPill level={powerLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-orbit">
+            {liveMetrics.available_power_w.toFixed(0)} W
+          </div>
+          <SegmentedBar pct={powerPct} level={powerLevel} />
+        </div>
+
+        {/* 6. DSN FSPL Path Loss */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "science_comms"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.science_comms.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Radio className="h-3.5 w-3.5 text-role-science" />
+              COMMS
+            </span>
+            <StatusPill level={fsplLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-science">
+            {liveMetrics.fspl_loss_db.toFixed(1)} dB
+          </div>
+          <SegmentedBar pct={fsplPct} level={fsplLevel} />
+          {earthLinkDb && (
+            <div className="text-[10px] font-bold text-slate-300" title={earthLinkFuente}>
+              Earth link: {earthLinkDb[0] === earthLinkDb[1]
+                ? `${earthLinkDb[0]} dB`
+                : `${earthLinkDb[0]}–${earthLinkDb[1]} dB`}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -1,189 +1,1364 @@
 {
   "_owner": "Schoenstadt (Task SCH-05)",
-  "_note": "Conditional 60s flight crisis rounds (4 rounds x 3 missions x nominal/critical branches). Baseline puzzle stub ready; expand to 24+ full conditional cards in SCH-05.",
+  "_note": "60 Seconds! / 60 Parsecs! style turn-based flight survival & engineering logbook (no countdown timer on questions). 24 conditional nodes: 4 gates x 3 missions x 2 states (critical / nominal).",
   "nodes": {
     "NODE_1_LAUNCH": {
       "critical": {
-        "question_id": "Q1_CRIT",
+        "question_id": "Q1_ARTEMIS_CRIT",
         "gate": "NODE_1_LAUNCH",
         "assigned_role": "finance_launch",
-        "title": "Max-Q Structural Alert: Payload margin is razor thin!",
-        "scenario_context": "Wet mass exceeds 95% of launcher capacity or UFE budget is near limit.",
-        "nasa_concept_badge": "Max-Q & Nunn-McCurdy Reserve",
+        "title": "Rocket shaking hard at peak pressure!",
+        "scenario_context": "Your rocket is passing Max-Q, the moment of strongest air pressure. It is close to its weight limit and your reserve fund (UFE) is tight. What do you do?",
+        "nasa_concept_badge": "Budget reserve",
         "options": [
           {
-            "option_id": "use_ufe_reinforce",
-            "label": "Spend 5% UFE Reserve for Upper-Stage Boost",
-            "engineering_tradeoff_hint": "Preserves science mass, lowers emergency reserve",
-            "delta_effects": { "ufe_reserve_pct": -5.0, "propellant_mass_kg": 40.0 }
+            "option_id": "spend_ufe_reinforce",
+            "label": "Fund extra fuel margin (−5% reserve, +45 kg fuel)",
+            "engineering_tradeoff_hint": "Spends emergency money now to gain fuel you can use later in the flight.",
+            "delta_effects": {
+              "ufe_reserve_pct": -5.0,
+              "propellant_mass_kg": 45.0
+            }
           },
           {
-            "option_id": "jettison_secondary_ballast",
-            "label": "Jettison Secondary Ballast (-40 kg)",
-            "engineering_tradeoff_hint": "Improves mass margin safely",
-            "delta_effects": { "dry_mass_kg": -40.0 }
-          }
-        ]
-      },
-      "nominal": {
-        "question_id": "Q1_NOM",
-        "gate": "NODE_1_LAUNCH",
-        "assigned_role": "finance_launch",
-        "title": "Nominal Liftoff! Rocket clears the pad cleanly.",
-        "scenario_context": "How should second-stage burn optimize remaining launch margin?",
-        "nasa_concept_badge": "Orbital Insertion Efficiency",
-        "options": [
-          {
-            "option_id": "optimal_burn",
-            "label": "Coast & Optimal Second-Stage Burn",
-            "engineering_tradeoff_hint": "Saves propellant reserve",
-            "delta_effects": { "propellant_mass_kg": 25.0 }
+            "option_id": "jettison_secondary_brackets",
+            "label": "Drop extra brackets (−45 kg weight)",
+            "engineering_tradeoff_hint": "A lighter spacecraft stays safely under the rocket's limit. No money spent.",
+            "delta_effects": {
+              "dry_mass_kg": -45.0
+            }
           },
           {
-            "option_id": "fast_direct_burn",
-            "label": "Direct High-Thrust Burn",
-            "engineering_tradeoff_hint": "Fast insertion, slightly higher power draw",
-            "delta_effects": { "battery_reserve_pct": -3.0 }
-          }
-        ]
-      }
-    },
-    "NODE_2_PROPULSION": {
-      "critical": {
-        "question_id": "Q2_CRIT",
-        "gate": "NODE_2_PROPULSION",
-        "assigned_role": "spacecraft_mass",
-        "title": "Attitude Thruster Vibration: Unbalanced CG burning 1.5x fuel!",
-        "scenario_context": "Offset Center of Gravity is wasting reaction control propellant during burn.",
-        "nasa_concept_badge": "Tsiolkovsky & CG Trim",
-        "options": [
-          {
-            "option_id": "battery_retrim",
-            "label": "Run Electric Reaction Wheel Re-Trim (-8% battery)",
-            "engineering_tradeoff_hint": "Restores 1.0x nominal burn multiplier",
-            "delta_effects": { "cg_balanced": true, "fuel_burn_multiplier": 1.0, "battery_reserve_pct": -8.0 }
-          },
-          {
-            "option_id": "push_direct",
-            "label": "Keep Thruster Compensation Burn",
-            "engineering_tradeoff_hint": "Saves battery, keeps propellant pressure",
+            "option_id": "hold_launch_profile",
+            "label": "Fly as planned (no change)",
+            "engineering_tradeoff_hint": "Keeps your whole reserve for later problems, but leaves no safety margin now.",
             "delta_effects": {}
           }
         ]
       },
       "nominal": {
-        "question_id": "Q2_NOM",
-        "gate": "NODE_2_PROPULSION",
-        "assigned_role": "spacecraft_mass",
-        "title": "Balanced Cruise Approach to Target Gravity Well.",
-        "scenario_context": "Select orbital capture profile.",
-        "nasa_concept_badge": "Capture Delta-v",
+        "question_id": "Q1_ARTEMIS_NOM",
+        "gate": "NODE_1_LAUNCH",
+        "assigned_role": "finance_launch",
+        "title": "Liftoff went smoothly — what now?",
+        "scenario_context": "Your rocket passed peak air pressure with weight and budget to spare. The upper stage is about to push you toward the Moon (Translunar Injection). What is your order?",
+        "nasa_concept_badge": "Efficient Moon push",
         "options": [
           {
-            "option_id": "conservative_capture",
-            "label": "Elliptical Capture Burn",
-            "engineering_tradeoff_hint": "Low thermal stress, protects battery",
-            "delta_effects": { "battery_reserve_pct": 2.0 }
+            "option_id": "conservative_tli_trim",
+            "label": "Save leftover fuel (+30 kg fuel)",
+            "engineering_tradeoff_hint": "Extra fuel gives you room for course corrections later.",
+            "delta_effects": {
+              "propellant_mass_kg": 30.0
+            }
           },
           {
-            "option_id": "low_science_orbit",
-            "label": "Tight Low Science Orbit",
-            "engineering_tradeoff_hint": "Boosts science quality (+5), costs small fuel",
-            "delta_effects": { "science_value": 5.0 }
+            "option_id": "early_sensor_warmup",
+            "label": "Warm up instruments early (+5 science, −3% battery)",
+            "engineering_tradeoff_hint": "Instruments that are ready sooner collect better data, but this uses some battery.",
+            "delta_effects": {
+              "science_value": 5.0,
+              "battery_reserve_pct": -3.0
+            }
+          },
+          {
+            "option_id": "lock_ufe_interest",
+            "label": "Put unused money in reserve (+3% reserve)",
+            "engineering_tradeoff_hint": "A bigger reserve fund helps you pay for emergencies later.",
+            "delta_effects": {
+              "ufe_reserve_pct": 3.0
+            }
           }
         ]
+      },
+      "missions": {
+        "artemis_moon": {
+          "critical": {
+            "question_id": "Q1_ARTEMIS_CRIT",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Moon rocket shaking at peak pressure!",
+            "scenario_context": "Your Moon spacecraft is passing Max-Q, when air pressure on the rocket is strongest. Its fueled weight is near the rocket's limit and your reserve fund (UFE) is tight.",
+            "nasa_concept_badge": "Peak pressure",
+            "options": [
+              {
+                "option_id": "spend_ufe_reinforce",
+                "label": "Fund extra fuel margin (−5% reserve, +45 kg fuel)",
+                "engineering_tradeoff_hint": "Uses emergency money now so you have more fuel later.",
+                "delta_effects": {
+                  "ufe_reserve_pct": -5.0,
+                  "propellant_mass_kg": 45.0
+                }
+              },
+              {
+                "option_id": "jettison_secondary_brackets",
+                "label": "Drop spare adapter parts (−45 kg weight)",
+                "engineering_tradeoff_hint": "Lighter is safer for the rocket, and it costs nothing.",
+                "delta_effects": {
+                  "dry_mass_kg": -45.0
+                }
+              },
+              {
+                "option_id": "hold_launch_profile",
+                "label": "Fly as planned (no change)",
+                "engineering_tradeoff_hint": "Saves your reserve for problems near the Moon, but leaves no margin now.",
+                "delta_effects": {}
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q1_ARTEMIS_NOM",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Clean liftoff, heading to the Moon",
+            "scenario_context": "Your rocket cleared the tower with weight and money to spare. Before the long coast to the Moon, how do you use the extra capacity?",
+            "nasa_concept_badge": "Moon transfer burn",
+            "options": [
+              {
+                "option_id": "conservative_tli_trim",
+                "label": "Save leftover fuel (+30 kg fuel)",
+                "engineering_tradeoff_hint": "Extra fuel lets you fine-tune your path around the Moon.",
+                "delta_effects": {
+                  "propellant_mass_kg": 30.0
+                }
+              },
+              {
+                "option_id": "early_sensor_warmup",
+                "label": "Warm up the light sensor (+5 science, −3% battery)",
+                "engineering_tradeoff_hint": "A ready spectrometer, a tool that splits light, collects better Moon data.",
+                "delta_effects": {
+                  "science_value": 5.0,
+                  "battery_reserve_pct": -3.0
+                }
+              },
+              {
+                "option_id": "lock_ufe_interest",
+                "label": "Move ground savings to reserve (+3% reserve)",
+                "engineering_tradeoff_hint": "More emergency money for the rest of the trip.",
+                "delta_effects": {
+                  "ufe_reserve_pct": 3.0
+                }
+              }
+            ]
+          }
+        },
+        "asteroid_hunter": {
+          "critical": {
+            "question_id": "Q1_ASTEROID_CRIT",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Too heavy for the escape burn!",
+            "scenario_context": "You are firing the engine to escape Earth's gravity toward a near-Earth asteroid. The spacecraft's weight and cost are pushing the rocket adapter to its limit.",
+            "nasa_concept_badge": "Escape weight margin",
+            "options": [
+              {
+                "option_id": "jettison_rideshare_ring",
+                "label": "Drop the heavy separation ring early (−50 kg weight)",
+                "engineering_tradeoff_hint": "Less weight means each kilogram of fuel takes you farther.",
+                "delta_effects": {
+                  "dry_mass_kg": -50.0
+                }
+              },
+              {
+                "option_id": "spend_ufe_kickstage",
+                "label": "Buy a small booster (−5% reserve, +55 kg fuel)",
+                "engineering_tradeoff_hint": "Spends emergency money to give you more fuel for deep space.",
+                "delta_effects": {
+                  "ufe_reserve_pct": -5.0,
+                  "propellant_mass_kg": 55.0
+                }
+              },
+              {
+                "option_id": "sacrifice_minor_calibration",
+                "label": "Turn off a backup heater (+4% battery, −4 science)",
+                "engineering_tradeoff_hint": "Saves power, but instruments start out a little less ready.",
+                "delta_effects": {
+                  "battery_reserve_pct": 4.0,
+                  "science_value": -4.0
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q1_ASTEROID_NOM",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Perfect escape from Earth",
+            "scenario_context": "Your spacecraft left Earth's gravity right on course for the asteroid, with weight and reserve fund to spare. How do you use this good start?",
+            "nasa_concept_badge": "Clean departure",
+            "options": [
+              {
+                "option_id": "deep_space_fuel_bank",
+                "label": "Save braking fuel (+35 kg fuel)",
+                "engineering_tradeoff_hint": "You will need fuel to slow down and fly close to the asteroid.",
+                "delta_effects": {
+                  "propellant_mass_kg": 35.0
+                }
+              },
+              {
+                "option_id": "calibrate_ftir_cruise",
+                "label": "Calibrate the mineral sensor on stars (+5 science)",
+                "engineering_tradeoff_hint": "A well-tuned infrared sensor identifies asteroid minerals more accurately.",
+                "delta_effects": {
+                  "science_value": 5.0
+                }
+              },
+              {
+                "option_id": "bank_ufe_contingency",
+                "label": "Save unused launch money (+4% reserve)",
+                "engineering_tradeoff_hint": "More emergency money for dodging boulders near the asteroid.",
+                "delta_effects": {
+                  "ufe_reserve_pct": 4.0
+                }
+              }
+            ]
+          }
+        },
+        "mars_sample_return": {
+          "critical": {
+            "question_id": "Q1_MARS_CRIT",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Mars stack too heavy and over budget!",
+            "scenario_context": "Your Mars spacecraft, an orbiter plus a sample-return heat shield, is pushing the rocket's limits and the budget cap during the climb. What do you give up?",
+            "nasa_concept_badge": "Weight and budget caps",
+            "options": [
+              {
+                "option_id": "jettison_cruise_ballast",
+                "label": "Drop cruise trim weights (−60 kg weight)",
+                "engineering_tradeoff_hint": "Cuts weight so the rocket is not overloaded.",
+                "delta_effects": {
+                  "dry_mass_kg": -60.0
+                }
+              },
+              {
+                "option_id": "ufe_centaur_overburn",
+                "label": "Fund an upper-stage boost (−6% reserve, +65 kg fuel)",
+                "engineering_tradeoff_hint": "Spends emergency money to make sure you have fuel to reach Mars.",
+                "delta_effects": {
+                  "ufe_reserve_pct": -6.0,
+                  "propellant_mass_kg": 65.0
+                }
+              },
+              {
+                "option_id": "trim_subsystems_budget",
+                "label": "Postpone extra ground work (−$35M cost, −5 science)",
+                "engineering_tradeoff_hint": "Saves $35 million to stay under budget, but you lose some science.",
+                "delta_effects": {
+                  "subsystems_cost_usd": -35000000.0,
+                  "science_value": -5.0
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q1_MARS_NOM",
+            "gate": "NODE_1_LAUNCH",
+            "assigned_role": "finance_launch",
+            "title": "Perfect push toward Mars",
+            "scenario_context": "Over 52% of your spacecraft's weight is fuel, a good match for your heavy rocket. You are now cruising to Mars. What comes first?",
+            "nasa_concept_badge": "Fuel-to-weight balance",
+            "options": [
+              {
+                "option_id": "save_moi_propellant",
+                "label": "Save fuel for Mars arrival (+45 kg fuel)",
+                "engineering_tradeoff_hint": "You need a big braking burn to be captured into Mars orbit.",
+                "delta_effects": {
+                  "propellant_mass_kg": 45.0
+                }
+              },
+              {
+                "option_id": "hirise_cruise_check",
+                "label": "Align the cameras during cruise (+6 science, −3% battery)",
+                "engineering_tradeoff_hint": "Sharper cameras mean better Mars pictures, for a little battery.",
+                "delta_effects": {
+                  "science_value": 6.0,
+                  "battery_reserve_pct": -3.0
+                }
+              },
+              {
+                "option_id": "augment_mars_ufe",
+                "label": "Put launch savings in reserve (+4% reserve)",
+                "engineering_tradeoff_hint": "Extra emergency money before Mars dust storm season.",
+                "delta_effects": {
+                  "ufe_reserve_pct": 4.0
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "NODE_2_PROPULSION": {
+      "critical": {
+        "question_id": "Q2_ARTEMIS_CRIT",
+        "gate": "NODE_2_PROPULSION",
+        "assigned_role": "spacecraft_mass",
+        "title": "Off-balance spacecraft is wasting fuel!",
+        "scenario_context": "During a course correction, the spacecraft's center of gravity is off-center (or fuel is tight). The thrusters fight the wobble and burn 1.5 times the normal fuel.",
+        "nasa_concept_badge": "Balance and fuel use",
+        "options": [
+          {
+            "option_id": "reaction_wheel_retrim",
+            "label": "Re-balance with reaction wheels (normal fuel use, −7% battery)",
+            "engineering_tradeoff_hint": "Electric spinning wheels steady the craft, so fuel use goes back to normal.",
+            "delta_effects": {
+              "cg_balanced": true,
+              "fuel_burn_multiplier": 1.0,
+              "battery_reserve_pct": -7.0
+            }
+          },
+          {
+            "option_id": "fuel_transfer_rebalance",
+            "label": "Re-balance by pumping fuel (−4% reserve, +50 kg fuel)",
+            "engineering_tradeoff_hint": "Fixes the balance and frees usable fuel, paid with ground support money.",
+            "delta_effects": {
+              "cg_balanced": true,
+              "fuel_burn_multiplier": 1.0,
+              "ufe_reserve_pct": -4.0,
+              "propellant_mass_kg": 50.0
+            }
+          },
+          {
+            "option_id": "force_unbalanced_burn",
+            "label": "Burn anyway without re-balancing (no change)",
+            "engineering_tradeoff_hint": "Saves battery and reserve, but you keep burning 1.5 times the fuel.",
+            "delta_effects": {}
+          }
+        ]
+      },
+      "nominal": {
+        "question_id": "Q2_ARTEMIS_NOM",
+        "gate": "NODE_2_PROPULSION",
+        "assigned_role": "spacecraft_mass",
+        "title": "Balanced and right on course",
+        "scenario_context": "Your center of gravity is well centered, so the main engine burns at normal efficiency. How do you shape your arrival orbit?",
+        "nasa_concept_badge": "Balanced thrust",
+        "options": [
+          {
+            "option_id": "precision_low_orbit",
+            "label": "Fly lower to map (+6 science, −20 kg fuel)",
+            "engineering_tradeoff_hint": "A closer orbit gives sharper science data, using some spare fuel.",
+            "delta_effects": {
+              "science_value": 6.0,
+              "propellant_mass_kg": -20.0
+            }
+          },
+          {
+            "option_id": "free_return_conservation",
+            "label": "Take the low-energy route (+35 kg fuel, +3% battery)",
+            "engineering_tradeoff_hint": "Saves fuel and power for whatever space throws at you next.",
+            "delta_effects": {
+              "propellant_mass_kg": 35.0,
+              "battery_reserve_pct": 3.0
+            }
+          },
+          {
+            "option_id": "gyro_momentum_dump",
+            "label": "Reset the steering wheels (+0.03 science quality)",
+            "engineering_tradeoff_hint": "A steadier spacecraft lets instruments take sharper readings.",
+            "delta_effects": {
+              "science_calibration_f1": 0.03
+            }
+          }
+        ]
+      },
+      "missions": {
+        "artemis_moon": {
+          "critical": {
+            "question_id": "Q2_ARTEMIS_CRIT",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Wobbling near the Moon, wasting fuel!",
+            "scenario_context": "Approaching the Moon, an off-center center of gravity (or low fuel margin) makes the spacecraft wobble, and it burns 1.5 times the normal fuel. How do you steady it?",
+            "nasa_concept_badge": "Balance and fuel use",
+            "options": [
+              {
+                "option_id": "reaction_wheel_retrim",
+                "label": "Re-balance with reaction wheels (normal fuel use, −7% battery)",
+                "engineering_tradeoff_hint": "Gets fuel use back to normal, but drains battery.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "battery_reserve_pct": -7.0
+                }
+              },
+              {
+                "option_id": "slingshot_gravity_assist",
+                "label": "Use Moon's gravity (balanced, −4% reserve, +55 kg fuel)",
+                "engineering_tradeoff_hint": "The Moon's pull saves fuel; ground teams replan the route with reserve money.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "ufe_reserve_pct": -4.0,
+                  "propellant_mass_kg": 55.0
+                }
+              },
+              {
+                "option_id": "force_unbalanced_burn",
+                "label": "Burn directly without re-balancing (no change)",
+                "engineering_tradeoff_hint": "Saves battery for solar storms, but you may run out of fuel.",
+                "delta_effects": {}
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q2_ARTEMIS_NOM",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Smooth, balanced flyby of the Moon",
+            "scenario_context": "Your center of gravity stayed within the 0.25 m limit for the Moon mission, so the engine burn is clean and efficient. What do you do at closest approach?",
+            "nasa_concept_badge": "Precise Moon flyby",
+            "options": [
+              {
+                "option_id": "polar_crater_pass",
+                "label": "Skim the polar crater (+6 science, −20 kg fuel)",
+                "engineering_tradeoff_hint": "Spends a little fuel to study possible ice in polar craters.",
+                "delta_effects": {
+                  "science_value": 6.0,
+                  "propellant_mass_kg": -20.0
+                }
+              },
+              {
+                "option_id": "free_return_conservation",
+                "label": "Save fuel, charge batteries (+35 kg fuel, +4% battery)",
+                "engineering_tradeoff_hint": "Builds up survival reserves before crossing the radiation belts.",
+                "delta_effects": {
+                  "propellant_mass_kg": 35.0,
+                  "battery_reserve_pct": 4.0
+                }
+              },
+              {
+                "option_id": "fine_attitude_lock",
+                "label": "Aim the antenna at Earth (4.6 dB signal)",
+                "engineering_tradeoff_hint": "A steady craft can point its dish precisely for a stronger signal.",
+                "delta_effects": {
+                  "link_margin_db": 4.6
+                }
+              }
+            ]
+          }
+        },
+        "asteroid_hunter": {
+          "critical": {
+            "question_id": "Q2_ASTEROID_CRIT",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Crooked braking burn near the asteroid!",
+            "scenario_context": "As you slow down to match the asteroid's path, unevenly placed instruments (or low fuel margin) make you burn 1.5 times the normal fuel. How do you fix it?",
+            "nasa_concept_badge": "Low-gravity braking",
+            "options": [
+              {
+                "option_id": "electric_gimbal_trim",
+                "label": "Tilt engine to re-balance (normal fuel use, −6% battery)",
+                "engineering_tradeoff_hint": "Points the thrust through the true center of gravity using battery power.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "battery_reserve_pct": -6.0
+                }
+              },
+              {
+                "option_id": "jettison_empty_bay",
+                "label": "Drop cover, re-balance (−40 kg weight, +40 kg fuel)",
+                "engineering_tradeoff_hint": "Fixes the balance, and the lighter craft gets more from its fuel.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "dry_mass_kg": -40.0,
+                  "propellant_mass_kg": 40.0
+                }
+              },
+              {
+                "option_id": "high_speed_flyby_fallback",
+                "label": "Do a fast flyby instead of stopping (−8 science)",
+                "engineering_tradeoff_hint": "Less time to collect data, but saves battery and reserve.",
+                "delta_effects": {
+                  "science_value": -8.0
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q2_ASTEROID_NOM",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Gentle braking next to the asteroid",
+            "scenario_context": "Your center of gravity is balanced within 0.15 m, and you matched the asteroid's spin with fuel to spare. What is your next command?",
+            "nasa_concept_badge": "Close-up operations",
+            "options": [
+              {
+                "option_id": "low_altitude_mapping",
+                "label": "Map from 1 km (+7 science, −20 kg fuel)",
+                "engineering_tradeoff_hint": "A very close orbit gives detailed mineral maps, using spare fuel.",
+                "delta_effects": {
+                  "science_value": 7.0,
+                  "propellant_mass_kg": -20.0
+                }
+              },
+              {
+                "option_id": "hover_fuel_reserve",
+                "label": "Save fuel for a quick escape (+40 kg fuel)",
+                "engineering_tradeoff_hint": "Lets you back away fast if the surface sprays dust during sampling.",
+                "delta_effects": {
+                  "propellant_mass_kg": 40.0
+                }
+              },
+              {
+                "option_id": "charge_autonomy_bus",
+                "label": "Charge the battery and onboard computers (+5% battery)",
+                "engineering_tradeoff_hint": "Gets power ready for the risky close approach.",
+                "delta_effects": {
+                  "battery_reserve_pct": 5.0
+                }
+              }
+            ]
+          }
+        },
+        "mars_sample_return": {
+          "critical": {
+            "question_id": "Q2_MARS_CRIT",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Mars arrival: balance problem!",
+            "scenario_context": "Approaching Mars, your spacecraft breaks its strict 0.08 m balance limit (or fuel is very short). It could skip off the Martian atmosphere instead of being captured.",
+            "nasa_concept_badge": "Air braking at Mars",
+            "options": [
+              {
+                "option_id": "aerobraking_trim_pass",
+                "label": "Air-brake and re-balance (−7% battery, +60 kg fuel)",
+                "engineering_tradeoff_hint": "Thin upper air slows you down for free; wheels restore normal fuel use.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "battery_reserve_pct": -7.0,
+                  "propellant_mass_kg": 60.0
+                }
+              },
+              {
+                "option_id": "ufe_propellant_crossfeed",
+                "label": "Shift fuel to re-balance (−5% reserve, +70 kg fuel)",
+                "engineering_tradeoff_hint": "Moves fuel from a backup tank to fix the balance; costs reserve money.",
+                "delta_effects": {
+                  "cg_balanced": true,
+                  "fuel_burn_multiplier": 1.0,
+                  "ufe_reserve_pct": -5.0,
+                  "propellant_mass_kg": 70.0
+                }
+              },
+              {
+                "option_id": "drop_heavy_shielding",
+                "label": "Drop a spare cruise shield (−55 kg weight)",
+                "engineering_tradeoff_hint": "A lighter craft makes the capture burn more likely to succeed.",
+                "delta_effects": {
+                  "dry_mass_kg": -55.0
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q2_MARS_NOM",
+            "gate": "NODE_2_PROPULSION",
+            "assigned_role": "spacecraft_mass",
+            "title": "Perfect capture into Mars orbit",
+            "scenario_context": "Even with the strict 0.08 m Mars balance limit, your spacecraft stayed steady through the main engine burn. How do you adjust your orbit?",
+            "nasa_concept_badge": "Sun-synced Mars orbit",
+            "options": [
+              {
+                "option_id": "sun_sync_low_orbit",
+                "label": "Enter low sun-synced orbit (+8 science, −25 kg fuel)",
+                "engineering_tradeoff_hint": "The same lighting every pass gives the best close-up images of Jezero Crater.",
+                "delta_effects": {
+                  "science_value": 8.0,
+                  "propellant_mass_kg": -25.0
+                }
+              },
+              {
+                "option_id": "save_te_injection_fuel",
+                "label": "Save fuel for the trip home (+50 kg fuel)",
+                "engineering_tradeoff_hint": "The samples still need fuel to get back to Earth.",
+                "delta_effects": {
+                  "propellant_mass_kg": 50.0
+                }
+              },
+              {
+                "option_id": "thermal_soak_batteries",
+                "label": "Warm and charge the batteries (+6% battery)",
+                "engineering_tradeoff_hint": "More battery power before Martian dust storms block the Sun.",
+                "delta_effects": {
+                  "battery_reserve_pct": 6.0
+                }
+              }
+            ]
+          }
+        }
       }
     },
     "NODE_3_EVENT": {
       "critical": {
-        "question_id": "Q3_CRIT",
+        "question_id": "Q3_ARTEMIS_CRIT",
         "gate": "NODE_3_EVENT",
         "assigned_role": "orbit_power",
-        "title": "Space Environment Contingency Alert!",
-        "scenario_context": "Solar particle flux / dust cloud challenges low power or autonomy margin.",
-        "nasa_concept_badge": "Fault Protection & UFE",
+        "title": "Space storm hits with low reserves!",
+        "scenario_context": "A strong space weather event hits while your battery, self-driving camera, or reserve fund is dangerously low. Check what you packed and choose.",
+        "nasa_concept_badge": "Space weather",
         "options": [
           {
-            "option_id": "deploy_ufe_patch",
-            "label": "Activate Emergency UFE Ground Patch (-5% UFE)",
-            "engineering_tradeoff_hint": "Stabilizes autonomy and battery reserve (+10%)",
-            "delta_effects": { "ufe_reserve_pct": -5.0, "battery_reserve_pct": 10.0, "has_visual_autonomy": true }
+            "option_id": "deploy_ufe_emergency_patch",
+            "label": "Fund backup power, self-driving camera (−5% reserve, +12% battery)",
+            "engineering_tradeoff_hint": "Emergency money restores the battery and turns on camera-based navigation.",
+            "delta_effects": {
+              "ufe_reserve_pct": -5.0,
+              "battery_reserve_pct": 12.0,
+              "has_visual_autonomy": true
+            }
           },
           {
-            "option_id": "safe_mode",
-            "label": "Enter Passive Safe Mode",
-            "engineering_tradeoff_hint": "Protects spacecraft survival, trims data volume",
-            "delta_effects": { "downlink_efficiency": 0.85 }
+            "option_id": "divert_science_power_to_bus",
+            "label": "Turn off heaters for power (+15% battery, −6 science)",
+            "engineering_tradeoff_hint": "Gives up a little science to keep power above safe-mode level.",
+            "delta_effects": {
+              "battery_reserve_pct": 15.0,
+              "science_value": -6.0
+            }
+          },
+          {
+            "option_id": "enter_passive_safe_mode",
+            "label": "Hide in safe mode (only 85% data delivered)",
+            "engineering_tradeoff_hint": "Protects the spacecraft, but storm noise means less data reaches Earth.",
+            "delta_effects": {
+              "downlink_efficiency": 0.85
+            }
           }
         ]
       },
       "nominal": {
-        "question_id": "Q3_NOM",
+        "question_id": "Q3_ARTEMIS_NOM",
         "gate": "NODE_3_EVENT",
         "assigned_role": "orbit_power",
-        "title": "Environment Anomaly Cleared with Strong Reserves!",
-        "scenario_context": "Use extra power margin to boost science return or safeguard hardware.",
-        "nasa_concept_badge": "Power Bus Resilience",
+        "title": "Storm survived thanks to good packing",
+        "scenario_context": "When the space hazard hit, your heat shield, power source, self-driving camera, and reserve fund absorbed it. How do you use this calm moment?",
+        "nasa_concept_badge": "Strong reserves",
         "options": [
           {
-            "option_id": "bonus_science_scan",
-            "label": "Power Bonus High-Res Spectral Scan",
-            "engineering_tradeoff_hint": "Increases science return",
-            "delta_effects": { "science_value": 8.0, "battery_reserve_pct": -4.0 }
+            "option_id": "bonus_storm_spectroscopy",
+            "label": "Measure the storm's light (+8 science, −4% battery)",
+            "engineering_tradeoff_hint": "Turns the hazard into bonus science using spare battery.",
+            "delta_effects": {
+              "science_value": 8.0,
+              "battery_reserve_pct": -4.0
+            }
           },
           {
-            "option_id": "charge_reserves",
-            "label": "Hold Nominal Reserves",
-            "engineering_tradeoff_hint": "Maximizes end-of-mission battery safety",
-            "delta_effects": { "battery_reserve_pct": 5.0 }
+            "option_id": "fortify_downlink_amplifiers",
+            "label": "Boost the radio (4.5 dB signal, 100% delivered)",
+            "engineering_tradeoff_hint": "Spare power makes sure the final data transfer to Earth goes smoothly.",
+            "delta_effects": {
+              "link_margin_db": 4.5,
+              "downlink_efficiency": 1.0
+            }
+          },
+          {
+            "option_id": "keep_full_survival_buffer",
+            "label": "Keep all reserves, top up battery (+5% battery)",
+            "engineering_tradeoff_hint": "Maximum safety margin all the way back to Earth.",
+            "delta_effects": {
+              "battery_reserve_pct": 5.0
+            }
           }
         ]
+      },
+      "missions": {
+        "artemis_moon": {
+          "critical": {
+            "question_id": "Q3_ARTEMIS_CRIT",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Solar storm hits on the way home!",
+            "scenario_context": "A burst of particles from the Sun sweeps between Earth and the Moon. Your battery is under 15% or your heat protection is weak, before re-entering Earth's air at 40,000 km/h.",
+            "nasa_concept_badge": "Solar storm",
+            "options": [
+              {
+                "option_id": "deploy_ufe_emergency_patch",
+                "label": "Switch to backup power cells (−5% reserve, +12% battery)",
+                "engineering_tradeoff_hint": "Keeps Orion's battery up so it does not drop into safe mode.",
+                "delta_effects": {
+                  "ufe_reserve_pct": -5.0,
+                  "battery_reserve_pct": 12.0
+                }
+              },
+              {
+                "option_id": "divert_science_power_to_bus",
+                "label": "Put Moon cameras to sleep (+15% battery, −6 science)",
+                "engineering_tradeoff_hint": "Protects the systems needed for re-entry by pausing extra imaging.",
+                "delta_effects": {
+                  "battery_reserve_pct": 15.0,
+                  "science_value": -6.0
+                }
+              },
+              {
+                "option_id": "enter_passive_safe_mode",
+                "label": "Hide in safe mode (only 85% data delivered)",
+                "engineering_tradeoff_hint": "Saves reserve money, but storm noise means less data reaches Earth.",
+                "delta_effects": {
+                  "downlink_efficiency": 0.85
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q3_ARTEMIS_NOM",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Storm passed, heat shield ready",
+            "scenario_context": "Your fuel cells and batteries (at least 15% charge) plus your heat shield handled the solar storm without losing contact. What is your order?",
+            "nasa_concept_badge": "Heat shield",
+            "options": [
+              {
+                "option_id": "bonus_storm_spectroscopy",
+                "label": "Study the solar flare's light (+8 science, −4% battery)",
+                "engineering_tradeoff_hint": "Rare readings of solar flare light earn bonus science.",
+                "delta_effects": {
+                  "science_value": 8.0,
+                  "battery_reserve_pct": -4.0
+                }
+              },
+              {
+                "option_id": "fortify_downlink_amplifiers",
+                "label": "Boost the radio (4.6 dB signal, 100% delivered)",
+                "engineering_tradeoff_hint": "Spare power guarantees a clean connection to Earth's big antennas.",
+                "delta_effects": {
+                  "link_margin_db": 4.6,
+                  "downlink_efficiency": 1.0
+                }
+              },
+              {
+                "option_id": "keep_full_survival_buffer",
+                "label": "Top up the re-entry battery (+5% battery)",
+                "engineering_tradeoff_hint": "Extra power for the 40,000 km/h plunge through Earth's air.",
+                "delta_effects": {
+                  "battery_reserve_pct": 5.0
+                }
+              }
+            ]
+          }
+        },
+        "asteroid_hunter": {
+          "critical": {
+            "question_id": "Q3_ASTEROID_CRIT",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Dust cloud blinds your navigation!",
+            "scenario_context": "Descending toward the asteroid, a cloud of gravel and dust blinds the cameras that steer by the stars. Without a self-driving camera or at least 15% reserve, crash risk is high.",
+            "nasa_concept_badge": "Camera navigation",
+            "options": [
+              {
+                "option_id": "upload_ufe_nft_patch",
+                "label": "Upload self-driving camera software (−8% reserve, −5% battery)",
+                "engineering_tradeoff_hint": "Lets the probe steer by recognizing surface features, paid with ground support money.",
+                "delta_effects": {
+                  "has_visual_autonomy": true,
+                  "ufe_reserve_pct": -8.0,
+                  "battery_reserve_pct": -5.0
+                }
+              },
+              {
+                "option_id": "burn_contingency_thrusters",
+                "label": "Retreat, enable self-driving camera (−5% reserve, −25 kg fuel)",
+                "engineering_tradeoff_hint": "Burns fuel to clear the dust, then locks on with camera navigation.",
+                "delta_effects": {
+                  "has_visual_autonomy": true,
+                  "ufe_reserve_pct": -5.0,
+                  "propellant_mass_kg": -25.0
+                }
+              },
+              {
+                "option_id": "blind_standoff_sampling",
+                "label": "Stay high above the surface (−8 science)",
+                "engineering_tradeoff_hint": "Avoids the boulders, but you collect fewer close-up readings.",
+                "delta_effects": {
+                  "science_value": -8.0
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q3_ASTEROID_NOM",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Safe touch-and-go between boulders",
+            "scenario_context": "Your self-driving camera, which steers by recognizing surface features, and a reserve fund of 15% or more guided the probe past the giant boulder nicknamed Mount Doom. What next?",
+            "nasa_concept_badge": "Touch-and-go sampling",
+            "options": [
+              {
+                "option_id": "extended_regolith_scan",
+                "label": "Scan extra surface dust (+9 science, −3% battery)",
+                "engineering_tradeoff_hint": "Close-range infrared readings reveal water-bearing minerals.",
+                "delta_effects": {
+                  "science_value": 9.0,
+                  "battery_reserve_pct": -3.0
+                }
+              },
+              {
+                "option_id": "boost_deep_space_transponder",
+                "label": "Boost the radio (4.5 dB signal, 100% delivered)",
+                "engineering_tradeoff_hint": "Makes sure all 160 gigabits of asteroid data reach Earth.",
+                "delta_effects": {
+                  "link_margin_db": 4.5,
+                  "downlink_efficiency": 1.0
+                }
+              },
+              {
+                "option_id": "clean_solar_arrays",
+                "label": "Puff gas to clean solar panels (+5% battery)",
+                "engineering_tradeoff_hint": "Dust-free panels make more power after leaving the dust cloud.",
+                "delta_effects": {
+                  "battery_reserve_pct": 5.0
+                }
+              }
+            ]
+          }
+        },
+        "mars_sample_return": {
+          "critical": {
+            "question_id": "Q3_MARS_CRIT",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Dust storm and a stuck sample arm!",
+            "scenario_context": "A Martian dust storm cuts sunlight to 43% and the sample arm jams. Without a nuclear battery (RTG) or 25% battery, plus a 20% reserve, half the sample tubes are at risk.",
+            "nasa_concept_badge": "Nuclear power vs dust",
+            "options": [
+              {
+                "option_id": "deploy_ufe_arm_percussion",
+                "label": "Shake the arm free (−8% reserve, +12% battery)",
+                "engineering_tradeoff_hint": "Vibration frees the stuck arm and backup power refills the battery.",
+                "delta_effects": {
+                  "ufe_reserve_pct": -8.0,
+                  "battery_reserve_pct": 12.0
+                }
+              },
+              {
+                "option_id": "switch_emergency_rtg_shunt",
+                "label": "Reroute heater power (+15% battery, −6% reserve, −6 science)",
+                "engineering_tradeoff_hint": "Moves power to the arm so every sample tube is loaded in time.",
+                "delta_effects": {
+                  "battery_reserve_pct": 15.0,
+                  "ufe_reserve_pct": -6.0,
+                  "science_value": -6.0
+                }
+              },
+              {
+                "option_id": "launch_mav_half_load",
+                "label": "Launch now with the tubes you have (no change)",
+                "engineering_tradeoff_hint": "Guarantees the small rocket leaves Mars, but some tubes stay behind.",
+                "delta_effects": {}
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q3_MARS_NOM",
+            "gate": "NODE_3_EVENT",
+            "assigned_role": "orbit_power",
+            "title": "Nuclear power beats the dust storm",
+            "scenario_context": "Dust darkened the Martian sky, but your nuclear battery (RTG) or high charge, plus a 20% reserve, kept the arm warm. Every sample tube is sealed in its capsule.",
+            "nasa_concept_badge": "All-weather nuclear power",
+            "options": [
+              {
+                "option_id": "amide_bio_deconvolution",
+                "label": "Run an extra life-sign scan (+9 science, −4% battery)",
+                "engineering_tradeoff_hint": "Uses spare power to double-check the tubes for signs of past life.",
+                "delta_effects": {
+                  "science_value": 9.0,
+                  "battery_reserve_pct": -4.0
+                }
+              },
+              {
+                "option_id": "precharge_mro_hga",
+                "label": "Power the relay dish (4.6 dB signal, 100% delivered)",
+                "engineering_tradeoff_hint": "Keeps the Mars-to-Earth link well above the 3 dB minimum.",
+                "delta_effects": {
+                  "link_margin_db": 4.6,
+                  "downlink_efficiency": 1.0
+                }
+              },
+              {
+                "option_id": "reserve_earth_entry_power",
+                "label": "Save power for the trip home (+6% battery)",
+                "engineering_tradeoff_hint": "Maximum safety margin for the return orbiter that catches the samples.",
+                "delta_effects": {
+                  "battery_reserve_pct": 6.0
+                }
+              }
+            ]
+          }
+        }
       }
     },
     "NODE_4_DOWNLINK": {
       "critical": {
-        "question_id": "Q4_CRIT",
+        "question_id": "Q4_ARTEMIS_CRIT",
         "gate": "NODE_4_DOWNLINK",
         "assigned_role": "science_comms",
-        "title": "Weak DSN Lock Before Solar Conjunction!",
-        "scenario_context": "160 Gbit onboard recorder needs rapid transmission under tight link margin.",
-        "nasa_concept_badge": "Deep Space Network Link Budget",
+        "title": "Weak signal, memory full of data!",
+        "scenario_context": "Solar noise and huge distance have dropped your signal margin below the 3 dB minimum for NASA's Deep Space Network antennas, while 160 gigabits of science wait in memory.",
+        "nasa_concept_badge": "Signal strength",
         "options": [
           {
-            "option_id": "prioritize_spectral_f1",
-            "label": "Compress & Prioritize High-F1 Spectral Packets",
-            "engineering_tradeoff_hint": "Recovers downlink efficiency for core science",
-            "delta_effects": { "downlink_efficiency": 0.95, "link_margin_db": 3.2 }
+            "option_id": "prioritize_high_f1_spectra",
+            "label": "Compress data (3.4 dB signal, 96% delivered, −4% battery)",
+            "engineering_tradeoff_hint": "Sends the most valuable science first and re-locks the signal, using some battery.",
+            "delta_effects": {
+              "link_margin_db": 3.4,
+              "downlink_efficiency": 0.96,
+              "dtmf_code_ok": true,
+              "battery_reserve_pct": -4.0
+            }
           },
           {
-            "option_id": "slow_carrier_retry",
-            "label": "Low-Rate Carrier Retry",
-            "engineering_tradeoff_hint": "Safest carrier lock, partial data queued",
-            "delta_effects": { "link_margin_db": 3.5, "downlink_efficiency": 0.75 }
+            "option_id": "shut_down_secondary_sensors_for_rf",
+            "label": "Boost antenna (3.8 dB signal, 100% delivered, −5 science)",
+            "engineering_tradeoff_hint": "Turns off some instruments to push their power into the antenna.",
+            "delta_effects": {
+              "link_margin_db": 3.8,
+              "downlink_efficiency": 1.0,
+              "dtmf_code_ok": true,
+              "science_value": -5.0
+            }
+          },
+          {
+            "option_id": "low_bitrate_safe_stream",
+            "label": "Send slowly and safely (3.2 dB signal, 78% delivered)",
+            "engineering_tradeoff_hint": "A slow, steady signal is reliable, but not all the data gets home.",
+            "delta_effects": {
+              "link_margin_db": 3.2,
+              "downlink_efficiency": 0.78,
+              "dtmf_code_ok": true
+            }
           }
         ]
       },
       "nominal": {
-        "question_id": "Q4_NOM",
+        "question_id": "Q4_ARTEMIS_NOM",
         "gate": "NODE_4_DOWNLINK",
         "assigned_role": "science_comms",
-        "title": "3 m High-Gain Antenna Locked on Goldstone/Madrid DSN!",
-        "scenario_context": "Link margin exceeds +3.0 dB. Select final downlink queue priority.",
-        "nasa_concept_badge": "DSN +3 dB Carrier Lock",
+        "title": "Big antenna locked on Earth",
+        "scenario_context": "Your signal is well above the 3 dB minimum and the control channel is clear. How do you send the final 160 gigabits of science to Earth?",
+        "nasa_concept_badge": "Fast data link",
         "options": [
           {
-            "option_id": "full_spectral_dump",
-            "label": "Dump Full 160 Gbit Science Archive",
-            "engineering_tradeoff_hint": "Maximizes mission completion & F1 telemetry",
-            "delta_effects": { "downlink_efficiency": 1.0 }
+            "option_id": "full_160gbit_spectral_dump",
+            "label": "Send the full archive (100% delivered, +5 science)",
+            "engineering_tradeoff_hint": "Everything reaches Earth, including bonus calibrated readings.",
+            "delta_effects": {
+              "downlink_efficiency": 1.0,
+              "science_value": 5.0
+            }
           },
           {
-            "option_id": "verify_housekeeping",
-            "label": "Send Telemetry + Science Digest",
-            "engineering_tradeoff_hint": "Balances engineering verification",
-            "delta_effects": { "downlink_efficiency": 0.98 }
+            "option_id": "cross_calibrate_ground_nist",
+            "label": "Compare with lab standards (100% delivered, +0.04 science quality)",
+            "engineering_tradeoff_hint": "Comparing with reference samples on Earth makes your results more accurate.",
+            "delta_effects": {
+              "downlink_efficiency": 1.0,
+              "science_calibration_f1": 0.04
+            }
+          },
+          {
+            "option_id": "eco_power_downlink",
+            "label": "Send at normal speed (100% delivered, +3% battery)",
+            "engineering_tradeoff_hint": "All the data arrives while you save battery.",
+            "delta_effects": {
+              "downlink_efficiency": 1.0,
+              "battery_reserve_pct": 3.0
+            }
           }
         ]
+      },
+      "missions": {
+        "artemis_moon": {
+          "critical": {
+            "question_id": "Q4_ARTEMIS_CRIT",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "Moon about to block your signal!",
+            "scenario_context": "Soon the Moon will block your line of sight to Earth. Your radio signal margin is below 3 dB and the 160-gigabit recorder is still full. Pick a plan.",
+            "nasa_concept_badge": "Moon radio link",
+            "options": [
+              {
+                "option_id": "prioritize_high_f1_spectra",
+                "label": "Compress data (3.4 dB signal, 96% delivered, −4% battery)",
+                "engineering_tradeoff_hint": "Sends the key ice and light data first, before contact is lost.",
+                "delta_effects": {
+                  "link_margin_db": 3.4,
+                  "downlink_efficiency": 0.96,
+                  "dtmf_code_ok": true,
+                  "battery_reserve_pct": -4.0
+                }
+              },
+              {
+                "option_id": "shut_down_secondary_sensors_for_rf",
+                "label": "Boost antenna (3.8 dB signal, 100% delivered, −5 science)",
+                "engineering_tradeoff_hint": "Moves spare power to the dish; some extra science is lost.",
+                "delta_effects": {
+                  "link_margin_db": 3.8,
+                  "downlink_efficiency": 1.0,
+                  "dtmf_code_ok": true,
+                  "science_value": -5.0
+                }
+              },
+              {
+                "option_id": "low_bitrate_safe_stream",
+                "label": "Send slowly and safely (3.2 dB signal, 78% delivered)",
+                "engineering_tradeoff_hint": "Sturdier error-proof coding keeps the link, but only part gets through.",
+                "delta_effects": {
+                  "link_margin_db": 3.2,
+                  "downlink_efficiency": 0.78,
+                  "dtmf_code_ok": true
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q4_ARTEMIS_NOM",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "Clear signal, getting ready to splash down",
+            "scenario_context": "Your signal is locked above 3 dB on the Deep Space Network station in Madrid, and the heat shield is ready. The 160-gigabit recorder is sending smoothly. Final order?",
+            "nasa_concept_badge": "Data and splashdown",
+            "options": [
+              {
+                "option_id": "full_160gbit_spectral_dump",
+                "label": "Send all Moon data (100% delivered, +5 science)",
+                "engineering_tradeoff_hint": "Every bit of Moon science gets home.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_value": 5.0
+                }
+              },
+              {
+                "option_id": "cross_calibrate_ground_nist",
+                "label": "Compare with lab standards (100% delivered, +0.04 science quality)",
+                "engineering_tradeoff_hint": "Improves the accuracy of your light readings before splashdown.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_calibration_f1": 0.04
+                }
+              },
+              {
+                "option_id": "eco_power_downlink",
+                "label": "Normal send, save re-entry power (100% delivered, +3% battery)",
+                "engineering_tradeoff_hint": "All the data arrives and you keep extra battery for splashdown.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "battery_reserve_pct": 3.0
+                }
+              }
+            ]
+          }
+        },
+        "asteroid_hunter": {
+          "critical": {
+            "question_id": "Q4_ASTEROID_CRIT",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "So far away the signal fades!",
+            "scenario_context": "Millions of kilometers from Earth, the radio signal spreads out and weakens, dropping your margin below 3 dB. 160 gigabits of asteroid mineral maps wait in memory.",
+            "nasa_concept_badge": "Distance weakens signals",
+            "options": [
+              {
+                "option_id": "prioritize_high_f1_spectra",
+                "label": "Compress data (3.5 dB signal, 96% delivered, −4% battery)",
+                "engineering_tradeoff_hint": "Packs the mineral readings tightly without losing detail, using some battery.",
+                "delta_effects": {
+                  "link_margin_db": 3.5,
+                  "downlink_efficiency": 0.96,
+                  "dtmf_code_ok": true,
+                  "battery_reserve_pct": -4.0
+                }
+              },
+              {
+                "option_id": "shut_down_secondary_sensors_for_rf",
+                "label": "Boost antenna (3.9 dB signal, 100% delivered, −5 science)",
+                "engineering_tradeoff_hint": "Turns off the wide-view camera so its power goes to the radio.",
+                "delta_effects": {
+                  "link_margin_db": 3.9,
+                  "downlink_efficiency": 1.0,
+                  "dtmf_code_ok": true,
+                  "science_value": -5.0
+                }
+              },
+              {
+                "option_id": "low_bitrate_safe_stream",
+                "label": "Send key minerals slowly (3.2 dB signal, 78% delivered)",
+                "engineering_tradeoff_hint": "Steady and safe, but part of the dataset stays on board.",
+                "delta_effects": {
+                  "link_margin_db": 3.2,
+                  "downlink_efficiency": 0.78,
+                  "dtmf_code_ok": true
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q4_ASTEROID_NOM",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "Strong 4.2 dB link to Earth",
+            "scenario_context": "Your signal code unlocked the radio, and your 3 m dish holds a solid link above 3 dB to the giant 70 m Goldstone antenna in California. How do you finish?",
+            "nasa_concept_badge": "Giant Earth antennas",
+            "options": [
+              {
+                "option_id": "full_160gbit_spectral_dump",
+                "label": "Send full 3D asteroid map (100% delivered, +6 science)",
+                "engineering_tradeoff_hint": "All the data arrives, with bonus science from the boulder and mineral map.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_value": 6.0
+                }
+              },
+              {
+                "option_id": "cross_calibrate_ground_nist",
+                "label": "Compare with lab standards (100% delivered, +0.04 science quality)",
+                "engineering_tradeoff_hint": "Matching mineral readings to a reference library makes results more accurate.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_calibration_f1": 0.04
+                }
+              },
+              {
+                "option_id": "eco_power_downlink",
+                "label": "Normal send, save fuel (100% delivered, +25 kg fuel)",
+                "engineering_tradeoff_hint": "Leftover fuel could let the mission visit more places later.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "propellant_mass_kg": 25.0
+                }
+              }
+            ]
+          }
+        },
+        "mars_sample_return": {
+          "critical": {
+            "question_id": "Q4_MARS_CRIT",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "The Sun is about to block Mars!",
+            "scenario_context": "Soon Mars passes behind the Sun, cutting contact for about two weeks. Signals already take 4 to 25 minutes each way, and your margin is under 3 dB. Act now!",
+            "nasa_concept_badge": "Sun blocks Mars signal",
+            "options": [
+              {
+                "option_id": "prioritize_high_f1_spectra",
+                "label": "Rush data (3.5 dB signal, 96% delivered, −5% battery)",
+                "engineering_tradeoff_hint": "Gets the sample list and life-sign readings home before the blackout.",
+                "delta_effects": {
+                  "link_margin_db": 3.5,
+                  "downlink_efficiency": 0.96,
+                  "dtmf_code_ok": true,
+                  "battery_reserve_pct": -5.0
+                }
+              },
+              {
+                "option_id": "shut_down_secondary_sensors_for_rf",
+                "label": "Boost antenna (3.9 dB signal, 100% delivered, −5 science)",
+                "engineering_tradeoff_hint": "Turns off the radar so its power goes to the dish.",
+                "delta_effects": {
+                  "link_margin_db": 3.9,
+                  "downlink_efficiency": 1.0,
+                  "dtmf_code_ok": true,
+                  "science_value": -5.0
+                }
+              },
+              {
+                "option_id": "low_bitrate_safe_stream",
+                "label": "Store the rest (3.2 dB signal, 78% delivered)",
+                "engineering_tradeoff_hint": "Keeps a safe link now; the rest waits in memory until after the blackout.",
+                "delta_effects": {
+                  "link_margin_db": 3.2,
+                  "downlink_efficiency": 0.78,
+                  "dtmf_code_ok": true
+                }
+              }
+            ]
+          },
+          "nominal": {
+            "question_id": "Q4_MARS_NOM",
+            "gate": "NODE_4_DOWNLINK",
+            "assigned_role": "science_comms",
+            "title": "Fast link to Earth before the blackout",
+            "scenario_context": "Your 3 m antenna is locked above 3 dB onto Deep Space Network stations in Australia and California, emptying the 160-gigabit recorder before the Sun blocks Mars.",
+            "nasa_concept_badge": "Fast Mars data link",
+            "options": [
+              {
+                "option_id": "full_160gbit_spectral_dump",
+                "label": "Send all Mars data (100% delivered, +7 science)",
+                "engineering_tradeoff_hint": "Every gigabit reaches Earth with the most science possible.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_value": 7.0
+                }
+              },
+              {
+                "option_id": "cross_calibrate_ground_nist",
+                "label": "Compare with lab standards (100% delivered, +0.04 science quality)",
+                "engineering_tradeoff_hint": "A lab reference sharpens the life-sign readings.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "science_calibration_f1": 0.04
+                }
+              },
+              {
+                "option_id": "eco_power_downlink",
+                "label": "Finish sending, save capsule power (100% delivered, +4% battery)",
+                "engineering_tradeoff_hint": "All the data arrives and the return capsule keeps extra power.",
+                "delta_effects": {
+                  "downlink_efficiency": 1.0,
+                  "battery_reserve_pct": 4.0
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "random_events": {
+    "_note": "Random survival events (2026-11-15). One per match, seeded by room PIN + mission in decision_tree.pick_random_event. Effect sizes are game estimates (estado: estimado del juego); the phenomena are real (fuente).",
+    "artemis_moon": [
+      {
+        "event_id": "EVT_SOLAR_STORM",
+        "title": "Solar radiation storm",
+        "description": "A solar flare floods the cabin path with protons. Heaters and shielding drain the batteries.",
+        "effects": {
+          "battery_reserve_pct": -10.0
+        },
+        "mitigated_if": {
+          "power_source": "rtg_nuclear"
+        },
+        "mitigation_text": "The RTG kept power steady through the storm.",
+        "fuente": "https://www.swpc.noaa.gov/phenomena/solar-radiation-storm"
+      },
+      {
+        "event_id": "EVT_MICROMETEOROID",
+        "title": "Micrometeoroid strike",
+        "description": "A sand-grain-sized particle punches the hull. Repairs eat into the reserve fund.",
+        "effects": {
+          "ufe_reserve_pct": -8.0
+        },
+        "mitigated_if": {
+          "has_thermal_protection": true
+        },
+        "mitigation_text": "The heat shield layers absorbed most of the hit.",
+        "fuente": "https://orbitaldebris.jsc.nasa.gov/"
+      },
+      {
+        "event_id": "EVT_DSN_DROPOUT",
+        "title": "Ground station dropout",
+        "description": "A Deep Space Network antenna goes offline for maintenance. The link gets weaker.",
+        "effects": {
+          "link_margin_db": -2.0
+        },
+        "mitigated_if": {
+          "dtmf_code_ok": true
+        },
+        "mitigation_text": "Your clean signal code let a backup antenna lock on fast.",
+        "fuente": "https://deepspace.jpl.nasa.gov/"
+      }
+    ],
+    "asteroid_hunter": [
+      {
+        "event_id": "EVT_PARTICLE_EJECTION",
+        "title": "Asteroid particle ejection",
+        "description": "The asteroid sheds pebbles like Bennu did. Navigating around them costs reserve.",
+        "effects": {
+          "ufe_reserve_pct": -8.0
+        },
+        "mitigated_if": {
+          "has_visual_autonomy": true
+        },
+        "mitigation_text": "Self-driving navigation dodged the debris on its own.",
+        "fuente": "https://science.nasa.gov/mission/osiris-rex/"
+      },
+      {
+        "event_id": "EVT_SOLAR_STORM",
+        "title": "Solar radiation storm",
+        "description": "A solar flare hits deep space. Shielding drains the batteries.",
+        "effects": {
+          "battery_reserve_pct": -10.0
+        },
+        "mitigated_if": {
+          "power_source": "rtg_nuclear"
+        },
+        "mitigation_text": "The RTG kept power steady through the storm.",
+        "fuente": "https://www.swpc.noaa.gov/phenomena/solar-radiation-storm"
+      },
+      {
+        "event_id": "EVT_DSN_DROPOUT",
+        "title": "Ground station dropout",
+        "description": "A Deep Space Network antenna goes offline. The link gets weaker.",
+        "effects": {
+          "link_margin_db": -2.0
+        },
+        "mitigated_if": {
+          "dtmf_code_ok": true
+        },
+        "mitigation_text": "Your clean signal code let a backup antenna lock on fast.",
+        "fuente": "https://deepspace.jpl.nasa.gov/"
+      }
+    ],
+    "mars_sample_return": [
+      {
+        "event_id": "EVT_DUST_STORM",
+        "title": "Global dust storm",
+        "description": "A planet-wide dust storm blocks the Sun for weeks. Solar power collapses.",
+        "effects": {
+          "battery_reserve_pct": -15.0
+        },
+        "mitigated_if": {
+          "power_source": "rtg_nuclear"
+        },
+        "mitigation_text": "Nuclear power does not need sunlight: the RTG carried you through.",
+        "fuente": "https://science.nasa.gov/mars/"
+      },
+      {
+        "event_id": "EVT_SOLAR_CONJUNCTION",
+        "title": "Solar conjunction",
+        "description": "Mars slips behind the Sun. Radio signals pass through solar plasma and get noisy.",
+        "effects": {
+          "link_margin_db": -3.0
+        },
+        "mitigated_if": {
+          "dtmf_code_ok": true
+        },
+        "mitigation_text": "Your error-checked signal code survived the noise.",
+        "fuente": "https://science.nasa.gov/mars/"
+      },
+      {
+        "event_id": "EVT_MICROMETEOROID",
+        "title": "Micrometeoroid strike",
+        "description": "A tiny particle punches the hull. Repairs eat into the reserve fund.",
+        "effects": {
+          "ufe_reserve_pct": -8.0
+        },
+        "mitigated_if": {
+          "has_thermal_protection": true
+        },
+        "mitigation_text": "The heat shield layers absorbed most of the hit.",
+        "fuente": "https://orbitaldebris.jsc.nasa.gov/"
+      }
+    ],
+    "_difficulty": {
+      "_note": "Difficulty tuning (2026-11-15, estimado del juego): harder missions face more and harsher hazards. count = events per match, scale = effect multiplier when not mitigated.",
+      "easy": {
+        "count": 1,
+        "scale": 1.0
+      },
+      "medium": {
+        "count": 1,
+        "scale": 1.5
+      },
+      "hard": {
+        "count": 2,
+        "scale": 1.5
       }
     }
   }

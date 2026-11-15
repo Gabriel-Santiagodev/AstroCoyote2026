@@ -2,7 +2,7 @@
 
 **Qué contiene:** qué pide exactamente la NASA, cómo nos califican los jueces, cómo lo cubre nuestro juego web de 5 minutos y el texto oficial completo (incluyendo *NASA Data & Resources*).  
 **Dueños:** Rubén, Abraham  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h)
 
 ## En una frase
 
@@ -19,7 +19,7 @@ Crear un **videojuego web interactivo (1 a 4 jugadores)** donde los participante
 | **Validar compatibilidad masa / órbita / lanzador** | Nodo 1 (`NODE_1_LAUNCH`) y Nodo 2 (`NODE_2_PROPULSION`) en `decision_tree.py` evalúan capacidad del cohete, presupuesto y $\Delta v$ de Tsiolkovsky. |
 | **Simular la misión con eventos y operación por turnos** | **Fase de Vuelo de 60 segundos**: animación del cohete en ruta mientras ocurren eventos reales (tormenta solar, nube de polvo, conjunción solar) y los jugadores responden por turnos preguntas/crisis de ingeniería de 15 s (`story_tree.json`). |
 | **Evaluar y explicar por qué la misión tuvo éxito o falló** | **Dashboard Final de Retroalimentación NASA**: se muestra siempre (gane o pierda), detallando la cadena causal numérica, el puntaje (0–1,000 pts), un dato histórico real NASA y el botón de reintentar/rediseñar. |
-| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, conceptos explicados visualmente en el juego (sin exigir conocimientos previos de ingeniería) y partida ágil de ~5 minutos. |
+| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, guías paso a paso y conceptos científicos explicados dentro de cada minijuego espectral/orbital (`educational_guide`, sin exigir conocimientos previos) y partida ágil de ~5 minutos. |
 
 ## Cómo nos califican (5 criterios globales)
 

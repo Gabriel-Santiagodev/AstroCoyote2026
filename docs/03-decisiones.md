@@ -8,6 +8,15 @@ Lo más nuevo va arriba.
 
 ---
 
+## 15 de noviembre de 2026 · Juego sin límite de tiempo (Leonardo)
+
+| Tema | Decisión vigente | Qué reemplaza |
+|---|---|---|
+| **Sin cronómetro en estaciones ni en el vuelo** `[DECIDIDO]` | Por pedido explícito de Leonardo tras la prueba de juego: cada estación abre con una **tarjeta de briefing** (por qué importa, metas, controles) y el jugador bloquea su toma cuando quiere (`duration_sec = 0` en `iniciar_oleada_*`). El vuelo es de **4 capítulos por turnos sin reloj** (`pregunta_vuelo_60s.duration_sec = 0`); la bitácora muestra el resultado 4 s antes del siguiente capítulo. El backend conserva un **respaldo AFK oculto** (`wave_backstop_sec = 150`, `flight_backstop_sec = 90` en `backend/game_manager.py`) para que un jugador inactivo no bloquee la sala. Partida objetivo: 3–5 min. | Reemplaza la modalidad de 30 s de A5 y el reloj de 4 × 15 s del vuelo. Se mantienen la toma única (1 toma), el árbol de 4 nodos y la degradación causal. |
+| **Sin pantallas de carga intermedias** `[DECIDIDO]` | Se eliminan los loaders de arranque, lobby → estación 1, sincronización, plataforma y reporte; en su lugar hay cinemáticas cortas en la pista (caminata del escuadrón, "Sharing your choices", despegue). | Reemplaza las `MissionLoadingScreen` intermedias. |
+
+---
+
 ## 14 de noviembre de 2026 (15:00 h) · Pivote Oficial del Hackathon (24 horas)
 
 Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo la coordinación de **Rubén** tras el traspaso de Roberto, el equipo acuerda el pivote completo a un videojuego **100 % software web**, consolidando los documentos maestros de Leonardo (`arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` y `arquitectura_y_dependencias_nasa_space_challenge.md`).

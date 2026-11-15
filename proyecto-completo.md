@@ -2,7 +2,7 @@
 
 Archivo generado el 2026-11-15 con `node herramientas/combinar.mjs`. No lo edites a mano: edita los archivos de `docs/` y vuelve a generarlo.
 
-Contiene 25 archivos, en este orden: README.md, TRASPASO.md, docs/00-indice.md, docs/01-proyecto.md, docs/02-reto.md, docs/03-decisiones.md, docs/04-juego.md, docs/05-mvp.md, docs/06-datos-nasa.md, docs/07-hardware.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/11-entrega.md, docs/12-roles.md, docs/13-plan-48h.md, docs/14-tareas.md, docs/15-preguntas-frecuentes.md, docs/16-glosario.md, docs/17-roadmap-ruben.md, docs/18-roadmap-ismael.md, docs/19-roadmap-abraham.md, docs/20-roadmap-schoenstadt.md, docs/21-roadmap-leonardo.md, docs/22-como-trabajar-y-hacer-merge.md.
+Contiene 27 archivos, en este orden: README.md, TRASPASO.md, docs/00-indice.md, docs/01-proyecto.md, docs/02-reto.md, docs/03-decisiones.md, docs/04-juego.md, docs/05-mvp.md, docs/06-datos-nasa.md, docs/07-hardware.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/11-entrega.md, docs/12-roles.md, docs/13-plan-48h.md, docs/14-tareas.md, docs/15-preguntas-frecuentes.md, docs/16-glosario.md, docs/17-roadmap-ruben.md, docs/18-roadmap-ismael.md, docs/19-roadmap-abraham.md, docs/20-roadmap-schoenstadt.md, docs/21-roadmap-leonardo.md, docs/22-como-trabajar-y-hacer-merge.md, docs/23-retroalimentacion-pruebas.md, docs/24-validacion-reto.md.
 
 ---
 
@@ -122,6 +122,8 @@ Mucho éxito al equipo en estas 24 horas en Querétaro.
 | `20-roadmap-schoenstadt.md` | Roadmap paso a paso de **Schoenstadt** (Motor físico, `randomizer.py`, Árbol de Decisiones de 4 Nodos y Árbol de Preguntas del Vuelo de 60s). | Schoenstadt |
 | `21-roadmap-leonardo.md` | Roadmap paso a paso de **Leonardo** (Sistema visual *Paper Mario × Among Us*, Menús, Lobby, Pista Lineal, Vuelo 60s y Dashboard). | Leonardo |
 | `22-como-trabajar-y-hacer-merge.md` | Reglas de trabajo en paralelo tipo rompecabezas, auto-instalación, pruebas aisladas (`/dev-sandbox` / `pytest`) y protocolo de `git merge` sin conflictos. | Rubén, Equipo |
+| `24-validacion-reto.md` | Matriz de trazabilidad reto → juego, hechos NASA revisados y corregidos, verificación y pendientes. | Leonardo, Equipo |
+| `23-retroalimentacion-pruebas.md` | Resultados de las pruebas de juego en local (solo y multijugador), correcciones aplicadas y áreas de oportunidad priorizadas (P0–P2) con dueño sugerido. | Leonardo, Equipo |
 
 ### Documentos maestros de arquitectura complementarios (en la raíz)
 - `arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` — Especificación matemática, ecuaciones orbitales, integración `logica/` + `juegos_espectrales/`, `randomizer.py` y `decision_tree.py`.
@@ -247,7 +249,7 @@ Para **ganar el NASA Space Apps Challenge 2026**, evitamos caer en el típico si
 
 **Qué contiene:** qué pide exactamente la NASA, cómo nos califican los jueces, cómo lo cubre nuestro juego web de 5 minutos y el texto oficial completo (incluyendo *NASA Data & Resources*).  
 **Dueños:** Rubén, Abraham  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h)
 
 ## En una frase
 
@@ -264,7 +266,7 @@ Crear un **videojuego web interactivo (1 a 4 jugadores)** donde los participante
 | **Validar compatibilidad masa / órbita / lanzador** | Nodo 1 (`NODE_1_LAUNCH`) y Nodo 2 (`NODE_2_PROPULSION`) en `decision_tree.py` evalúan capacidad del cohete, presupuesto y $\Delta v$ de Tsiolkovsky. |
 | **Simular la misión con eventos y operación por turnos** | **Fase de Vuelo de 60 segundos**: animación del cohete en ruta mientras ocurren eventos reales (tormenta solar, nube de polvo, conjunción solar) y los jugadores responden por turnos preguntas/crisis de ingeniería de 15 s (`story_tree.json`). |
 | **Evaluar y explicar por qué la misión tuvo éxito o falló** | **Dashboard Final de Retroalimentación NASA**: se muestra siempre (gane o pierda), detallando la cadena causal numérica, el puntaje (0–1,000 pts), un dato histórico real NASA y el botón de reintentar/rediseñar. |
-| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, conceptos explicados visualmente en el juego (sin exigir conocimientos previos de ingeniería) y partida ágil de ~5 minutos. |
+| **Accesible, educativo y divertido (no *AI slop*)** | Estética híbrida **Paper Mario × Among Us + HUD NASA**, guías paso a paso y conceptos científicos explicados dentro de cada minijuego espectral/orbital (`educational_guide`, sin exigir conocimientos previos) y partida ágil de ~5 minutos. |
 
 ## Cómo nos califican (5 criterios globales)
 
@@ -392,6 +394,15 @@ Lo más nuevo va arriba.
 
 ---
 
+## 15 de noviembre de 2026 · Juego sin límite de tiempo (Leonardo)
+
+| Tema | Decisión vigente | Qué reemplaza |
+|---|---|---|
+| **Sin cronómetro en estaciones ni en el vuelo** `[DECIDIDO]` | Por pedido explícito de Leonardo tras la prueba de juego: cada estación abre con una **tarjeta de briefing** (por qué importa, metas, controles) y el jugador bloquea su toma cuando quiere (`duration_sec = 0` en `iniciar_oleada_*`). El vuelo es de **4 capítulos por turnos sin reloj** (`pregunta_vuelo_60s.duration_sec = 0`); la bitácora muestra el resultado 4 s antes del siguiente capítulo. El backend conserva un **respaldo AFK oculto** (`wave_backstop_sec = 150`, `flight_backstop_sec = 90` en `backend/game_manager.py`) para que un jugador inactivo no bloquee la sala. Partida objetivo: 3–5 min. | Reemplaza la modalidad de 30 s de A5 y el reloj de 4 × 15 s del vuelo. Se mantienen la toma única (1 toma), el árbol de 4 nodos y la degradación causal. |
+| **Sin pantallas de carga intermedias** `[DECIDIDO]` | Se eliminan los loaders de arranque, lobby → estación 1, sincronización, plataforma y reporte; en su lugar hay cinemáticas cortas en la pista (caminata del escuadrón, "Sharing your choices", despegue). | Reemplaza las `MissionLoadingScreen` intermedias. |
+
+---
+
 ## 14 de noviembre de 2026 (15:00 h) · Pivote Oficial del Hackathon (24 horas)
 
 Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo la coordinación de **Rubén** tras el traspaso de Roberto, el equipo acuerda el pivote completo a un videojuego **100 % software web**, consolidando los documentos maestros de Leonardo (`arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` y `arquitectura_y_dependencias_nasa_space_challenge.md`).
@@ -461,13 +472,13 @@ Al iniciar el evento (**sábado 14 nov 15:00 h a domingo 15 nov 15:00 h**) bajo 
 
 # 04 · El juego
 
-**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo *Among Us*, pista lineal de estaciones en cadena, vuelo de 60 segundos con preguntas por turnos y reporte educativo NASA.  
+**Qué contiene:** diseño completo del videojuego de 5 minutos paso a paso: menús, lobby estilo Kahoot/PIN, pista lineal de preparación en cadena (donde empacas/diseñas tus subsistemas), fase de travesía y supervivencia inspirada en el videojuego ***60 Seconds! / 60 Parsecs!*** (cabina 2D + bitácora de crisis + saltos de escena con pantallas de carga) y reporte educativo NASA.  
 **Dueños:** Schoenstadt, Rubén  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (22:20 h)
 
 ## En una frase
 
-Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estilo **Paper Mario × Among Us**, donde cada ingeniero recorre una **pista lineal automática de estaciones** resolviendo minijuegos en paralelo cuyas decisiones se afectan en cadena en tiempo real, para luego enfrentar un **vuelo espacial de 60 segundos con crisis por turnos** y recibir retroalimentación científica real de la NASA.
+Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con estética **2D Flash Arcade (`ASTRO SPRITES`) + supervivencia en cabina estilo *60 Seconds! / 60 Parsecs!***, donde cada ingeniero diseña y equipa los subsistemas en dos estaciones cronometradas de 30 s, para después encerrarse en la **cabina de la nave espacial**, enfrentar las 4 compuertas de crisis consultando la **Bitácora del Capitán** con **saltos entre escenas y pantallas de carga**, y recibir retroalimentación científica real de la NASA.
 
 ---
 
@@ -475,11 +486,11 @@ Un videojuego web cooperativo y educativo de **5 minutos** (1 a 4 jugadores) con
 
 | Fase | Pantalla principal | Qué ocurre | Duración |
 |---|---|---|---|
-| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Si es multi, entrar por PIN tipo *Among Us*, elegir rol (1–4) y seleccionar 1 de 3 misiones + dificultad. | ~0:30 |
-| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | El personaje camina automáticamente a la Estación 1. Los roles ejecutan su primer minijuego de 30 s en paralelo; las decisiones mutan restricciones en vivo. | ~1:00 |
-| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | El personaje avanza automáticamente a la Estación 2. Cada rol juega su segundo minijuego (30 s) adaptado a lo que acaban de decidir sus compañeros. | ~1:00 |
-| **3 · Vuelo de 60 Segundos** | `Flight60sView` | Vemos el cohete/nave viajar por el espacio. Se atraviesan los 4 Nodos del Árbol de Decisiones con **4 rondas de preguntas/crisis por turnos** (15 s c/u). | 1:00 |
-| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Se revela éxito total, parcial o fallo con cadena causal numérica exacta, dato real NASA y botón de Reintentar / Rediseñar. | ~1:30 |
+| **0 · Inicio y Lobby** | `HomeMenu` $\rightarrow$ `LobbyView` | Elegir `Singleplayer` o `Multiplayer`. Pantalla Principal en Host (PC/TV) y entrada por PIN en celulares; elegir especialista `ASTRO SPRITES` (1–4) y 1 de 3 misiones + dificultad. | ~0:30 |
+| **1 · Pista Lineal: Estación 1 (Oleada 1)** | `LinearStationTrack` + `MinigameShell` | Los especialistas avanzan automáticamente a la Estación 1 y equipan presupuesto, chasis/escudo térmico, órbita e instrumentos (30 s, mutación en vivo). *(Equivalente a la fase de recolección rápida de 60 Seconds!)*. | ~1:00 |
+| **2 · Pista Lineal: Estación 2 (Oleada 2)** | `LinearStationTrack` + `MinigameShell` | Tras la pantalla de carga `wave1_to_wave2` (5 s), cada rol equipa lanzador, balanceo CG, energía 3D y enlace DSN (30 s) antes del salto al lanzamiento. | ~1:00 |
+| **3 · Travesía en Cabina estilo *60 Seconds!*** | `Flight60sView` | **Cabina 2D estilo *60 Seconds! / 60 Parsecs!*:** vemos a los 4 Astro Sprites dentro de la nave rodeados de los subsistemas que sí diseñaron, abriendo la **Bitácora de Crisis** en 4 rondas por turnos (15 s c/u) con **saltos de escena y pantallas de carga** entre cada compuerta. | 1:00 |
+| **4 · Retroalimentación NASA** | `MissionReportDashboard` | Tras la pantalla de carga de decodificación (`flight_to_report`), se revela éxito total, parcial o fallo con cadena causal numérica, dato real NASA e historial comparativo. | ~1:30 |
 
 ---
 
@@ -516,6 +527,7 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 ```
 
 - Al empezar cada oleada, el personaje estilo *Paper Mario × Among Us* **camina automáticamente** con animación de balanceo 2.5D hasta la estación correspondiente, abre la compuerta y lanza el minijuego en `MinigameShell`.
+- **Briefing y sin reloj (2026-11-15):** al abrirse cada estación aparece una tarjeta con *por qué importa*, las metas y los controles (`frontend/src/data/stationBriefings.ts`); el jugador pulsa **Start**, juega sin cronómetro y bloquea cuando quiere. Cada minijuego es una ventana de pantalla completa (`MinigameShell fill` + `components/minigames/kit/GameKit.tsx`: zona de juego + panel de metas, lecturas en vivo y botón de bloqueo) sin desplazamiento de página.
 - **Sincronización en Multiplayer:** Todos los jugadores ven su pista avanzar de forma sincronizada y trabajan en paralelo en sus respectivas consolas de estación.
 - **Concurrencia y afectación en cadena en vivo (`mutacion_en_vivo`):**
   - El HUD superior muestra en todo momento las **barras compartidas de la misión** (*Mass*, *Budget*, *Power*, *Data / Comms*, *UFE Reserve*).
@@ -541,19 +553,25 @@ A diferencia de *Among Us*, **el jugador nunca deambula perdido por un mapa**. E
 
 ---
 
-## Paso 3 · Dinámica de 60 Segundos de Vuelo Espacial (Por Turnos)
+## Paso 3 · Fase de Supervivencia en Cabina estilo *60 Seconds!* (`Flight60sView`)
 
-Al terminar la Estación 2, el estado consolidado se vuelve inmutable y comienza el **Vuelo Espacial de 60 Segundos (`Flight60sView`)**:
+Al terminar la Estación 2 (como cuando termina la recolección y se cierra la escotilla en *60 Seconds! / 60 Parsecs!*), el estado consolidado se vuelve inmutable y la tripulación salta a la **Fase de Travesía y Supervivencia en Cabina (`Flight60sView`)** dividida en **4 escenas / capítulos de 15 segundos por turnos** (60 s en total):
 
-1. **Visualización en vivo:** Vemos el cohete despegar desde la plataforma, cruzar la órbita y viajar hacia la Luna / Asteroide / Marte mientras un reloj de `60s` desciende y una línea temporal muestra los **4 Nodos de Decisión**.
-2. **Evaluación + 4 Preguntas / Crisis por Turnos (15 s por ronda):**
-   - El servidor recorre el árbol causal (`decision_tree.py` + `story_tree.json`) adaptado a lo que el equipo **sí construyó** en las estaciones.
-   - **Ronda 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Pregunta/decisión de crisis en lanzamiento (ej. si la masa o costo quedaron al límite, el **Turno de Rol 1** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *abortar carga no crítica*). Si el veto físico es imposible ($m_{\text{wet}} > m_{\max}$ por mucho), igual se dispara la secuencia de análisis para que el jugador vea exactamente dónde reventó la estructura.
-   - **Ronda 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de Rol 3 / Rol 2** enfrenta la maniobra crítica de frenado o corrección de $\Delta v$ (ej. si el CG quedó desbalanceado a `1.5x`, aparece una alerta de vibración en el motor y el jugador en turno decide maniobra de compensación o aerofrenado de emergencia).
-   - **Ronda 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Se dispara la contingencia real de la misión (*Tormenta Solar Cislunar*, *Nube de Polvo y Micro-rocas* o *Tormenta de Polvo Marciana + Atasque del Brazo*) junto con el chequeo de Escudo Térmico. El **Turno de Rol 2 / Rol 3** elige la respuesta táctica según la batería, RTG, Autonomía Visual o reserva UFE disponible.
-   - **Ronda 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de Rol 4** decide cómo priorizar el enlace de $160\text{ Gbit}$ antes de la Conjunción Solar o pérdida de ventana (comprimir espectroscopía, sacrificar fotos de contexto o forzar potencia de antena).
-   - **En Singleplayer:** El jugador responde las 4 rondas consecutivas (una cada 15 s) mientras el cohete vuela.
-   - **En Multiplayer:** Cada pregunta se asigna por turno rotativo a un jugador conectado (`¡TURNO DE [NOMBRE]!`), mientras los demás observan la alerta en pantalla y animan al compañero.
+1. **Escenario Diorama 2D estilo *60 Seconds!* (Cabina de Mando + Estantes de Subsistemas):**
+   - La pantalla principal muestra el **interior ilustrado 2D de la cabina/módulo de mando** (panel metálico, ventana espacial hacia Luna/Asteroide/Marte, indicadores de salud de la nave y estantería con los objetos/subsistemas que el equipo realmente logró configurar en Estación 1 y 2: caja de Reserva UFE, Escudo Térmico TPS, Tanque/Giroscopio de CG, Banco de Energía y Rack Espectral/Antena DSN).
+   - Los **4 `ASTRO SPRITES`** (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) aparecen dentro de la cabina reaccionando en vivo (`idle`, `work`, `panic` si `rocket_health_pct` baja o hay alerta crítica, `cheer` al superar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Decisiones + 4 Compuertas por Turnos (15 s por ronda):**
+   - En cada ronda el jugador activo abre la **Bitácora / Portapapeles de Crisis** (inspirado en el diario ilustrado de *60 Seconds!*) adaptado a lo que el equipo **sí construyó** en las estaciones.
+   - **Escena 1 (0–15 s · `NODE_1_LAUNCH` — Despegue y Presupuesto):** Crisis en plataforma; el **Turno de `ASTRO_ENGINEER` (Rol 1)** decide entre *eyectar lastre/etapa auxiliar*, *consumir reserva UFE* o *arriesgar carga*.
+   - **Escena 2 (15–30 s · `NODE_2_PROPULSION` — Inserción Orbital / Trayectoria):** El **Turno de `ASTRO_SOLDIER` (Rol 3 / Rol 2)** enfrenta la maniobra de $\Delta v$ o vibración de CG desbalanceado (`1.5x`).
+   - **Escena 3 (30–45 s · `NODE_3_EVENT` — Evento Espacial Real):** Contingencia espacial real (*Tormenta Solar Cislunar*, *Nube de Polvo*, *Tormenta Marciana*) + chequeo de Escudo Térmico. El **Turno de `ASTRO_MEDIC` (Rol 2 / Rol 3)** elige la respuesta táctica según batería/RTG/escudo disponible.
+   - **Escena 4 (45–60 s · `NODE_4_DOWNLINK` — Ventana DSN y Descarga Científica):** El **Turno de `ASTRO_DEFENDER` (Rol 4)** prioriza el enlace de $160\text{ Gbit}$ antes de perder la ventana con la Tierra.
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al responder cada compuerta, aparece la consecuencia inmediata en la Bitácora (`resultado_turno_vuelo`: `PASS`, `DEGRADED`, `CRITICAL` + animación de daños/chispas o estabilización en la cabina) y acto seguido se ejecuta un **Salto de Escena con cortina / pantalla de carga de transición** (ej. `"DAY / STAGE 02 — ENTERING DEEP SPACE TRANSIT..."`) antes de pasar al siguiente capítulo o al desenlace `flight_to_report`.
+4. **Host Main Stage vs. Celular por PIN:**
+   - **En pantalla Principal (Host):** diorama completo de cabina, los 4 Astro Sprites reaccionando, barra de los 4 Nodos y alerta gigante de quién tiene la Bitácora en su mano.
+   - **En el Celular (Jugador en turno):** tarjeta portátil estilo Bitácora de *60 Seconds!* con botones táctiles grandes (`1–4`) y reloj de 15 s; si es turno de otro compañero, muestra un visor compacto de espera con el personaje activo.
+   - **En Singleplayer:** el jugador humano resuelve las 4 páginas consecutivas de la Bitácora (una cada 15 s).
 
 ---
 
@@ -572,6 +590,21 @@ Tanto si la misión termina en **`FULL_SUCCESS`**, **`PARTIAL_SUCCESS`** o **`FA
    - Relaciona lo que vivió el jugador con *Artemis I*, *OSIRIS-REx* o *Mars Reconnaissance Orbiter (MRO)* citando la fuente oficial.
 4. **Aporte por Rol y Botón `Redesign & Retry`:**
    - Muestra qué aportó cada rol (humano o IA) y permite volver de inmediato a mejorar la estrategia en menos de 5 minutos.
+
+## Flujo vigente del videojuego (2026-11-15, iteraciones de jugabilidad)
+
+1. **Pantalla de carga única** (solo al abrir el juego): animación `loading-loop.webp` generada en Python sobre el fondo de nebulosa del arte.
+2. **Menú principal** (mockup del equipo): *ASTRO SQUAD* + `SINGLE PLAYER`, `MULTI PLAYER` y engrane de opciones (nombre, sonido, música, cómo jugar, sandbox). Botones en placa dorada MLI / acero cepillado con letras blancas, paleta tomada del arte.
+3. **Multijugador:** `HOST MATCH` (apodo → sala) o `JOIN MATCH` estilo Kahoot (PIN → apodo). En la sala, banner con dirección, PIN grande y jugadores conectados (los asientos vacíos los vuela la IA).
+4. **Rol → Misión** (cada misión trae su dificultad: Luna fácil, asteroide media, Marte difícil).
+5. **Estaciones:** cinemática a pantalla completa (el escuadrón camina a la puerta) → briefing → minijuego a pantalla completa (2 por jugador) → *Waiting for the crew* si otros no han terminado → cinemática → estación 2.
+6. **Árbol de decisiones en vivo:** franja *If we launched now* con las 4 compuertas (Liftoff, Engine burn, Space hazard, Call Earth) recalculadas por el servidor tras cada decisión.
+7. **Despegue según la misión** (destino Luna/asteroide/Marte con sprites del arte) → **fase de supervivencia**: un evento aleatorio por partida (tormenta solar, micrometeoroide, caída de antena DSN, eyección de partículas, tormenta de polvo, conjunción solar) que el diseño puede bloquear (p. ej. RTG contra la tormenta de polvo) → 4 capítulos de bitácora → reporte con el evento y su fuente real.
+
+### Dificultad y pronóstico (2026-11-15, P0 de `docs/23`)
+
+- **Curva de dificultad por peligros espaciales** (`story_tree.json → random_events._difficulty`, estimado del juego): *easy* = 1 evento ×1.0, *medium* = 1 evento ×1.5, *hard* = 2 eventos distintos ×1.5. Simulado: Luna perdona; asteroide sin cámara autónoma → éxito parcial; Marte exige RTG (o batería alta) **y** código de señal limpio para el éxito total (con energía solar la tormenta de polvo deja la batería bajo 25 % → éxito parcial).
+- **Pronóstico honesto:** cada compuerta muestra *Not decided · waits ROL* hasta que su rol actúa (Liftoff → Engineer en estación 2, Engine burn → Soldier en estación 1, Space hazard → Medic en estación 1, Call Earth → Defender en estación 2); los asientos de IA cuentan como decididos al rellenarse. Etiqueta *+ hazards · dificultad* recuerda que al despegar llegan peligros aleatorios.
 
 ---
 
@@ -661,7 +694,7 @@ Sabemos que el juego está listo para ganar cuando una persona ajena al equipo (
 
 **Qué contiene:** todas las constantes físicas verificadas, ecuaciones orbitales y termodinámicas, catálogo de misiones, cohetes, instrumentos y espectros, con sus fuentes reales y su estado de verificación.  
 **Dueño:** Abraham *(en coordinación con Schoenstadt para el árbol causal)*  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 **Regla sagrada:** Prohibido inventar números dentro del código. Todos los valores parametrizables viven en `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`, y cada registro incluye su campo `"fuente"`.
 
@@ -766,14 +799,26 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 | **Antena HGA y enlace DSN** | $3\text{ m}$, $0.5\text{–}6.0\text{ Mbps}$, margen $\ge +3.0\text{ dB}$, memoria $160\text{ Gbit}$ | verificado / fuente secundaria | JPL DESCANSO (`MRO_092106.pdf`) |
 | **Retraso señal Tierra–Marte / Conjunción** | $4\text{–}25\text{ min}$ / cada $\sim 26\text{ meses}$ ($\sim 2\text{ semanas}$ sin comandos) | fuente secundaria / verificado NASA | arXiv 2211.14245 / science.nasa.gov |
 | **Luz solar en Marte** | $\sim 590\text{ W/m}^2$ ($\approx 43\%$ de la Tierra) | fuente secundaria | NASA Mars Fact Sheet (NSSDCA) |
-| **HiRISE** | $64.2\text{–}65\text{ kg}$, $60\text{ W}$, $0.3\text{ m/píxel}$, altísimo volumen de datos | sin verificar (confirmar NSSDCA) | NASA MRO Science |
-| **CTX** | $3\text{ kg}$, $7\text{ W}$ ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | sin verificar | NASA MRO Science |
-| **CRISM** | $32\text{–}33\text{ kg}$, espectrómetro mineralógico | sin verificar | NASA MRO Science |
-| **MARCI** | $0.481\text{ kg}$, cámara climática diaria | sin verificar | NASA MRO Science |
-| **MCS** | $9\text{ kg}$, $11\text{ W}$, temperatura y polvo atmosférico | sin verificar | NASA MRO Science |
-| **SHARAD** | Radar subsuperficial (hielo), $40\text{–}90\text{ Gbit/día}$ | sin verificar | NASA MRO Science |
+| **HiRISE** | $65.0\text{ kg}$, $60\text{ W}$ promedio, $0.3\text{ m/píxel}$, hasta $28\text{ Gbit/imagen}$ | verificado / fuente secundaria | NASA MRO Science / `uahirise.org` |
+| **CTX** | $3.0\text{ kg}$, $7\text{ W}$ activo ($5\text{ W}$ reposo), fotos $6\text{ m/píxel}$ | verificado | NASA MRO Science |
+| **CRISM** | $32.9\text{ kg}$, $44.4\text{ W}$ operación ($16.1\text{ W}$ standby), espectrómetro mineralógico | verificado | NASA MRO / JHUAPL (`crism.jhuapl.edu`) |
+| **MARCI** | $0.481\text{ kg}$ (heritage base), $<5\text{ W}$ activo, cámara climática diaria | verificado / fuente secundaria | NASA MRO / Malin Space Science Systems |
+| **MCS** | $9.0\text{ kg}$, $11.0\text{ W}$, temperatura y polvo atmosférico | verificado | NASA MRO Science |
+| **SHARAD** | $15.0\text{–}16.6\text{ kg}$, $10\text{ W}$ RF ($\sim 20\text{ W}$ pico), $40\text{–}90\text{ Gbit/día}$ | verificado / fuente secundaria | NASA MRO (ASI / JPL) |
 
-*(Nota para Abraham — tarea `ABR-01`: confirmar masas/potencias exactas de HiRISE, CRISM, MARCI, SHARAD y fijar costos de balance de juego en `nasa_catalog.json` antes de H6).*
+### Instrumentos verificados para M1 (LRO / Luna) y M2 (OSIRIS-REx / Asteroide)
+| Misión | Instrumento | Masa / Potencia | Estado | Fuente |
+|---|---|---|---|---|
+| **M1 (Luna)** | **LROC** (Lunar Reconnaissance Orbiter Camera) | $16.5\text{ kg}$, $22.0\text{ W}$ prom. ($30\text{ W}$ pico) | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LOLA** (Lunar Orbiter Laser Altimeter) | $15.3\text{ kg}$, $39.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **Diviner (DLRE)** (Radiómetro Lunar) | $11.9\text{ kg}$, $21.6\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M1 (Luna)** | **LAMP** (Mapeador UV Lyman-Alpha) | $5.3\text{ kg}$, $4.86\text{ W}$ | verificado | NASA LRO (`science.nasa.gov/mission/lro/`) |
+| **M2 (Asteroide)** | **OVIRS** (Espectrómetro Vis-IR) | $17.8\text{ kg}$, $8.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OTES** (Espectrómetro Emisión Térmica) | $6.27\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+| **M2 (Asteroide)** | **OLA** (Altímetro Láser) | $22.9\text{ kg}$, $\sim 75\text{ W}$ | verificado | NASA OSIRIS-REx / CSA |
+| **M2 (Asteroide)** | **REXIS** (Espectrómetro Rayos X Regolito) | $4.4\text{ kg}$, $10.8\text{ W}$ prom. | verificado | NASA OSIRIS-REx / *Space Science Reviews* |
+
+*(Nota `ABR-01` completada: todos los instrumentos de MRO, LRO y OSIRIS-REx quedan verificados con fuentes oficiales y sincronizados con `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`; únicamente `cost_musd`, `science_value` y `data_gbit_day` estimados conservan etiqueta explícita de balance de juego).*
 
 ### Parámetros de las 3 Misiones del juego
 | Parámetro | M1 (Fácil): *Artemis Moon* | M2 (Media): *Asteroid Hunter* | M3 (Difícil): *Mars Sample Return (MSR/MRO)* |
@@ -789,10 +834,12 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 
 ## 6. Datos espectrales de referencia (`juegos_espectrales/`)
 
-- **Líneas estelares de Balmer / Dobletes:** $\text{H}\alpha = 656.3\text{ nm}$, $\text{H}\beta = 486.1\text{ nm}$, $\text{Na} = 589.0\text{ nm}$, $\text{Ca II} = 393.4\text{ nm}$; Ley de Wien $T = \frac{2.898 \times 10^6\text{ nm}\cdot\text{K}}{\lambda_{\max}}$. *(Fuente verificada: NIST Atomic Spectra Database).*
-- **Bandas FTIR de minerales/biofirmas:** $\text{Si–O–Si} \approx 1,050\text{ cm}^{-1}$, $\text{O–H} = 3,200\text{–}3,550\text{ cm}^{-1}$, $\text{C=O} \approx 1,700\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,610\text{–}1,640\text{ cm}^{-1}$, Hélice $\alpha$ $1,650\text{–}1,658\text{ cm}^{-1}$).
+- **Líneas estelares de Balmer / Dobletes / Emisión (NIST ASD):** $\text{H}\alpha = 656.28\text{ nm}$, $\text{H}\beta = 486.13\text{ nm}$, $\text{H}\gamma = 434.05\text{ nm}$, $\text{Na D1/D2} = 589.59 / 588.99\text{ nm}$, $\text{Ca II K} = 393.37\text{ nm}$, $\text{He I} = 587.56\text{ nm}$, $\text{O III} = 500.68\text{ nm}$; Ley de desplazamiento de Wien $\lambda_{\max} \cdot T = 2,897,771.955\text{ nm}\cdot\text{K}$. *(Fuente verificada: NIST Atomic Spectra Database / CODATA 2018).*
+- **Bandas FTIR de minerales/biofirmas (`cm-1`):** Silicatos $\text{Si–O–Si} \approx 1,045\text{ cm}^{-1}$, Carbonatos $\text{CO}_3 \approx 1,435\text{ cm}^{-1}$, Agua ligada $\text{H}_2\text{O} \approx 1,630\text{ cm}^{-1}$, Carbonilo $\text{C=O} \approx 1,720\text{ cm}^{-1}$, Arcillas hidratadas $\text{O–H} \approx 3,620\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,632\text{ cm}^{-1}$, Hélice $\alpha$ $1,654\text{ cm}^{-1}$, Giro $\beta$ $1,676\text{ cm}^{-1}$).
 - **Índices multiespectrales:** $\text{NDVI} = \frac{\text{NIR}-\text{Rojo}}{\text{NIR}+\text{Rojo}}$, $\text{NDWI} = \frac{\text{Verde}-\text{NIR}}{\text{Verde}+\text{NIR}}$, $\text{NBR} = \frac{\text{NIR}-\text{SWIR}}{\text{NIR}+\text{SWIR}}$.
+- **Dispersión óptica de Cauchy (*Misión Fotón*):** $n(\lambda) = A + B/\lambda^2$ con $\lambda$ en $\mu\text{m}$ (*Fused Silica* $A=1.458, B=0.00354$; *BK7* $A=1.5046, B=0.00420$; *Sapphire* $A=1.754, B=0.00610$).
 - **Matriz DTMF (*Espectro Hacker*):** Filas $\{697, 770, 852, 941\}\text{ Hz}$ $\times$ Columnas $\{1209, 1336, 1477, 1633\}\text{ Hz}$. *(Estándar ITU-T Q.23).*
+- **Arquetipos implementados y espectros reales:** Los 8 modos (`cazadores_estrellas`, `detectives_luz`, `ecoespectro`, `laboratorio_musical`, `mision_foton`, `bioespectro`, `ladron_colores`, `espectro_hacker`) funcionan con generadores sintéticos calibrados o cargando CSVs reales vía `cargar_espectro_csv` / `backend/juegos_espectrales/datos_reales/<mission_id>.csv`, incluyendo guías educativas paso a paso en `educational_guide`.
 
 ---
 
@@ -809,12 +856,25 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
       "data_gbit_day": 90.0,
       "cost_musd": 40.0,
       "science_value": 45.0,
-      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/",
-      "estado": "verificar masa exacta"
+      "fuente": "https://science.nasa.gov/mission/mars-reconnaissance-orbiter/ & https://www.uahirise.org/",
+      "estado": "verificado (~65 kg, ~60 W, hasta 28 Gbit/imagen) / estimado juego (costo)"
     }
   ]
 }
 ```
+
+## Reglas de racionalidad (auditoría 2026-11-15)
+
+- **Capacidad útil del lanzador = capacidad al destino:** asteroide y Marte usan la de escape terrestre (`max_mass_mars_kg`); la **Luna** usa la mayor entre escape e inyección translunar (`max_mass_tli_kg`): Vulcan VC6 **11 500 kg** (C3 −2 km²/s², `ulalaunch.com/rockets/vulcan-centaur`) y Electron + Lunar Photon **25 kg** (demostrado: CAPSTONE, NSSDC 2022-070A). Sin cifra con fuente para el destino → 0 kg y el Nodo 1 falla con *no alcanza el destino*. Lo aplican `game_manager`, la IA (`randomizer.py`, el más barato que alcanza) y Rol 1B. Vulcan GTO = 14 500 kg (ULA).
+- **Propelente (Rol 3A):** se dimensiona con el Δv de la ruta elegida × margen 1.05 (el mismo que usa la compuerta del Nodo 2); ya no se resta otra vez `propellant_delta_kg` (doble conteo).
+- **Reserva UFE:** las opciones de vuelo que gastan reserva ahora la reducen (antes la aumentaban).
+- **Eventos aleatorios:** `story_tree.json → random_events` (efectos = estimado del juego; fenómenos con fuente: NOAA SWPC, NASA ODPO, OSIRIS-REx, NASA Mars, DSN).
+- **Pendiente con fuente antes de implementar:** horas de contacto DSN por día (para *Data* vs capacidad de bajada), duración de misión (*Time*) por ruta, pérdida de trayecto real Tierra–Marte/Luna, potencia real de un MMRTG (~110 W), costo de instrumentos en el presupuesto y foto del despegue (`launch_snapshot`) para que el Nodo 1 no cambie con respuestas de vuelo.
+
+- **Data (2026-11-15):** horas de enlace/día = Gbit/día ÷ (Mbps × 3600 / 1000). Límite: `constants.dsn_data_hours_per_day` = **10 h/día** (MRO: ~16 h/día de seguimiento DSN, 10–11 h enviando datos; `descanso.jpl.nasa.gov/DPSummary/MRO_092106.pdf`). Si se necesitan más horas, la compuerta *Call Earth* se degrada.
+- **Pérdida real Tierra–destino (informativa):** FSPL = 92.45 + 20 log d(km) + 20 log f(GHz) (ITU-R P.525), banda X de la DSN 8.4 GHz: Luna (384 400 km) **222.6 dB**; Marte (54.6–401.4 millones de km, NSSDC) **265.7–283.0 dB**. Campo `earth_link_fspl_db` por misión; se muestra en el HUD *COMMS*. El margen del juego sigue usando la órbita elegida.
+- **Diferidos:** MMRTG ~110 W al inicio de misión (`science.nasa.gov`, RPS FAQ) y ~45 kg (kit de prensa Mars 2020): no se aplica porque el resto del modelo de potencia es estimado del juego. Costos de instrumentos: sin fuente pública por instrumento (estimado del equipo). **Time:** `transit_days` de la ruta (ya con fuente). La IA del piloto ahora elige una ruta real del catálogo.
+- **Hechos corregidos:** Artemis I usó una órbita retrógrada distante (no retorno libre; eso es Artemis II). El presupuesto de MSR del juego está escalado y lo indica con fuente.
 
 ---
 
@@ -920,31 +980,43 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 | `iniciar_oleada_2` | `{ "sync_delay_sec": 5, "duration_sec": 30, "consolidated_wave1": dict, "spectral_challenge"?: dict }` | Anima la caminata automática de Estación 1 $\rightarrow$ Estación 2 (5 s) y abre `1B/2B/3B/4B` con las salidas exactas de Oleada 1. |
 | `iniciar_vuelo_60s` | `{ "total_duration_sec": 60, "consolidated_state": dict, "preliminary_gates": dict }` | Cambia de la Pista Lineal a `Flight60sView` (despegue animado del cohete). |
 | `pregunta_vuelo_60s` | `{ "round": 1 \| 2 \| 3 \| 4, "duration_sec": 15, "gate": str, "active_role": RoleType, "active_player_name": str, "question": FlightQuestionNode }` | Muestra la crisis espacial, activa los botones de respuesta solo para el jugador en turno (o único jugador) y corre el cronómetro de 15 s. |
-| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 2 s antes de la siguiente pregunta. |
+| `resultado_turno_vuelo` | `{ "round": int, "chosen_option": str, "immediate_feedback": str, "rocket_health_pct": float, "gate_status": "PASS" \| "DEGRADED" \| "CRITICAL" }` | Dispara feedback visual en el cohete (ej. escudo brillando, corrección de trayectoria o modo seguro) durante 4 s antes de la siguiente pregunta (`flight_feedback_sec`; subido de 2 s a 4 s el 2026-11-15 para que la Bitácora del Capitán se lea con calma). **Desde el 2026-11-15 `duration_sec = 0` en `iniciar_oleada_1/2` y `pregunta_vuelo_60s` significa *sin reloj*:** el cliente no muestra cuenta atrás y el servidor solo aplica un respaldo AFK oculto. |
 | `reporte_final_mision` | `MissionResolutionOutcome` + `{ "role_contributions": [...], "decision_history": [...] }` | Transiciona a `MissionReportDashboard` mostrando siempre resultado, puntaje (0–1,000), explicación causal y dato real NASA. |
+
+## Extensiones opcionales (2026-11-15, sin cambiar nombres de eventos)
+
+| Evento | Campo nuevo (opcional) | Significado |
+|---|---|---|
+| `iniciar_oleada_1` | `gate_forecast` | Pronóstico inicial de las 4 compuertas (`PASS` / `DEGRADED` / `CRITICAL`) calculado con `decision_tree.evaluate_preliminary_gates` sobre el estado compartido. |
+| `mutacion_en_vivo` | `gate_forecast` | Pronóstico en vivo tras cada decisión parcial **y** tras cada toma bloqueada (el servidor emite un `mutacion_en_vivo` extra después de `jugador_bloqueo_toma`). La UI lo muestra como *If we launched now*. |
+| `iniciar_vuelo_60s` | `preliminary_gates` (ahora relleno) y `random_event` | `random_event = { event_id, title, description, mitigated, mitigation_text, applied_effects, fuente }`: el evento de supervivencia aplicado al despegar (semilla = PIN de sala). |
+| `reporte_final_mision` | `random_event` | El mismo resumen, para el análisis causal del reporte. |
+| `iniciar_vuelo_60s` y `reporte_final_mision` | `random_events` | Lista de todos los eventos de la partida (*hard* recibe dos); `random_event` sigue siendo el primero por compatibilidad. |
+| `reporte_final_mision` | `collaboration` | `{ score 0–100, humans, own_locks_pct, answered_pct, gates_ready_at_liftoff }`: 40 % estaciones bloqueadas por humanos (sin respaldo de IA), 30 % llamadas de vuelo respondidas, 30 % compuertas `PASS` al despegar. |
+| `mutacion_en_vivo` | `quiet` | `true` en el refresco que el servidor manda tras un bloqueo: la UI actualiza métricas y pronóstico sin toast. |
 
 ---
 
 <!-- Archivo: docs/09-arte-y-sonido.md -->
 > **Archivo: `docs/09-arte-y-sonido.md`**
 
-# 09 · Arte y Sonido (Paper Mario × Among Us + HUD NASA)
+# 09 · Arte y Sonido (2D Flash Arcade `ASTRO SPRITES` × *60 Seconds!* Cabin + HUD NASA)
 
-**Qué contiene:** identidad visual oficial del videojuego para evitar el aspecto genérico de simulador (*AI slop*), paleta de colores, anatomía de los personajes recortables 2.5D, animaciones de pista lineal y vuelo, tipografía y reglas legales de arte/IA.  
+**Qué contiene:** identidad visual oficial del videojuego para evitar el aspecto genérico de simulador (*AI slop*), paleta de colores, anatomía de los 4 personajes 2D (`ASTRO SPRITES`), estética de cabina y bitácora estilo *60 Seconds! / 60 Parsecs!*, transiciones con pantallas de carga, tipografía y reglas legales de arte/IA.  
 **Dueño:** Leonardo  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (22:20 h)
 
 ---
 
-## Concepto Visual: *Paper Mario × Among Us + HUD NASA* (`[DECIDIDO]`)
+## Concepto Visual: *2D Flash Arcade (`ASTRO SPRITES`) × Cabina 60 Seconds! + HUD NASA* (`[DECIDIDO]` / `[ACTUALIZADO]`)
 
-Queremos un juego con personalidad propia e inolvidable frente a los jueces:
-- **De *Among Us*:** Tripulantes/ingenieros espaciales adorables y expresivos con visor brillante, mochila de soporte vital y silueta clara reconocible a distancia (ideal en celulares y en el video de 30 s). Además, la vibra de sala de espera en el Lobby y consolas de tarea por estación.
-- **De *Paper Mario*:** Todo personaje, nave, ficha, cohete y tarjeta se siente como un **recorte de cartulina gruesa 2.5D**:
-  - **Doble borde tipo sticker:** Borde blanco interior (`3px solid #FFFFFF`) + contorno grueso de tinta oscura (`3px solid #0F172A`) + sombra sólida sin difuminado (`box-shadow: 4px 4px 0px #0F172A` o `drop-shadow(4px 4px 0px #0F172A)`).
-  - **Movimiento tipo papel:** Cuando el personaje camina automáticamente en `LinearStationTrack`, hace pequeños saltos con inclinación (`rotate: [-4deg, 4deg]`) y al voltear o aparecer realiza un giro plano (`scaleX` / `rotateY` de papel en Framer Motion).
-  - **Profundidad por capas (*Diorama*):** Fondo estelar con `tsParticles`, planetas de cartulina en capas parallax detrás de la pista lineal y tarjetas de minijuego que caen o se despliegan como sobres/carpetas de ingeniería.
-- **Del *HUD Aeroespacial NASA*:** Telemetría de precisión en tipografía monoespaciada (`IBM Plex Mono`), barras segmentadas de recursos y etiquetas técnicas reales (`MASS 2,180 / 4,020 kg`, `DSN +3.4 dB`, `UFE 26 %`).
+Queremos un juego con personalidad propia, visual profesional de **videojuego 2D estilo Flash Arcade** e inolvidable frente a los jueces:
+- **De los `ASTRO SPRITES` (Originales 2D — Cero Copyright):** Reemplazamos cualquier silueta tipo frijol (*Among Us*) por **4 astronautas SVG de cuerpo completo con contornos gruesos `#0F172A`**, visor LED animado, mochila propulsora, rodilleras y equipamiento específico de rol (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`), sin ningún riesgo de derechos de autor.
+- **De *60 Seconds! / 60 Parsecs!* (Cabina, Bitácora y Saltos de Escena):** Tras la fase de preparación cronometrada en las estaciones (Estación 1 y 2), la fase de vuelo/travesía (`Flight60sView`) adopta la jugabilidad clásica de **cabina 2D + Bitácora del Capitán**: los personajes dentro del módulo espacial con sus subsistemas visibles en estantes/consolas, decisiones de supervivencia tipo diario ilustrado y **saltos de escena con pantallas de carga temáticas** entre cada nodo.
+- **De *Paper Mario* / Cartulina 2D Arcade:**
+  - Contorno de tinta oscura (`3px solid #0F172A`), paneles metálicos `.flash-panel`, consolas portátiles para celular `.handheld-console-frame`, cintas `.hazard-stripe-bar` y sombras sólidas sin difuminado (`5px 5px 0px #0F172A`).
+  - Fondo estelar con `tsParticles` + planetas parallax detrás del módulo/pista.
+- **Del *HUD Aeroespacial NASA*:** Telemetría de precisión en tipografía monoespaciada (`IBM Plex Mono`), barras segmentadas de recursos (`ResourceHUD`) y etiquetas técnicas reales (`MASS 2,180 / 4,020 kg`, `DSN +3.4 dB`, `UFE 26 %`).
 
 ---
 
@@ -983,20 +1055,21 @@ Queremos un juego con personalidad propia e inolvidable frente a los jueces:
 
 ---
 
-## Reglas para Componentes Estilo *Paper Mario × Among Us* (Para Ismael, Abraham y Leonardo)
+## Reglas para Componentes Estilo *2D Flash Arcade & Diorama NASA* (Para Ismael, Abraham y Leonardo)
 
-Para que los minijuegos de **Ismael** y **Abraham** se vean idénticos a la UI de **Leonardo**, Tailwind CSS tendrá clases utilitarias compartidas en `frontend/src/index.css`:
+Para que los minijuegos de **Ismael** y **Abraham** se vean coherentes con la UI de **Leonardo**, Tailwind CSS tiene clases utilitarias compartidas en `frontend/src/index.css`:
 
-- `.paper-card`: fondo `#162347` o `#F8FAFC`, `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
+- `.paper-card` / `.flash-panel`: fondo `#162347` / degradado metálico de cabina, `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
 - `.paper-btn`: efecto físico al presionar (`active:translate-x-[3px] active:translate-y-[3px] active:shadow-none`) con sombra dura `4px 4px 0px #0F172A`.
-- `<CrewmateAvatar role={role} state="idle | walk | work | panic | cheer" />`: componente SVG modular creado por **Leonardo** reutilizado en Lobby, Pista Lineal, Vuelo 60 s y Podio final. **Importante:** dibujado en SVG original por nuestro equipo (cero sprites extraídos de otros juegos con copyright).
+- `.handheld-console-frame` y `.hazard-stripe-bar`: consola portátil para jugadores en celular y cintas industriales arcade.
+- `<CrewmateAvatar role={role} state="idle | walk | work | panic | cheer" />`: componente SVG modular de nuestros **4 `ASTRO SPRITES` 2D completos** creado por **Leonardo** (junto con `ROLE_CHARACTER_PROFILE` y `<MissionLoadingScreen />` en `frontend/src/components/paper/LoadingScreen.tsx`) reutilizado en Lobby, Pista Lineal, Cabina estilo *60 Seconds!* y Podio final.
 
 ---
 
 ## Audio y Efectos de Sonido (Extra después de H18)
 
 - Si sobra tiempo tras el MVP en H18, usar únicamente audio **CC0 / dominio público** (paquetes *Kenney Sci-Fi Sounds* / *Interface Sounds*) o tonos sintetizados con la **Web Audio API** nativa del navegador (cero archivos pesados, carga instantánea).
-- Sonidos clave: clic de cartulina, campana de estación completada, alerta de mutación en cadena, cuenta regresiva de 5 s, propulsor en vuelo de 60 s y fanfarria/alarma final.
+- Sonidos clave: clic de cartulina, campana de estación completada, alerta de mutación en cadena, cuenta regresiva de 5 s, paso de página de bitácora / salto de escena estilo *60 Seconds!* y fanfarria/alarma final.
 - Siempre incluir un botón `Mute / Unmute` en la esquina superior derecha.
 
 ---
@@ -1004,7 +1077,7 @@ Para que los minijuegos de **Ismael** y **Abraham** se vean idénticos a la UI d
 ## Reglas Legales de Arte e IA (Space Apps)
 
 1. **NUNCA usar el logo oficial de la NASA** en pantallas, naves ni portada.
-2. **Nada de sprites con copyright externo:** Los tripulantes estilo *Among Us* y estilo *Paper Mario* son **homenaje estético original dibujado en SVG/CSS por el equipo**, jamás assets extraídos de los juegos originales de Innersloth o Nintendo.
+2. **Nada de sprites con copyright externo (cero siluetas Among Us):** Los 4 especialistas `ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER` y `ASTRO_DEFENDER` son **personajes originales dibujados en SVG por el equipo** en `CrewmateAvatar.tsx`, sin ningún asset ni parecido protegido por Innersloth o Nintendo.
 3. **Si se usa cualquier imagen o video generado por IA**, debe llevar **marca de agua visible** y declararse en `referencias.md` y en la sección *AI Use* de la entrega. (Al dibujar todo en SVG + CSS + Three.js procedural evitamos este riesgo por completo).
 
 ---
@@ -1170,7 +1243,7 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
 1. `Vector` acepta `variable` (`Absorbancia`, `Transmitancia`, `Intensidad`, `Reflectancia`) y `unidadX` (`cm-1`, `nm`, `Hz`).
 2. `AnalizadorFTIR.Deconvolucion` protege `_p0_inicial` con bordes sintéticos cuando no haya depresiones intermedias.
 3. `Plantilla.puede(paso)` devuelve `(False, motivo_educativo)` y aplica penalización leve ($-3\text{ pts}$) sin lanzar excepción fatal.
-4. `adaptadores_web.py` envía máximo $500\text{–}1,000$ puntos `(x, y)` por WebSocket/JSON y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`.
+4. `adaptadores_web.py` envía máximo $500$ puntos `(x, y)` preservando picos y fallos por WebSocket/JSON, incluye `educational_guide` por juego y califica las marcas en servidor con `puntaje.emparejar(..., tolerancia)`. Además expone `generar_reto_juego(...)` (los 8 arquetipos), `ejecutar_accion_espectral(...)` (interacción paso a paso con `Vector`/`AnalizadorFTIR`/`Plantilla`) y `cargar_espectro_csv(...)` / `datos_reales/<mission_id>.csv` para enchufar espectros experimentales reales sin cambiar el contrato frontend.
 
 ---
 
@@ -1184,6 +1257,19 @@ Para garantizar 0 bloqueos en la web durante los 30 s del Rol 4:
   - `frontend/src/views/*`, `frontend/src/components/paper/*`, `MinigameShell.tsx` $\rightarrow$ **Leonardo**
 - **Sandbox de prueba aislada:** Leonardo creará la ruta local `/dev-sandbox` (`DevSandboxView.tsx`) donde Ismael y Abraham pueden renderizar y probar cada uno de sus 8 minijuegos en solitario con `mockLiveMetrics` antes de conectar el Socket.IO real.
 - **`main` siempre compila y arranca:** Nunca hacer `git push` directo con código roto; usar ramas cortas por tarea (`feat/ism-rol2a`, `feat/sch-60s-tree`) y revisar que pase `npm run build` / `pytest` antes de integrar.
+
+### Extensión opcional de `LiveMetrics` (2026-11-15)
+
+Campos **opcionales** añadidos (no se renombró ninguno) para los recursos del reto *Data* y *Time*, calculados en `backend/physics_engine.compute_live_metrics`:
+
+| Campo | Significado | Origen |
+|---|---|---|
+| `data_generated_gbit_day?` | Datos científicos por día | Suma de `data_gbit_day` de los instrumentos (Rol 4A, catálogo) |
+| `downlink_rate_mbps?` | Velocidad del enlace | Rol 4B |
+| `downlink_hours_needed?` | Horas de contacto por día necesarias = datos ÷ (Mbps × 3.6) | Conversión de unidades |
+| `mission_duration_days?` | Días de viaje de la ruta elegida | `mission_routes[].transit_days` del catálogo |
+
+Si las horas necesarias superan 24 h/día, la compuerta `NODE_4_DOWNLINK` se degrada y el reporte explica el cuello de botella (`decision_tree.data_return_ratio`).
 
 ---
 
@@ -1381,7 +1467,7 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (18:00 h)
+**Última actualización:** 2026-11-15 (01:08 h · `RUB-01` a `RUB-05`, `ISM-01` a `ISM-04`, `SCH-01` a `SCH-05`, `ABR-01` a `ABR-06`, `LEO-01` a `LEO-09` integrados)
 
 ## Cómo leer esta tabla
 
@@ -1400,11 +1486,11 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | RUB-01 | Completar `backend/requirements.txt`, `backend/main.py` (FastAPI + Socket.IO ASGI + CORS) y verificar arranque en `0.0.0.0:8000` | — | H1 | `/health` responde `200 OK` y cliente Socket.IO conecta en red local | MVP |
-| [ ] | RUB-02 | Implementar salas en memoria en `backend/game_manager.py`: `crear_sala` (PIN 6 chars), `unirse_sala` (máx. 4), `seleccionar_rol_mision` | RUB-01 | H3 | Hasta 4 clientes ven actualizado el Lobby sin colisión de roles | MVP |
-| [ ] | RUB-03 | Implementar relojes autoritativos (30 s Oleada 1, 5 s sync lineal, 30 s Oleada 2) y cierre automático al llegar a `0 s` o al bloquear todos los humanos | RUB-02, SCH-03 | H6 | Al terminar el timer, avanza solo sin quedarse trabado aunque alguien no haga clic | MVP |
-| [ ] | RUB-04 | Implementar pipeline de concurrencia en vivo: recibir `accion_parcial_minijuego`, llamar `physics_engine.py` y emitir `mutacion_en_vivo` a toda la sala | RUB-03, SCH-02 | H8 | Mover un parámetro en un cliente actualiza las barras y límites en otra pestaña al instante | MVP |
-| [ ] | RUB-05 | Orquestar la fase de Vuelo 60s en `game_manager.py`: 4 rondas × 15 s rotando turno entre jugadores conectados (`pregunta_vuelo_60s` $\rightarrow$ `resultado_turno_vuelo` $\rightarrow$ `reporte_final_mision`) | RUB-03, SCH-04, SCH-05 | H10 | Partida completa de 1 y 2 jugadores cierra ciclo hasta el reporte final | MVP |
+| [x] | RUB-01 | Completar `backend/requirements.txt`, `backend/main.py` (FastAPI + Socket.IO ASGI + CORS) y verificar arranque en `0.0.0.0:8000` | — | H1 | `/health` responde `200 OK` y cliente Socket.IO conecta en red local | MVP |
+| [x] | RUB-02 | Implementar salas en memoria en `backend/game_manager.py`: `crear_sala` (PIN 6 chars), `unirse_sala` (máx. 4), `seleccionar_rol_mision` | RUB-01 | H3 | Hasta 4 clientes ven actualizado el Lobby sin colisión de roles | MVP |
+| [x] | RUB-03 | Implementar relojes autoritativos (30 s Oleada 1, 5 s sync lineal, 30 s Oleada 2) y cierre automático al llegar a `0 s` o al bloquear todos los humanos | RUB-02, SCH-03 | H6 | Al terminar el timer, avanza solo sin quedarse trabado aunque alguien no haga clic | MVP |
+| [x] | RUB-04 | Implementar pipeline de concurrencia en vivo: recibir `accion_parcial_minijuego`, llamar `physics_engine.py` y emitir `mutacion_en_vivo` a toda la sala | RUB-03, SCH-02 | H8 | Mover un parámetro en un cliente actualiza las barras y límites en otra pestaña al instante | MVP |
+| [x] | RUB-05 | Orquestar la fase de Vuelo 60s en `game_manager.py`: 4 rondas × 15 s rotando turno entre jugadores conectados (`pregunta_vuelo_60s` $\rightarrow$ `resultado_turno_vuelo` $\rightarrow$ `reporte_final_mision`) | RUB-03, SCH-04, SCH-05 | H10 | Partida completa de 1 y 2 jugadores cierra ciclo hasta el reporte final | MVP |
 | [ ] | RUB-06 | Deploy público de Frontend + Backend WebSocket accesible desde fuera de la red del hackathon (`[ABIERTO A10]`) | LEO-09, RUB-05 | H18 | Juez o teléfono en datos móviles juega la partida completa sin cortes de WebSocket | MVP |
 
 ---
@@ -1413,15 +1499,15 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
-| [ ] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
-| [ ] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
-| [ ] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
-| [ ] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
-| [ ] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
-| [ ] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
-| [ ] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
-| [ ] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
+| [x] | LEO-01 | Configurar `frontend/` (Vite, React, TS, Tailwind, Framer Motion, Lucide, Three.js, Socket.IO client), `types/game.ts` (`MinigameProps`) y `socket.ts` | — | H1 | `npm run dev -- --host` levanta sin errores TS | MVP |
+| [x] | LEO-02 | Sistema visual *Paper Mario × Among Us* (`index.css`, `.paper-card`, `.paper-btn`, `Starfield.tsx`, `<CrewmateAvatar />` en 4 colores + estados) | LEO-01 | H3 | Los 4 avatares SVG con borde blanco/negro y sombra dura animan su caminata en pantalla | MVP |
+| [x] | LEO-03 | Crear ruta `/dev-sandbox` (`DevSandboxView.tsx`) y `MinigameShell.tsx` (reloj 30 s, bloqueo de toma, indicador `mutacion_en_vivo`, fallback de emergencia) | LEO-01, LEO-02 | H3 | Ismael y Abraham prueban sus componentes aislados con `mockLiveMetrics` | MVP |
+| [x] | LEO-04 | Construir `HomeMenu.tsx` (Singleplayer / Multiplayer) y `LobbyView.tsx` (PIN estilo *Among Us*, selección de rol, selección de 3 misiones y dificultad) | LEO-02, RUB-02 | H4 | Flujo Menú $\rightarrow$ Lobby sincroniza en vivo con Backend | MVP |
+| [x] | LEO-05 | Construir `LinearStationTrack.tsx`: pista lineal con caminata automática hacia Estación 1 y Estación 2, `ResourceHUD.tsx` en vivo y toasts de mutación | LEO-03, LEO-04 | H6 | El personaje avanza solo entre estaciones y abre `MinigameShell` al llegar | MVP |
+| [x] | LEO-06 | Construir `Flight60sView.tsx`: animación de cohete viajando en el espacio durante 60 s, barra de 4 Nodos, indicador de turno y tarjetas de respuesta de 15 s | LEO-02, RUB-05 | H9 | Al recibir `pregunta_vuelo_60s`, solo el jugador en turno responde y ve reacción del cohete | MVP |
+| [x] | LEO-07 | Construir `MissionReportDashboard.tsx`: veredicto (`FULL_SUCCESS`/`PARTIAL_SUCCESS`/`FAILED`), score 0–1,000, cadena causal, dato NASA y botón `Redesign & Retry` | LEO-02, SCH-04 | H10 | Siempre muestra explicación educativa clara sin importar si ganó o falló | MVP |
+| [x] | LEO-08 | Conectar los 4 minijuegos de Oleada 1 (`Rol1A`–`Rol4A`) en `LinearStationTrack` para el Corte Vertical H10 | LEO-05, ISM-01, ISM-02, ABR-03, ABR-04 | H10 | Partida completa jugable con los 4 roles de Estación 1 reales | MVP |
+| [x] | LEO-09 | Conectar los 4 minijuegos de Oleada 2 (`Rol1B`–`Rol4B`) y pulir animaciones *Paper Mario* en todas las vistas | LEO-08, ISM-03, ISM-04, ABR-05, ABR-06 | H15 | Los 8 minijuegos corren integrados en pista lineal de extremo a extremo | MVP |
 
 ---
 
@@ -1429,10 +1515,10 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | ISM-01 | `Rol2A_TopologicalAssembly.tsx` (*Spacecraft Design*): armar la nave en orden (Cuerpo $\rightarrow$ Paneles $\rightarrow$ Escudo $\rightarrow$ Tornillos $\rightarrow$ Cables) | LEO-03 | H6 | Probado en `/dev-sandbox`; avisa qué piezas puso y entrega masa + escudo térmico | MVP |
-| [ ] | ISM-02 | `Rol1A_BudgetTable.tsx` (*Budgets*): repartir 10 monedas en 3 cajas + 2 cartas de gastos urgentes | LEO-03 | H8 | Emite en vivo el presupuesto de ciencia/energía y reserva; funciona en PC y celular | MVP |
-| [ ] | ISM-03 | `Rol1B_LauncherAuction.tsx` (*Launch Vehicles*): elegir cohete (*Electron*, *Falcon 9*, *Vulcan*, *Falcon Heavy*, *Rideshare*) viendo si cabe el peso | LEO-03, ABR-01 | H12 | Indica en verde/rojo en tiempo real si la masa del equipo cabe en el cohete elegido | MVP |
-| [ ] | ISM-04 | `Rol2B_MassBalanceTask.tsx` (*Mass & CG*): colocar las piezas de los compañeros en los cuadritos hasta centrar el punto en el círculo verde | LEO-03 | H14 | Actualiza el equilibrio en vivo y tiene el botón rojo para tirar peso extra | MVP |
+| [x] | ISM-01 | `Rol2A_TopologicalAssembly.tsx` (*Spacecraft Design*): armar la nave en orden (Cuerpo $\rightarrow$ Paneles $\rightarrow$ Escudo $\rightarrow$ Tornillos $\rightarrow$ Cables) | LEO-03 | H6 | Probado en `/dev-sandbox`; avisa qué piezas puso y entrega masa + escudo térmico | MVP |
+| [x] | ISM-02 | `Rol1A_BudgetTable.tsx` (*Budgets*): repartir 10 monedas en 3 cajas + 2 cartas de gastos urgentes | LEO-03 | H8 | Emite en vivo el presupuesto de ciencia/energía y reserva; funciona en PC y celular | MVP |
+| [x] | ISM-03 | `Rol1B_LauncherAuction.tsx` (*Launch Vehicles*): elegir cohete (*Electron*, *Falcon 9*, *Vulcan*, *Falcon Heavy*, *Rideshare*) viendo si cabe el peso | LEO-03, ABR-01 | H12 | Indica en verde/rojo en tiempo real si la masa del equipo cabe en el cohete elegido | MVP |
+| [x] | ISM-04 | `Rol2B_MassBalanceTask.tsx` (*Mass & CG*): colocar las piezas de los compañeros en los cuadritos hasta centrar el punto en el círculo verde | LEO-03 | H14 | Actualiza el equilibrio en vivo y tiene el botón rojo para tirar peso extra | MVP |
 
 ---
 
@@ -1440,11 +1526,11 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | SCH-01 | Definir esquemas Pydantic en `backend/models/session.py` (`MissionSessionConfig`, `ConsolidatedMissionState`, `FlightQuestionNode`, `MissionResolutionOutcome`) | — | H2 | Importa limpio y valida payloads de las 3 misiones | MVP |
-| [ ] | SCH-02 | Implementar `backend/physics_engine.py`: WGS84, Tsiolkovsky, FSPL, CG y función `compute_live_metrics(partial_state)` para concurrencia en vivo entre estaciones | SCH-01 | H4 | Pasa tests `pytest` en `backend/tests/test_engine.py` contra `06-datos-nasa.md` | MVP |
-| [ ] | SCH-03 | Implementar `backend/randomizer.py` (Oleada 1 por arquetipos y Oleada 2 con *Constraint-Aware Clamping* acoplado al estado humano) | SCH-01, SCH-02 | H6 | Partidas simuladas de 1, 2 y 3 jugadores generan configuraciones consistentes sin fallos absurdos | MVP |
-| [ ] | SCH-04 | Implementar `backend/decision_tree.py`: compuertas deterministas de 4 Nodos (`NODE_1_LAUNCH` a `NODE_4_DOWNLINK`), puntaje 0–1,000 y explicaciones causales NASA | SCH-02, ABR-01 | H6 | Tests unitarios validan casos `FAILED`, `PARTIAL_SUCCESS` y `FULL_SUCCESS` con explicación exacta | MVP |
-| [ ] | SCH-05 | Diseñar e implementar `backend/story_tree.json` + evaluador de turnos del **Vuelo 60s**: 4 rondas por partida con ramificación por estado real (masa al límite, CG 1.5x, sin escudo, baja batería, poca UFE, conjunción solar) | SCH-04, ABR-01 | H9 | Cada misión (M1/M2/M3) tiene múltiples casos condicionales que reaccionan a las decisiones de las estaciones | MVP |
+| [x] | SCH-01 | Definir esquemas Pydantic en `backend/models/session.py` (`MissionSessionConfig`, `ConsolidatedMissionState`, `FlightQuestionNode`, `MissionResolutionOutcome`) | — | H2 | Importa limpio y valida payloads de las 3 misiones | MVP |
+| [x] | SCH-02 | Implementar `backend/physics_engine.py`: WGS84, Tsiolkovsky, FSPL, CG y función `compute_live_metrics(partial_state)` para concurrencia en vivo entre estaciones | SCH-01 | H4 | Pasa tests `pytest` en `backend/tests/test_engine.py` contra `06-datos-nasa.md` | MVP |
+| [x] | SCH-03 | Implementar `backend/randomizer.py` (Oleada 1 por arquetipos y Oleada 2 con *Constraint-Aware Clamping* acoplado al estado humano) | SCH-01, SCH-02 | H6 | Partidas simuladas de 1, 2 y 3 jugadores generan configuraciones consistentes sin fallos absurdos | MVP |
+| [x] | SCH-04 | Implementar `backend/decision_tree.py`: compuertas deterministas de 4 Nodos (`NODE_1_LAUNCH` a `NODE_4_DOWNLINK`), puntaje 0–1,000 y explicaciones causales NASA | SCH-02, ABR-01 | H6 | Tests unitarios validan casos `FAILED`, `PARTIAL_SUCCESS` y `FULL_SUCCESS` con explicación exacta | MVP |
+| [x] | SCH-05 | Diseñar e implementar `backend/story_tree.json` + evaluador de turnos del **Vuelo 60s**: 4 rondas por partida con ramificación por estado real (masa al límite, CG 1.5x, sin escudo, baja batería, poca UFE, conjunción solar) | SCH-04, ABR-01 | H9 | Cada misión (M1/M2/M3) tiene múltiples casos condicionales que reaccionan a las decisiones de las estaciones | MVP |
 
 ---
 
@@ -1452,12 +1538,12 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Tarea | Depende de | Para | Terminado cuando | Prioridad |
 |---|---|---|---|---|---|---|
-| [ ] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
-| [ ] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
-| [ ] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
-| [ ] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
-| [ ] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
-| [ ] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
+| [x] | ABR-01 | Completar `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py` con todos los datos verificados de MRO, Artemis, OSIRIS-REx, cohetes, órbitas e instrumentos con `"fuente"` | — | H3 | Ningún número en el catálogo carece de `"fuente"` verificada o marcada como balance | MVP |
+| [x] | ABR-02 | Integrar `backend/logica/` y `backend/juegos_espectrales/` (`Vector`, `AnalizadorFTIR` protegido en `_p0_inicial`, `Plantilla.puede`, `puntaje.emparejar`, `adaptadores_web.py`) | ABR-01 | H5 | `adaptadores_web.py` genera y califica retos para M1, M2, M3 y *Espectro Hacker* por HTTP/WS | MVP |
+| [x] | ABR-03 | `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*): selector órbita/ruta (LEO/SSO/MEO/GEO o dilemas M1–M3) + motor (Hidracina/Biprop/Hall) con cálculo FSPL y $\Delta v$ en vivo | LEO-03, ABR-01 | H7 | Probado en `/dev-sandbox`; actualiza `fspl_loss_db` y `propellant_mass_kg` en `onLiveMutation` | MVP |
+| [x] | ABR-04 | `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*): selector de instrumentos NASA + calibración gráfica con marcas sobre espectro real enviado por `adaptadores_web.py` | LEO-03, ABR-02 | H8 | Devuelve `selected_instruments` y `spectral_marks` para cálculo real de $F_1$ en servidor | MVP |
+| [x] | ABR-05 | `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*): osciloscopio DSN con deriva (agravada si `!cg_balanced`) + limpieza/clave DTMF (*Espectro Hacker*) + slider bitrate | LEO-03, ABR-02 | H13 | Compensa FSPL para alcanzar $\ge +3.0\text{ dB}$ y verifica watts vs. `liveMetrics.available_power_w` | MVP |
+| [x] | ABR-06 | `Rol3B_AstroLogistics3D.tsx` (*Power 3D*): escena Three.js con rover recolectando Química/Baterías/Celdas $\text{H}_2$ (capacidad máx. 3, spawn rate según `funding_factor_F`) | LEO-03 | H14 | Corre fluido en navegador con teclado WASD + joystick táctil y emite `total_energy_mj` / `battery_reserve_pct` | MVP |
 
 ---
 
@@ -1479,9 +1565,9 @@ En un sprint de **24 horas**, trabajar agotado destruye la productividad a parti
 
 | ✓ | ID | Extra | Dueño | Terminado cuando |
 |---|---|---|---|---|
-| [ ] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
-| [ ] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
-| [ ] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |
+| [x] | EXT-01 | Sonidos CC0 / Web Audio API + botón Mute | Leonardo | Feedback sonoro en estaciones, alertas 60 s y podio |
+| [x] | EXT-02 | Cortinillas de papel doblado y `canvas-confetti` en `FULL_SUCCESS` | Leonardo | Transiciones extra sin bajar FPS |
+| [x] | EXT-03 | Historial comparativo de intentos en `MissionReportDashboard` al pulsar *Redesign* | Schoenstadt, Leonardo | Muestra intento anterior vs. actual |
 
 ---
 
@@ -1538,12 +1624,13 @@ Exclusivamente de `06-datos-nasa.md` y `frontend/src/data/nasa_catalog.json` con
 
 **Qué contiene:** definición rápida y sencilla de los términos de ingeniería espacial, espectroscopía y desarrollo web usados en este proyecto.  
 **Dueño:** Abraham  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h)
 
 | Término | Significado en este proyecto |
 |---|---|
 | **1 Toma (One-Shot)** | Modalidad de los minijuegos de 30 s: no hay botón de deshacer tras confirmar o al agotarse el reloj, obligando al equipo a asumir consecuencias reales. |
 | **Árbol de 4 Nodos** | Evaluador determinista (`decision_tree.py`) que revisa secuencialmente: Nodo 1 Lanzamiento $\rightarrow$ Nodo 2 Propulsión/$\Delta v$ $\rightarrow$ Nodo 3 Escudo/Evento $\rightarrow$ Nodo 4 Ciencia/DSN. |
+| **`cargar_espectro_csv` (`datos_reales/`)** | Cargador ligero en Python puro (`csv` + `numpy`) que convierte archivos experimentales reales (`%T`, `Absorbancia`, `Intensidad`, `Reflectancia`) en objetos `Vector` listos para los minijuegos. |
 | **Centro de Gravedad (CG)** | Punto de equilibrio de masa de la nave. Si queda fuera de tolerancia ($d_{\text{CG}} > R_{\text{tol}}$), dispara `fuel_burn_multiplier = 1.5x` y desestabiliza la antena DSN. |
 | **CML 4 (Concept Maturity Level 4)** | Nivel de madurez conceptual de NASA/JPL donde se exige un margen de crecimiento de masa (*Mass Growth Allowance*) $\ge 35\%$. |
 | **Concurrencia en vivo (`mutacion_en_vivo`)** | Mecanismo por Socket.IO donde cada decisión tomada en una estación modifica al instante las barras y restricciones físicas de los compañeros en paralelo. |
@@ -1563,9 +1650,14 @@ Exclusivamente de `06-datos-nasa.md` y `frontend/src/data/nasa_catalog.json` con
 | **`MinigameProps`** | Contrato TypeScript en `frontend/src/types/game.ts` que todos los minijuegos implementan para conectarse como piezas intercambiables. |
 | **Paper Mario × Among Us** | Estilo visual del juego: tripulantes espaciales adorables con acabado de cartulina recortada 2.5D (doble contorno blanco/negro, sombra sólida, animación de papel). |
 | **Pista Lineal (`LinearStationTrack`)** | Recorrido automático en línea recta entre Estación 1 y Estación 2, reemplazando la caminata libre en mapa. |
+| **`Plantilla.puede` (Flujo FTIR)** | Regla educativa en `backend/logica/proyecto.py` que enseña el orden correcto (*Baseline $\rightarrow$ Region $\rightarrow$ Modelo*), devolviendo aviso y penalización leve ($-3\text{ pts}$) sin detener la partida. |
 | **Rideshare** | Vuelo espacial compartido (SpaceX *Transporter/Bandwagon* v11) cobrado por masa/placa para cargas ligeras ($\le 831\text{ kg}$). |
 | **RTG ($\text{Pu-238}$)** | Generador termoeléctrico por radioisótopos; genera energía constante independiente de la luz solar o tormentas de polvo marcianas. |
+| **`Rubberband` (Línea Base)** | Estimador de línea base por envolvente convexa inferior que elimina la deriva instrumental antes de recortar o deconvolucionar bandas. |
+| **`Tracker` ($d^2y/dx^2$ + MAD)** | Detector automático en `AnalizadorFTIR` que identifica picos estrechos no físicos (fallos de sensor o rayos cósmicos) usando la segunda derivada y desviación mediana absoluta. |
 | **UFE (Unallocated Future Expenses)** | Reserva presupuestaria de contingencia exigida por NASA (NPR 7120.5: $\ge 25\%\text{–}30\%$) para no cancelar la misión ante imprevistos. |
+| **`Vector` Espectral** | Clase núcleo en `backend/logica/vector.py` que almacena ejes `(x, y)`, unidades (`cm-1`, `nm`, `Hz`), variable física, derivadas y serialización $\le 500$ puntos preservando picos. |
+| **Voigt / Pseudo-Voigt** | Perfiles analíticos de banda que combinan ensanchamiento gaussiano (térmico/instrumental) y lorentziano (colisional/natural) para separar picos superpuestos. |
 | **Vuelo de 60 Segundos (`Flight60sView`)** | Fase animada posterior a las estaciones donde la nave viaja por el espacio mientras se disparan 4 rondas de 15 s de preguntas/crisis por turnos (`story_tree.json`). |
 
 ---
@@ -1878,49 +1970,56 @@ Requisitos en inglés con estilo Paper Mario x Among Us (.paper-card, .paper-btn
 
 # 19 · Roadmap Paso a Paso: Abraham (Datos NASA, Motor Espectral y Minijuegos de Ciencia, Órbita, DSN y Energía 3D)
 
-**Tu misión en estas 24 horas:** Mantener la **validez científica NASA** (criterio global de evaluación), adaptar el **motor analítico espectral** heredado (`logica/` + `juegos_espectrales/`) y construir los **4 minijuegos científicos, orbitales, de comunicaciones DSN y de logística energética 3D**.
+**Tu misión en estas 24 horas:** Mantener la **validez científica NASA** (criterio global de evaluación), adaptar el **motor analítico espectral** heredado (`logica/` + `juegos_espectrales/`) y construir los **4 minijuegos científicos, orbitales, de comunicaciones DSN y de logística energética 3D**.  
+**Estado actual (`2026-11-14 23:50 h`):** `[x] ABR-01`, `[x] ABR-02`, `[x] ABR-03`, `[x] ABR-04`, `[x] ABR-05` y `[x] ABR-06` implementados y verificados con `pytest` y `tsc && vite build`.
 
 ---
 
 ## Árbol exacto de carpetas y archivos donde trabajas
 
-Todos estos archivos ya existen en el repositorio listos para que tu agente trabaje directamente sobre ellos:
+Todos estos archivos ya existen implementados en el repositorio:
 
 ```text
 space-apps-juego/
 ├── backend/
 │   ├── models/
 │   │   └── subsystems.py                    # TUYO: Catálogo tipado sincronizado con nasa_catalog.json (ABR-01)
-│   ├── logica/                              # TUYO: Motor analítico FTIR adaptado a web (ABR-02)
+│   ├── logica/                              # TUYO: Motor analítico FTIR adaptado a web sin GUI/pandas (ABR-02)
 │   │   ├── __init__.py
-│   │   ├── vector.py
-│   │   ├── Analizador.py
-│   │   ├── proyecto.py
-│   │   ├── lineaBase/__init__.py
-│   │   └── modelos/__init__.py
-│   └── juegos_espectrales/                  # TUYO: Generadores y evaluación F1 para Rol 4A/4B (ABR-02)
+│   │   ├── vector.py                        # Vector (Absorbancia/%T/Intensidad/Reflectancia, unidades cm-1/nm/Hz, <=500 pts)
+│   │   ├── Analizador.py                    # AnalizadorFTIR (lineaBase, Recortar, Tracker d2y/dx2, Deconvolucion segura)
+│   │   ├── proyecto.py                      # Plantilla.puede (-3 pts), Muestra, Proyecto y cargar_espectro_csv
+│   │   ├── lineaBase/
+│   │   │   ├── __init__.py
+│   │   │   └── modeloLineaBase.py           # rubberband, splines, lineal, escalar
+│   │   └── modelos/
+│   │       ├── __init__.py
+│   │       ├── model.py                     # Registro Models (gauss_amp, guassiano/gaussiano, lorentz, voigt, psd_voigt1/2)
+│   │       ├── simulacion.py                # Métricas MAE/MSE/RMSE/R2 y simulador de bandas sintéticas
+│   │       └── Modelo_*.py                  # Implementaciones puras NumPy/SciPy
+│   └── juegos_espectrales/                  # TUYO: Generadores (8 modos + CSV real), guías y F1 (ABR-02)
 │       ├── __init__.py
-│       ├── adaptadores_web.py
+│       ├── adaptadores_web.py               # generar_reto_oleada1, generar_reto_hacker, generar_reto_juego, ejecutar_accion_espectral, evaluar_marcas
 │       └── nucleo/
 │           ├── __init__.py
-│           ├── generador.py
-│           ├── puntaje.py
-│           └── biblioteca.py
+│           ├── generador.py                 # 8 generadores sintéticos + generar_desde_csv_real (soporta datos_reales/<mission_id>.csv)
+│           ├── puntaje.py                   # emparejar (Precision/Recall/F1), cosine_similarity y penalización de flujo
+│           └── biblioteca.py                # NIST/Wien/FTIR/Cauchy/DTMF + educational_guide en inglés
 └── frontend/
     └── src/
         ├── data/
         │   └── nasa_catalog.json            # TUYO: Single Source of Truth de datos NASA (ABR-01)
         └── components/
             └── minigames/
-                ├── Rol3A_OrbitalSniper.tsx        # TUYO (Prioridad 1 — H7 · ABR-03)
-                ├── Rol4A_SpectralLabTask.tsx      # TUYO (Prioridad 1 — H8 · ABR-04)
-                ├── Rol4B_CommsSpectralHacker.tsx  # TUYO (Prioridad 2 — H13 · ABR-05)
-                └── Rol3B_AstroLogistics3D.tsx     # TUYO (Prioridad 2 — H14 · ABR-06)
+                ├── Rol3A_OrbitalSniper.tsx        # TUYO [x] (H7 · ABR-03)
+                ├── Rol4A_SpectralLabTask.tsx      # TUYO [x] (H8 · ABR-04)
+                ├── Rol4B_CommsSpectralHacker.tsx  # TUYO [x] (H13 · ABR-05)
+                └── Rol3B_AstroLogistics3D.tsx     # TUYO [x] (H14 · ABR-06)
 ```
 
 ---
 
-## Paso 1 · Catálogo Verificado NASA en JSON (`ABR-01` | Meta: H3)
+## Paso 1 · Catálogo Verificado NASA en JSON (`[x] ABR-01` | Meta: H3)
 
 1. Revisa los datos marcados como `sin verificar` en `docs/06-datos-nasa.md` (masas/potencias de HiRISE, CRISM, MARCI, SHARAD y fuentes oficiales en `science.nasa.gov` / NSSDCA).
 2. Llena `frontend/src/data/nasa_catalog.json` y su espejo `backend/models/subsystems.py` con:
@@ -1932,7 +2031,7 @@ space-apps-juego/
 
 ---
 
-## Paso 2 · Motor Espectral y Adaptadores Web (`ABR-02` | Meta: H5)
+## Paso 2 · Motor Espectral y Adaptadores Web (`[x] ABR-02` | Meta: H5)
 
 Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor_espectral_nasa_space_apps_2026.md` §5) dentro de `backend/logica/` y `backend/juegos_espectrales/`:
 1. **Aplica las 4 correcciones críticas para la web:**
@@ -1948,9 +2047,11 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
    - Crea `generar_reto_hacker(mission_id, difficulty)` para Oleada 2 (tono anómalo + matriz DTMF de `espectro_hacker`).
    - Crea `evaluar_marcas(marcas_usuario, verdad, tolerancia)` llamando a `puntaje.emparejar(...)` para devolver `science_calibration_f1` $\in [0.0, 1.0]$.
 
+   - Expone también `generar_reto_juego(game_id, ...)`, `ejecutar_accion_espectral(...)` y `generar_desde_csv_real(...)` para cubrir los **8 arquetipos** (`cazadores_estrellas`, `detectives_luz`, `ecoespectro`, `laboratorio_musical`, `mision_foton`, `bioespectro`, `ladron_colores`, `espectro_hacker`), guías educativas paso a paso (`educational_guide`) y carga automática de espectros experimentales CSV en `datos_reales/<mission_id>.csv`.
+
 ---
 
-## Paso 3 (Prioridad 1 · Meta H7) · `Rol3A_OrbitalSniper.tsx` (*Orbital Constraints*)
+## Paso 3 (Prioridad 1 · Meta H7) · `Rol3A_OrbitalSniper.tsx` (`[x] ABR-03` · *Orbital Constraints*)
 
 1. Implementa `MinigameProps` en `/dev-sandbox`.
 2. **Parte 1 (0–15 s):** Selector visual de órbita/ruta:
@@ -1962,7 +2063,7 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
 
 ---
 
-## Paso 4 (Prioridad 1 · Meta H8) · `Rol4A_SpectralLabTask.tsx` (*Science + Spectral*)
+## Paso 4 (Prioridad 1 · Meta H8) · `Rol4A_SpectralLabTask.tsx` (`[x] ABR-04` · *Science + Spectral*)
 
 1. **Parte 1 (0–10 s):** Selector de carga útil desde `nasa_catalog.json` (respetando el techo presupuestario científico `liveMetrics` que fijó Rol 1A) + toggle **Visual Autopilot (Natural Feature Tracking)** vital en M2.
 2. **Parte 2 (10–30 s):** Gráfica SVG/Canvas limpia del espectro recibido en `spectralChallenge`. El jugador hace clic/toca sobre los picos característicos (y opcionalmente aplica botón `Clean Baseline` antes de marcar).
@@ -1970,14 +2071,14 @@ Integra el código analítico de espectroscopía (`arquitectura_integral_y_motor
 
 ---
 
-## Paso 5 (Prioridad 2 · Meta H13) · `Rol4B_CommsSpectralHacker.tsx` (*Comms + Data*)
+## Paso 5 (Prioridad 2 · Meta H13) · `Rol4B_CommsSpectralHacker.tsx` (`[x] ABR-05` · *Comms + Data*)
 
 1. **Osciloscopio DSN (0–15 s):** Una retícula objetivo se mueve por deriva orbital; si `!liveMetrics.cg_balanced`, la velocidad de deriva aumenta $1.5\times$ (con alerta visible *"Unbalanced CG causing 1.5x antenna drift!"*). El jugador centra la antena para superar $+3.0\text{ dB}$ compensando `liveMetrics.fspl_loss_db`.
 2. **Espectro Hacker + Bitrate (15–30 s):** Muestra la señal de portadora con un tono intruso DTMF; el jugador aplica filtro de línea base y toca el par DTMF anómalo para desbloquear el enlace, luego desliza el *Bitrate* ($0.5\text{–}6.0\text{ Mbps}$) verificando no pasarse de `liveMetrics.available_power_w` ni dejar el búfer de $160\text{ Gbit}$ lleno antes de la Conjunción Solar.
 
 ---
 
-## Paso 6 (Prioridad 2 · Meta H14) · `Rol3B_AstroLogistics3D.tsx` (*Power 3D*)
+## Paso 6 (Prioridad 2 · Meta H14) · `Rol3B_AstroLogistics3D.tsx` (`[x] ABR-06` · *Power 3D*)
 
 1. Escena 3D ligera en **Three.js** (canvas dentro del contenedor de `MinigameShell` con cleanup estricto de `WebGLRenderer` en `useEffect` return para no fugar memoria al salir de la estación).
 2. Rover recolector con límite estricto de **$N_{\max} = 3$ paquetes apilados** antes de descargar en el Aro Holográfico Central:
@@ -2129,9 +2230,9 @@ Requisitos estrictos:
 <!-- Archivo: docs/21-roadmap-leonardo.md -->
 > **Archivo: `docs/21-roadmap-leonardo.md`**
 
-# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte *Paper Mario × Among Us*, Pista Lineal, Vuelo 60s y Dashboard)
+# 21 · Roadmap Paso a Paso: Leonardo (UI Core, Arte 2D Flash `ASTRO SPRITES`, Cabina estilo *60 Seconds!*, Host/Móvil y Dashboard)
 
-**Tu misión en estas 24 horas:** Darle al juego su alma, estética y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **Paper Mario × Among Us**, los menús, el Lobby PIN, la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox` (para enchufar sin dolor el trabajo de Ismael y Abraham), la escena del **Vuelo de 60 Segundos** y el **Dashboard Final de Retroalimentación NASA**.
+**Tu misión en estas 24 horas:** Darle al juego su alma, estética de **videojuego Flash 2D profesional** y flujo completo sin que nada se sienta como un simulador genérico (*AI slop*). Construyes el sistema visual **`ASTRO SPRITES` (cero Among Us por derechos de autor)**, las pantallas de carga divididas (`LoadingScreen.tsx`), los menús, el Lobby PIN (**Host Main Stage vs. Phone Crew Pad**), la **Pista Lineal Automática** con barras de recursos en vivo, el contenedor `MinigameShell` + `/dev-sandbox`, la **Cabina de Supervivencia y Bitácora estilo *60 Seconds! / 60 Parsecs!*** (`Flight60sView.tsx`) con **saltos entre escenas y pantallas de carga**, y el **Dashboard Final de Retroalimentación NASA**.
 
 ---
 
@@ -2148,23 +2249,25 @@ space-apps-juego/
     ├── vite.config.ts
     └── src/
         ├── main.tsx                     # Montaje React
-        ├── App.tsx                      # Router de vistas y ruta /dev-sandbox (LEO-01)
-        ├── index.css                    # Clases compartidas .paper-card / .paper-btn (LEO-02)
+        ├── App.tsx                      # Router de vistas (Host Stage / Phone Console) y /dev-sandbox (LEO-01)
+        ├── index.css                    # .paper-card, .flash-panel, .handheld-console-frame, .hazard-stripe-bar (LEO-02)
         ├── socket.ts                    # Cliente Socket.IO hacia backend
         ├── types/game.ts                # CONTRATO SAGRADO: RoleType, LiveMetrics, MinigameProps
         └── components/
             ├── MinigameShell.tsx        # Reloj 30s, 1-toma, toast mutacion_en_vivo, fallback (LEO-03)
-            └── paper/                   # Sistema visual Paper Mario x Among Us (LEO-02)
-                ├── CrewmateAvatar.tsx
+            └── paper/                   # Sistema visual 2D Flash ASTRO SPRITES y Audio (LEO-02, EXT-01)
+                ├── CrewmateAvatar.tsx   # 4 Astro Sprites articulados + ROLE_CHARACTER_PROFILE + actionEffect
+                ├── LoadingScreen.tsx    # Pantallas de carga por transición (boot, wave1→2, launch, report)
+                ├── SoundEngine.tsx      # Web Audio API SFX + Ambient Synth + <SoundControlPill /> (EXT-01)
                 ├── PaperCard.tsx
                 ├── Starfield.tsx
-                └── ResourceHUD.tsx      # Barras en vivo compartidas (LEO-05)
+                └── ResourceHUD.tsx      # Barras en vivo (Host completo / móvil compacto) (LEO-05)
         └── views/
-            ├── HomeMenu.tsx             # Singleplayer / Multiplayer (LEO-04)
-            ├── LobbyView.tsx            # PIN estilo Among Us + Rol + 3 Misiones/Dificultad (LEO-04)
+            ├── HomeMenu.tsx             # Singleplayer / Host Multi / Join PIN móvil + Showcase Astro Squad (LEO-04)
+            ├── LobbyView.tsx            # PIN Host Main Stage vs Phone Crew Pad + 3 Misiones NASA (LEO-04)
             ├── LinearStationTrack.tsx   # Pista lineal automática Estación 1 -> Sync -> Estación 2 (LEO-05)
-            ├── Flight60sView.tsx        # Cohete viajando 60s + 4 rondas por turnos de 15s (LEO-06)
-            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA siempre presente (LEO-07)
+            ├── Flight60sView.tsx        # Cabina 2D + Bitácora estilo 60 Seconds! + saltos de escena (LEO-06)
+            ├── MissionReportDashboard.tsx # Retroalimentación causal NASA + historial EXT-03 (LEO-07)
             └── DevSandboxView.tsx       # Probador aislado /dev-sandbox para Ismael y Abraham (LEO-03)
 ```
 
@@ -2183,14 +2286,12 @@ space-apps-juego/
 
 ---
 
-## Paso 2 · Sistema Visual *Paper Mario × Among Us* (`LEO-02` | Meta: H3)
+## Paso 2 · Sistema Visual *2D Flash Arcade (`ASTRO SPRITES`)* (`LEO-02` | Meta: H3)
 
 1. Configura Google Fonts en `frontend/index.html`: `Space Grotesk` + `IBM Plex Mono` + `IBM Plex Sans`.
-2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham:
-   - `.paper-card`: fondo `#162347` (o `#F8FAFC` claro), `border: 3px solid #0F172A`, `box-shadow: 5px 5px 0px #0F172A`, `rounded-2xl`.
-   - `.paper-btn`: botón táctil de cartulina con hundimiento al presionar (`active:translate-x-[3px] active:translate-y-[3px] active:shadow-none`).
+2. Define en `frontend/src/index.css` las utilidades compartidas que usarán Ismael y Abraham (`.paper-card`, `.paper-btn`) más las utilidades 2D Flash (`.flash-panel`, `.handheld-console-frame`, `.hazard-stripe-bar`).
 3. Crea **`Starfield.tsx`** con `tsParticles` (estrellas sutiles + planetas de cartulina en capas parallax).
-4. Crea **`CrewmateAvatar.tsx`**: componente SVG original (cero logos NASA ni assets con copyright) con estética de tripulante espacial estilo *Among Us* envuelto en doble borde tipo sticker de *Paper Mario* (borde blanco interno + borde negro `#0F172A` + sombra dura), visor brillante y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`. Al caminar hace rebote e inclinación de recorte de papel con Framer Motion.
+4. Crea **`CrewmateAvatar.tsx`** (cero Among Us ni copyright externo): 4 astronautas SVG 2D de cuerpo completo (`ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER`) + `ROLE_CHARACTER_PROFILE` y props `role`, `state: "idle" | "walk" | "work" | "panic" | "cheer"`, más **`LoadingScreen.tsx`** para pantallas de carga por fase.
 
 ---
 
@@ -2204,15 +2305,12 @@ space-apps-juego/
 
 ---
 
-## Paso 4 · Menú Principal y Lobby estilo *Among Us / Kahoot* (`LEO-04` | Meta: H4)
+## Paso 4 · Menú Principal y Lobby Host vs. Celular por PIN (`LEO-04` | Meta: H4)
 
 1. **`HomeMenu.tsx`:**
-   - Título del juego, 4 avatares *Paper Mario × Among Us* flotando suavemente, y dos botones gigantes: **`SINGLEPLAYER`** y **`MULTIPLAYER`**.
-   - Un botón secundario **`Join with PIN`** para entrar directo desde el celular.
+   - Showcase interactivo de los 4 `ASTRO SPRITES`, inspector de rol en frontend (`ROLE_CHARACTER_PROFILE`), entrada Host (`SINGLEPLAYER` / `HOST MULTIPLAYER`) y consola portátil **`PHONE CREW CONSOLE` (Join with PIN)** + pantalla de carga `boot`.
 2. **`LobbyView.tsx`:**
-   - Muestra el código PIN en grande (ej. `MARS26`), lista en vivo de los 1 a 4 tripulantes conectados con sus avatares *Paper Mario*, selector de **Rol** (los ocupados aparecen con el nombre del compañero; los vacíos muestran etiqueta `AI Autopilot Ready`).
-   - Selector visual de las **3 Misiones NASA** (*Artemis Moon · Easy*, *Asteroid Hunter · Medium*, *Mars Sample Return · Hard*) + Dificultad (`Easy` / `Medium` / `Hard`).
-   - Botón `LAUNCH MISSION SEQUENCE`.
+   - Código PIN grande + vista diferenciada **Host Main Stage** (hangar 4 bahías) vs. **Phone Handheld Terminal** (selector táctil para cada jugador por PIN), 3 Misiones NASA + Dificultad, y pantalla de carga `lobby_to_wave1`.
 
 ---
 
@@ -2230,28 +2328,30 @@ space-apps-juego/
 
 ---
 
-## Paso 6 · `Flight60sView.tsx` (Vuelo 60s por Turnos) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
+## Paso 6 · `Flight60sView.tsx` (Cabina estilo *60 Seconds!* + Saltos de Escena) y `MissionReportDashboard.tsx` (`LEO-06`, `LEO-07` | Meta: H9 – H10)
 
-### `Flight60sView.tsx`
-1. Muestra el espacio profundo desplazándose rápido mientras un **cohete/nave estilo recorte de papel** avanza por una ruta hacia la Luna / Asteroide / Marte con barra superior de **4 Nodos (`Launch` $\rightarrow$ `Orbit` $\rightarrow$ `Event` $\rightarrow$ `DSN Downlink`)** y reloj global de `60s`.
-2. Al recibir `pregunta_vuelo_60s`:
-   - Resalta con un foco quién tiene el turno (`YOUR TURN!` en grande si `active_role === myRole`, o `WAITING FOR [NOMBRE]...` si es turno de otro compañero).
-   - Despliega de 2 a 4 botones `.paper-btn` de decisión con barra de `15s` y el hint de ingeniería (`engineering_tradeoff_hint`).
-3. Al recibir `resultado_turno_vuelo`: anima la nave reaccionando (chispas/escudo/propulsor/rayo DSN) y muestra el feedback de 2 segundos antes de la siguiente ronda.
+### `Flight60sView.tsx` (Inspirado en la jugabilidad del videojuego *60 Seconds! / 60 Parsecs!*)
+1. **Diorama de Cabina 2D + Inventario Físico de Subsistemas:**
+   - Reemplaza un simple cohete genérico por el **interior 2D estilo *60 Seconds!* de la cabina espacial** (con ventana al espacio/destino, consola central de salud `rocket_health_pct`, estantes con los subsistemas que el equipo equipó en las estaciones y los **4 `ASTRO SPRITES`** dentro de la cabina reaccionando en tiempo real según su estado: `idle`, `work`, `panic` si hay alerta/daño o `cheer` al pasar una compuerta).
+2. **Bitácora del Capitán / Cuaderno de Crisis por Turnos (`pregunta_vuelo_60s`):**
+   - Muestra el evento como una página de **Bitácora de Supervivencia** (*"DAY / LOG 01–04"*) con la insignia del concepto NASA, quién tiene el turno (`YOUR TURN!` gigante con botones `.paper-btn` de 15 s y teclas `1–4` en el celular activo, o visor de cabina/espera con el Astro Sprite del compañero en turno en Host y otros celulares).
+3. **Saltos entre Escenas y Pantallas de Carga Intermedias:**
+   - Al recibir `resultado_turno_vuelo` muestra la consecuencia visual en cabina durante ~2 s (`PASS` / `DEGRADED` / `CRITICAL`), y ejecuta un **Salto de Escena con pantalla de carga temática** (capítulo siguiente: `NODE_1_LAUNCH` $\rightarrow$ `NODE_2_PROPULSION` $\rightarrow$ `NODE_3_EVENT` $\rightarrow$ `NODE_4_DOWNLINK` $\rightarrow$ Reporte) para dar sensación real de campaña por episodios estilo *60 Seconds!*.
 
 ### `MissionReportDashboard.tsx`
-1. Se muestra **SIEMPRE** tras el vuelo (gane o pierda).
-2. Banner gigante estilo sello de cartulina: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
+1. Muestra pantalla de carga de decodificación (`flight_to_report`) y se presenta **SIEMPRE** tras la travesía (gane o pierda).
+2. Banner gigante estilo sello arcade: **`MISSION ACCOMPLISHED`** (verde `#3DDC84` + `canvas-confetti`), **`PARTIAL SUCCESS`** (amarillo `#F2C94C`) o **`MISSION FAILED`** (rojo `#FF5A4E`).
 3. Contador animado de **Score (0 – 1,000 pts)** con desglose `Objective 50%` + `Science F1 30%` + `Efficiency 20%`.
-4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`).
-5. Aporte por cada uno de los 4 roles y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
+4. Tarjeta destacada **`Causal Engineering Breakdown`** (`causal_chain_explanation`) + tarjeta **`Real NASA Mission Connection`** (`nasa_real_world_fact`) + historial comparativo de intentos en sesión (`EXT-03`).
+5. Aporte por cada uno de los 4 `ASTRO SPRITES` y botón grande **`REDESIGN & RETRY`** (emite `reiniciar_partida`).
 
 ---
 
-## Paso 7 · Conexión Final de los 8 Minijuegos (`LEO-08`, `LEO-09` | H10 y H15)
+## Paso 7 · Conexión Final de los 8 Minijuegos, Audio y Pulido Final (`LEO-08`, `LEO-09`, `EXT-01`–`EXT-03` | H10 – H15)
 
 - **Para H10:** Mapea en un registro limpio los primeros 4 (`Rol1A`, `Rol2A` de Ismael; `Rol3A`, `Rol4A` de Abraham) dentro de `LinearStationTrack` y verifica el flujo completo con Rubén y Schoenstadt.
 - **Para H15:** Mapea los 4 restantes (`Rol1B`, `Rol2B` de Ismael; `Rol3B`, `Rol4B` de Abraham) y pule transiciones de cartulina y responsividad móvil.
+- **Estado implementado en `leo-branch` (2026-11-15):** Completadas las 8 fases del frontend de Leonardo (`LEO-01`–`LEO-09`, `EXT-01`–`EXT-03`): extremidades articuladas y efectos `complete`/`error`/`scan`/`thruster` en `CrewmateAvatar.tsx`, sintetizador `SoundEngine.tsx`, sello `STATION LOCKED`, cortinillas 2D Flash, chispas de propulsor, trazabilidad `stationLoadout` (`CREW PACKED` vs `AI AUTOPILOT`), *page flip* de Bitácora en `Flight60sView.tsx` y tarjetas causales expandibles en `MissionReportDashboard.tsx`. Listo para Pull Request / Merge Request e integración final con `backend/`.
 
 ---
 
@@ -2262,11 +2362,11 @@ Paso 0 (Automático): Antes de empezar, verifica e instala las dependencias de f
 Lee AGENTS.md, docs/04-juego.md, docs/08-controles.md, docs/09-arte-y-sonido.md, docs/10-tecnico.md, docs/22-como-trabajar-y-hacer-merge.md y docs/21-roadmap-leonardo.md.
 Trabaja únicamente en tus archivos asignados de frontend/src/ (no edites backend/ ni frontend/src/components/minigames/).
 Vamos a construir el frontend en React 18 + TypeScript + Vite + Tailwind + Framer Motion + Lucide + socket.io-client + @tsparticles/react:
-1. Estética híbrida Paper Mario x Among Us + HUD aeroespacial NASA: bordes gruesos #0F172A, doble contorno tipo sticker, sombras sólidas 4px 4px 0 #0F172A, avatares SVG originales (<CrewmateAvatar />) y cero logos de NASA.
+1. Estética 2D Flash Arcade (`ASTRO SPRITES`: `ASTRO_ENGINEER`, `ASTRO_MEDIC`, `ASTRO_SOLDIER`, `ASTRO_DEFENDER` — cero Among Us) + Cabina y Bitácora estilo *60 Seconds! / 60 Parsecs!* + HUD aeroespacial NASA: bordes gruesos #0F172A, `.flash-panel`, `.handheld-console-frame`, sombras sólidas 5px 5px 0 #0F172A, y cero logos de NASA.
 2. Todo en inglés en la UI visible.
 3. Usa exactamente frontend/src/types/game.ts (MinigameProps y LiveMetrics) y construye DevSandboxView.tsx (/dev-sandbox) primero para que Ismael y Abraham desarrollen sus minijuegos en paralelo.
-4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo.
-5. En Flight60sView.tsx anima el cohete viajando durante 60 segundos con 4 rondas de 15s por turnos (pregunta_vuelo_60s -> respuesta_turno_vuelo) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
+4. En LinearStationTrack.tsx el personaje avanza automáticamente por una línea (Station 1 -> Sync 5s -> Station 2) sin caminar libre, mostrando ResourceHUD en vivo conectado al evento mutacion_en_vivo y pantallas de carga entre fases.
+5. En Flight60sView.tsx implementa la jugabilidad estilo el videojuego 60 Seconds! (cabina 2D con los 4 Astro Sprites + objetos/subsistemas visibles, Bitácora del Capitán de 4 rondas por turnos y saltos entre escenas con pantallas de carga entre nodos) y en MissionReportDashboard.tsx muestra siempre retroalimentación causal y dato real NASA.
 ```
 
 ---
@@ -2366,3 +2466,153 @@ El repositorio ya incluye `package.json` y `requirements.txt` en la **raíz**, a
    npm run build:frontend
    ```
 3. Luego todos hacen `git checkout main && git pull origin main` y abren su siguiente rama limpia para la Oleada 2 / pulido final.
+
+---
+
+<!-- Archivo: docs/23-retroalimentacion-pruebas.md -->
+> **Archivo: `docs/23-retroalimentacion-pruebas.md`**
+
+# 23 · Retroalimentación de pruebas de juego (2026-11-15)
+
+**Qué contiene:** resultados de jugar el videojuego completo en local (`npm run play`, backend `:8000` + frontend `:5173`) desde el navegador integrado, lo que se corrigió en el momento y las **áreas de oportunidad priorizadas** para la fase final antes del pull request y el despliegue.
+**Dueño:** Leonardo (redactado por Claude Code)
+**Última actualización:** 2026-11-15
+
+---
+
+## 1. Cómo se probó
+
+| Prueba | Configuración | Resultado |
+|---|---|---|
+| A | Solo · Engineer · Artemis (fácil) | Éxito total, 811/1000 pts. Evento: caída de antena DSN (bloqueado por el código de señal). |
+| B | Solo · Soldier · Mars (difícil), eligiendo **Solar** en la estación de energía | Sin crash (antes rompía el vuelo). Éxito total. Evento: conjunción solar (bloqueado). |
+| C | Solo · Engineer · Artemis | Éxito total. Tormenta solar −10 % batería en una corrida previa → éxito parcial. |
+| D | **Multijugador:** anfitrión en escritorio + invitado en vista de teléfono (375 px) uniéndose con PIN | Asiento asignado por el servidor, cambio de rol sincronizado, misión solo para el anfitrión, cada uno en su estación, “Waiting for the crew”, avance a Estación 2 en ambos. |
+
+Ritmo medido con script (bloqueando rápido): ~90 s hasta el vuelo; con humanos leyendo el briefing y jugando: **3–5 min** estimados (objetivo cumplido).
+
+## 2. Lo que funciona bien (verificado)
+
+- Menú del mockup, opciones, `HOST MATCH` / `JOIN MATCH` (PIN → apodo) en escritorio y teléfono sin scroll horizontal.
+- Pantalla de carga única con la animación de nebulosa generada en Python; sprites del arte en menú, misiones y despegue.
+- Estaciones a pantalla completa con briefing, metas, sin reloj; cinemáticas entre estaciones y despegue según misión.
+- **Árbol de decisiones en vivo** (*If we launched now*): reacciona al instante (rideshare → *Liftoff FAILS*; gastar toda la reserva → no alcanza para el cohete → *FAILS*; volver a Falcon 9 → *READY*).
+- Eventos aleatorios con mitigación por diseño y explicación con fuente real en el reporte.
+- Vuelo sin congelarse (bug de autocancelación arreglado) y reporte siempre visible.
+
+## 3. Corregido durante esta prueba
+
+| # | Problema encontrado | Corrección |
+|---|---|---|
+| 1 | Los asientos de IA no aparecían como bloqueados: el invitado veía *Waiting for the crew · 1/4* y la barra de tareas arrancaba en 0/8. | `App.tsx` marca como bloqueados los roles de IA al iniciar cada ola (el servidor ya los rellena). Ahora arranca en 3/8 en solitario. |
+| 2 | El banner del anfitrión decía *Join at localhost:5173* (inútil para teléfonos). | `/health` devuelve `lan_ip` (interfaz de la ruta por defecto); el lobby muestra `IP-LAN:5173`. |
+| 3 | Vulcan y Electron marcados *Earth orbit only* (falso: solo falta la cifra de escape en el catálogo). | Rideshare → *Earth orbit only*; los demás sin dato → *No escape data*. |
+| 4 | El reporte mostraba ids crudos (`falcon9_block5`, `sso_700`, rutas). | El reporte traduce ids del catálogo a nombres (*SpaceX Falcon 9 Block 5*, etc.). |
+
+## 4. Áreas de oportunidad (priorizadas)
+
+### P0 — Afectan aprender, ganar o perder
+
+1. ✅ **Resuelto (2026-11-15): curva de dificultad por peligros (ver `docs/04`).** Antes: **el juego era demasiado fácil.** 3 de 3 corridas terminaron en éxito total con decisiones por defecto, incluida **Marte (difícil) con energía solar**. Propuesta: umbrales por dificultad en `nasa_catalog.json` (con fuente), IA de autopiloto que no siempre elija lo seguro en *medium/hard*, y en Marte exigir RTG o batería alta para la tormenta de polvo. *Dueño sugerido: Schoenstadt (árbol) + Abraham (catálogo).*
+2. ✅ **Resuelto (2026-11-15): compuertas *Not decided · waits ROL* hasta que su rol actúa.** Antes: **el pronóstico arrancaba todo en verde** antes de que nadie decida (son los valores por defecto/IA). Propuesta: mostrar cada compuerta como *Not decided* hasta que su rol la toque. *Leonardo.*
+3. **Se perdió el trade-off de lanzadores:** solo Falcon 9 y Falcon Heavy tienen capacidad de escape con fuente, así que casi siempre gana Falcon 9. Propuesta: añadir capacidades TLI/escape con fuente (Vulcan Centaur — guía de usuario de ULA; Electron + Photon — misión CAPSTONE; Falcon Heavy expendable). *Abraham.*
+4. ✅ **Resuelto (2026-11-15): HUD con DATA y TIME derivados del catálogo; Data afecta *Call Earth* (ver `docs/24`).** Antes: **faltaban dos recursos del reto: Data y Time.** Para *Data* hace falta una cifra con fuente de horas de contacto DSN por día (capacidad de bajada vs datos generados); para *Time*, la duración por ruta ya existe (`transit_days`) pero no se evalúa. *Rubén + Schoenstadt.*
+
+### P1 — Claridad y racionalidad
+
+5. **Bitácora de vuelo con mucha jerga** (~124 palabras por entrada: *Translunar Injection*, *cislunar*, *UFE*, *F1*). Propuesta: reescribir `story_tree.json` en lenguaje simple (≤40 palabras) y mostrar el efecto de cada opción como íconos (+combustible, −batería…). *Schoenstadt.*
+6. **Reporte con jerga** (*UFE*, *F1*, *DSN*, *dB*, *4 node decision tree*). Propuesta: glosario emergente o sustituir por *reserva*, *calidad científica*, *señal*. *Leonardo.*
+7. **La IA del piloto elige motor Hall (Isp 1600 s) con energía de celda de combustible** sin revisar la potencia. Propuesta: regla de margen de potencia (`generación − instrumentos − motor`) en backend y en `randomizer.py`. *Schoenstadt.*
+8. **Rol 3A calcula el propelente con una masa seca estimada (620 kg)**, no con la real de la nave; una nave más pesada queda corta de combustible. *Abraham.*
+9. **El costo de los instrumentos no entra al presupuesto** y en Artemis la reserva casi no afecta las compuertas. *Rubén.*
+10. **El Nodo 1 se reevalúa con el estado después del vuelo** (respuestas de vuelo cambian un despegue ya ocurrido). Propuesta: `launch_snapshot`. *Rubén.*
+
+### P2 — Pulido y despliegue
+
+11. `herramientas/jugar.mjs` imprime la IP de un adaptador virtual (192.168.56.1); usar la de la ruta por defecto (como ya hace `/health`). *Rubén.*
+12. El id del invitado se resuelve por apodo: dos jugadores con el mismo apodo pueden confundirse. Propuesta: que `unirse_sala` devuelva `player_id`. *Rubén.*
+13. En pestañas en segundo plano las animaciones de transición se pausan (comportamiento del navegador); probar en teléfonos reales antes de la demo.
+14. Datos por validar con fuente: costo de MSR ($2.5B vs estimaciones de NASA), pérdida de señal real Tierra–Luna/Marte, potencia real de un MMRTG (~110 W).
+15. El puntaje (811/1000 con éxito total) necesita una explicación visible de qué faltó para 1000.
+16. El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
+
+## 5. Siguiente paso recomendado
+
+1. Resolver **P0-1 (dificultad)** y **P0-2 (pronóstico “no decidido”)**: son los que más cambian la experiencia del jurado.
+2. Conseguir las cifras con fuente de **P0-3/P0-4** y activarlas en backend.
+3. Reescribir textos de vuelo (**P1-5**) y luego preparar el pull request a `main` y el despliegue.
+
+---
+
+<!-- Archivo: docs/24-validacion-reto.md -->
+> **Archivo: `docs/24-validacion-reto.md`**
+
+# 24 · Validación contra el reto Space Apps (2026-11-15)
+
+**Qué contiene:** 3 iteraciones finales de validación: (1) trazabilidad de cada requisito del reto *Space Mission Design Game* (texto oficial en `docs/02-reto.md`) con evidencia en el juego; (2) revisión del contexto de investigación (datos y hechos NASA) con correcciones; (3) verificación jugando en local y con pruebas automáticas.
+**Dueño:** Leonardo (redactado por Claude Code)
+**Última actualización:** 2026-11-15
+
+---
+
+## 1. Matriz de trazabilidad (reto → juego)
+
+| Requisito del reto | Dónde lo cubre el juego | Estado |
+|---|---|---|
+| Jugar solo o en equipo de hasta 4 | `SINGLE PLAYER` / `MULTI PLAYER` (HOST / JOIN con PIN); asientos vacíos los vuela la IA (`randomizer.py`) | ✅ Verificado (anfitrión + invitado por PIN) |
+| Roles con responsabilidades distintas | 4 especialistas: presupuesto/lanzador, nave/masa, órbita/energía, ciencia/comunicaciones | ✅ |
+| Definir el **objetivo de misión** | Cada tarjeta de misión muestra su objetivo científico (`science_goal` del catálogo) | ✅ **Nuevo en esta ronda** (antes no se mostraba) |
+| Diseñar la nave | Rol 2A (estructura, potencia, escudo térmico, deorbitación) + Rol 2B (centro de masa) | ✅ |
+| Seleccionar instrumentos (masa, potencia, costo, datos, valor científico) | Rol 4A con instrumentos del catálogo con fuente | ✅ |
+| Elegir lanzador y órbita, con **chequeo de compatibilidad de masa** | Rol 1B (capacidad de escape del catálogo; rideshare = solo órbita terrestre) + Rol 3A (ruta, órbita, motor) | ✅ |
+| Recursos: **Mass** | HUD *MASS* (+ centrado y escudo) | ✅ |
+| Recursos: **Power** | HUD *POWER*; motor y radio consumen potencia | ✅ |
+| Recursos: **Budget** | HUD *BUDGET* (+ reserva) | ✅ |
+| Recursos: **Data** | HUD *DATA*: Gbit/día de los instrumentos y horas de enlace/día necesarias; si pasa de 24 h/día, la compuerta *Call Earth* se degrada y el reporte explica el cuello de botella | ✅ **Nuevo en esta ronda** |
+| Recursos: **Communications** | HUD *COMMS* (pérdida de trayecto) + Rol 4B (antena, margen, código) | ✅ (renombrado de *SIGNAL* a *COMMS*) |
+| Recursos: **Time** (vida de misión) | HUD *TIME*: días de viaje de la ruta elegida (`transit_days` del catálogo) | ✅ **Nuevo en esta ronda** (solo informativo; no penaliza todavía) |
+| Ver cómo una decisión afecta a otras partes | Pronóstico en vivo *If we launched now* (servidor) + mutaciones en vivo entre roles | ✅ |
+| No hay una única solución perfecta | Varias rutas/motores/lanzadores válidos; simulado: varias combinaciones logran éxito total | ✅ |
+| Eventos aleatorios / restricciones inesperadas | Peligros por misión con fuente; *hard* recibe 2 y más fuertes | ✅ |
+| Niveles de dificultad / varios escenarios | Luna (fácil), asteroide (media), Marte (difícil) | ✅ |
+| Simulación y evaluación de la misión | Vuelo de 4 capítulos sobre el árbol de 4 compuertas | ✅ |
+| Puntaje que premia éxito, ciencia y eficiencia | 50 % objetivo · 30 % ciencia · 20 % eficiencia | ✅ |
+| Premiar la **colaboración** | Tarjeta *Crew collaboration* (0–100): 40 % estaciones bloqueadas por la tripulación, 30 % llamadas de vuelo respondidas, 30 % compuertas listas al despegar | ✅ (iteración 4) |
+| Explicar **por qué** triunfa o falla | Reporte causal, compuerta a revisar en palabras, eventos con fuente | ✅ |
+| Rediseñar y simular varias veces | *Redesign & Retry* + comparación de intentos | ✅ |
+| Accesible a distintos niveles | Briefing por estación, textos simples en estaciones y bitácora de vuelo reescrita en lenguaje simple (32 preguntas, 96 opciones; etiquetas = efectos reales) | ✅ (iteración 4) |
+
+## 2. Contexto de investigación: hechos revisados
+
+| Hecho / dato | Revisión | Acción |
+|---|---|---|
+| *“Artemis I used a Free-Return Trajectory”* (tarjeta y reporte de la Luna) | **Incorrecto.** Artemis I (2022) usó una órbita retrógrada distante (DRO); la trayectoria de retorno libre es de **Artemis II** (tripulada). La reentrada a casi 40 000 km/h sí es correcta. | ✅ Corregido en `nasa_catalog.json` con fuentes `nasa.gov/mission/artemis-i` y `artemis-ii`. |
+| Presupuesto de Mars Sample Return = $2.5B | Muy por debajo de la estimación de la revisión independiente de NASA (2023), que llevó a replantear MSR. | ✅ Nota *Game-scaled budget* con fuente (`science.nasa.gov/mission/mars-sample-return/`), visible en el reporte de Marte. |
+| MRO: 2 180 kg al lanzar, 1 149 kg de propelente, antena de 3 m, hasta 6 Mbps, grabador de 160 Gbit | Coincide con la ficha DESCANSO de JPL ya citada. | Sin cambio. |
+| OSIRIS-REx: navegación por reconocimiento visual (Natural Feature Tracking) en Bennu | Correcto. | Sin cambio. |
+| Capacidad de lanzadores para salir de la Tierra | Solo Falcon 9 y Falcon Heavy tienen cifra de escape con fuente en el catálogo. | ✅ Iteración 4: para la **Luna** basta la inyección translunar (TLI): Vulcan VC6 **11 500 kg** (ULA) y Electron + Lunar Photon **25 kg** (demostrado por CAPSTONE, NSSDC 2022-070A). Vulcan GTO corregido a 14 500 kg. Escape/Marte de Vulcan y Electron: **no publicado** → siguen en 0 kg para asteroide y Marte. |
+| La IA del piloto no elegía una ruta real | Su plan solo nombraba la órbita (`sso_700`), así que el *Time* quedaba vacío y su Δv era genérico. | ✅ Corregido: la IA elige una ruta del catálogo (la de menor Δv si es conservadora) y usa su Δv. |
+
+## 3. Verificación (iteración 3)
+
+- **Pruebas automáticas:** `pytest backend/tests` **29/29** (nuevas: Data/Time derivados del catálogo, cuello de botella de datos que degrada *Call Earth*). Build del frontend con 0 errores.
+- **Jugado en local (online):** las tarjetas de misión muestran el objetivo; el HUD muestra los 6 recursos del reto; *TIME* = 210 días en Marte; *DATA*: 242 Gbit/día con enlace de 0.5 Mbps → **134 h/día necesarias → RISK** y *Call Earth: Risky*; con 6 Mbps → 11.2 h/día → OK y *Call Earth: Ready*, pero la radio consume **347 W** (el *trade-off* de datos contra potencia que pide el reto).
+
+## 4. Lo que queda (ordenado por impacto)
+
+1. **Puntuar la colaboración** (el reto lo menciona): por ejemplo, bonus por roles humanos que bloquean y por decisiones de vuelo tomadas a tiempo.
+2. **Hacer que *Time* tenga consecuencia**: p. ej., rutas largas consumen más reserva o batería (requiere una regla con fuente o declarada como estimado del juego).
+3. **Bitácora de vuelo en lenguaje simple** (`story_tree.json`).
+4. **Cifras con fuente pendientes:** escape de Vulcan / Electron + Photon, pérdida de trayecto real Tierra–Marte/Luna, potencia real de un MMRTG (~110 W), costo de instrumentos en el presupuesto.
+5. **Regla de margen de potencia** para la IA (motor Hall con celda de combustible).
+
+## 5. Iteración 4 (2026-11-15): implementado
+
+- **Multijugador:** los invitados ya aparecen en la sala. Causa: el Firewall de Windows bloqueaba el puerto 8000; ahora Vite hace de proxy (`/socket.io`, `/health`, `/api`) y el teléfono solo usa el puerto 5173. Un *join* sin conexión ya no abre un lobby falso.
+- **Colaboración puntuada** (`game_manager._collaboration_score`, campo `collaboration` en `reporte_final_mision`).
+- ***Time* con consecuencia:** la eficiencia = 40 % masa + 40 % presupuesto + 20 % tiempo (ruta más rápida del catálogo ÷ ruta elegida) y nota en el reporte.
+- **Bitácora en lenguaje simple** (`story_tree.json`, solo textos; ids y efectos sin cambios).
+- **Regla de margen de potencia:** la IA elige el motor de mayor Isp cuya demanda cabe en la potencia de la nave; un motor sin potencia suficiente deja el Nodo 2 en *CRITICAL*.
+- **Cifras con fuente aplicadas:** TLI de Vulcan/Electron (arriba); **10 h/día de datos por la DSN** (MRO: ~16 h de seguimiento, 10–11 h enviando datos; DESCANSO) en lugar del límite físico de 24 h; **pérdida real Tierra–destino** en banda X 8.4 GHz (ITU-R P.525 con distancias NSSDC): Luna 222.6 dB, Marte 265.7–283.0 dB, mostrada como contexto en *COMMS*.
+- **Diferidos (sin fuente suficiente):** potencia del MMRTG (~110 W al inicio, ~45 kg) — todo el modelo de potencia del juego es estimado, cambiar solo el RTG lo desbalancea; **costo de instrumentos**: no hay fuente pública por instrumento, siguen como estimado del equipo; distancia al asteroide (depende del objetivo).
+- **Verificación:** `pytest` **34/34**, build sin errores, partida en vivo (bot solo, Luna con Vulcan) → *FULL_SUCCESS*, colaboración 100/100, bitácora nueva visible.
