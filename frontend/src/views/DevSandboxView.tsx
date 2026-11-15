@@ -4,6 +4,7 @@ import { LockKeyhole, Pause, Play, RotateCcw, UnlockKeyhole } from "lucide-react
 import { MinigameShell } from "../components/MinigameShell";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
+import { soundEngine } from "../components/paper/SoundEngine";
 import { Rol1A_BudgetTable } from "../components/minigames/Rol1A_BudgetTable";
 import { Rol1B_LauncherAuction } from "../components/minigames/Rol1B_LauncherAuction";
 import { Rol2A_TopologicalAssembly } from "../components/minigames/Rol2A_TopologicalAssembly";
@@ -196,26 +197,26 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
           <h1 className="font-display text-2xl font-black sm:text-3xl">Minigame Sandbox</h1>
           <p className="mt-1 text-sm text-slate-300">Isolated station preview · /dev-sandbox</p>
         </div>
-        {onExitSandbox && <button type="button" onClick={onExitSandbox} className="paper-btn bg-paper-cream px-4 py-2 text-sm text-ink-black">Back to Menu</button>}
+        {onExitSandbox && <button type="button" onClick={() => { soundEngine.playClick(); onExitSandbox(); }} className="paper-btn bg-paper-cream px-4 py-2 text-sm text-ink-black">Back to Menu</button>}
         </div>
       </header>
 
       <section className="flash-panel grid min-w-0 gap-3 p-4 sm:grid-cols-3 sm:gap-4 sm:p-5" aria-label="Sandbox selectors">
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-game">
           <span>MINIGAME</span>
-          <select id="sandbox-game" value={selectedKey} onChange={(event) => { setSelectedKey(event.target.value as MinigameKey); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
+          <select id="sandbox-game" value={selectedKey} onChange={(event) => { soundEngine.playClick(); setSelectedKey(event.target.value as MinigameKey); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             {(Object.keys(REGISTRY) as MinigameKey[]).map((key) => <option key={key} value={key}>{key} · {REGISTRY[key].title}</option>)}
           </select>
         </label>
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-mission">
           <span>MISSION ID</span>
-          <select id="sandbox-mission" value={missionId} onChange={(event) => { const next = event.target.value as MissionIdType; setMissionId(next); setMetrics(createMockMetrics(next)); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
+          <select id="sandbox-mission" value={missionId} onChange={(event) => { soundEngine.playClick(); const next = event.target.value as MissionIdType; setMissionId(next); setMetrics(createMockMetrics(next)); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             {(Object.keys(nasaCatalog.missions) as MissionIdType[]).map((id) => <option key={id} value={id}>{nasaCatalog.missions[id].name}</option>)}
           </select>
         </label>
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-difficulty">
           <span>DIFFICULTY</span>
-          <select id="sandbox-difficulty" value={difficulty} onChange={(event) => { setDifficulty(event.target.value as DifficultyType); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
+          <select id="sandbox-difficulty" value={difficulty} onChange={(event) => { soundEngine.playClick(); setDifficulty(event.target.value as DifficultyType); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
           </select>
         </label>
@@ -228,12 +229,12 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
           <section className="flash-panel flex flex-wrap items-center justify-between gap-4 p-4" aria-label="Sandbox clock controls">
             <div><p className="font-mono text-xs text-slate-300">LOCAL STATION CLOCK</p><div className="font-mono text-4xl font-bold tabular-nums">{String(timeLeftSec).padStart(2, "0")}s</div></div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" disabled={timeLeftSec === 0 || isPlaying} onClick={() => setIsPlaying(true)} className="paper-btn inline-flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"><Play size={17} /> Play</button>
-              <button type="button" disabled={!isPlaying} onClick={() => setIsPlaying(false)} className="paper-btn inline-flex items-center gap-2 bg-status-warn px-4 py-2 text-sm text-ink-black"><Pause size={17} /> Pause</button>
-              <button type="button" onClick={resetRun} className="paper-btn inline-flex items-center gap-2 bg-paper-cream px-4 py-2 text-sm text-ink-black"><RotateCcw size={17} /> Reset</button>
+              <button type="button" disabled={timeLeftSec === 0 || isPlaying} onClick={() => { soundEngine.playClick(); setIsPlaying(true); }} className="paper-btn inline-flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"><Play size={17} /> Play</button>
+              <button type="button" disabled={!isPlaying} onClick={() => { soundEngine.playClick(); setIsPlaying(false); }} className="paper-btn inline-flex items-center gap-2 bg-status-warn px-4 py-2 text-sm text-ink-black"><Pause size={17} /> Pause</button>
+              <button type="button" onClick={() => { soundEngine.playClick(); resetRun(); }} className="paper-btn inline-flex items-center gap-2 bg-paper-cream px-4 py-2 text-sm text-ink-black"><RotateCcw size={17} /> Reset</button>
             </div>
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-ink-black bg-paper-cream px-3 py-2 font-mono text-xs font-bold text-ink-black">
-              <input type="checkbox" checked={isLocked} onChange={(event) => { submittedRef.current = event.target.checked; setIsLocked(event.target.checked); }} />
+              <input type="checkbox" checked={isLocked} onChange={(event) => { soundEngine.playClick(); submittedRef.current = event.target.checked; setIsLocked(event.target.checked); }} />
               {isLocked ? <LockKeyhole size={16} /> : <UnlockKeyhole size={16} />} isLocked
             </label>
           </section>
@@ -255,14 +256,14 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
             <h2 className="font-display text-lg font-bold">Simulate mutacion_en_vivo</h2>
             <div className="grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
               <label className="font-mono text-xs" htmlFor="toast-source">SOURCE ROLE
-                <select id="toast-source" value={toastSource} onChange={(event) => setToastSource(event.target.value as RoleType)} className="mt-1 w-full rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-2 text-ink-black">
+                <select id="toast-source" value={toastSource} onChange={(event) => { soundEngine.playClick(); setToastSource(event.target.value as RoleType); }} className="mt-1 w-full rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-2 text-ink-black">
                   {(Object.keys(ROLE_CHARACTER_PROFILE) as RoleType[]).map((role) => <option key={role} value={role}>{ROLE_CHARACTER_PROFILE[role].codename}</option>)}
                 </select>
               </label>
               <label className="font-mono text-xs" htmlFor="toast-message">TOAST ALERT
                 <input id="toast-message" value={toastText} onChange={(event) => setToastText(event.target.value)} className="mt-1 w-full rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-2 text-ink-black" />
               </label>
-              <button type="button" onClick={() => { const alert = toastText.trim() || "Mission constraints updated."; setToastAlert(alert); setSimulatedEvent({ source_role: toastSource, live_metrics: metrics, toast_alert: alert }); }} className="paper-btn self-end bg-role-spacecraft px-3 py-2 text-sm text-ink-black">Send Toast</button>
+              <button type="button" onClick={() => { soundEngine.playClick(); soundEngine.playMutationToast(); const alert = toastText.trim() || "Mission constraints updated."; setToastAlert(alert); setSimulatedEvent({ source_role: toastSource, live_metrics: metrics, toast_alert: alert }); }} className="paper-btn self-end bg-role-spacecraft px-3 py-2 text-sm text-ink-black">Send Toast</button>
             </div>
           </section>
         </div>
@@ -271,7 +272,7 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
           <section className="paper-card-light space-y-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="font-display text-lg font-bold">Mock LiveMetrics</h2><p className="text-xs text-slate-600">Local test values only. Numeric fields accept values beyond slider limits.</p></div>
-              <button type="button" onClick={() => setMetrics(createMockMetrics(missionId))} className="paper-btn bg-role-orbit px-3 py-1.5 text-xs text-ink-black">Reset Metrics</button>
+              <button type="button" onClick={() => { soundEngine.playClick(); setMetrics(createMockMetrics(missionId)); }} className="paper-btn bg-role-orbit px-3 py-1.5 text-xs text-ink-black">Reset Metrics</button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
               {controls.map((control) => (

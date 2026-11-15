@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, FlaskConical, Gauge, RefreshCw, Target } from "lucide-react";
 import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
+import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
 export interface MissionOutcomeUI {
@@ -44,6 +45,12 @@ const SCORE_WEIGHTS = [
   { key: "efficiency_points", label: "Efficiency", weight: 20, maximum: 200, color: "bg-role-orbit", Icon: Gauge },
 ] as const;
 const ROLES: RoleType[] = ["finance_launch", "spacecraft_mass", "orbit_power", "science_comms"];
+const GATE_ROLE: Record<string, RoleType> = {
+  NODE_1_LAUNCH: "finance_launch",
+  NODE_2_PROPULSION: "orbit_power",
+  NODE_3_EVENT: "spacecraft_mass",
+  NODE_4_DOWNLINK: "science_comms",
+};
 const ATTEMPTS_STORAGE_KEY = "astro-squad.report-attempts.v1";
 
 interface StoredAttempt {
@@ -89,6 +96,7 @@ export function MissionReportDashboard({
   const [revealedReport, setRevealedReport] = useState<MissionOutcomeUI | null>(null);
   const [priorAttempts, setPriorAttempts] = useState<StoredAttempt[]>(readStoredAttempts);
   const celebratedReport = useRef<MissionOutcomeUI | null>(null);
+  const fanfaredReport = useRef<MissionOutcomeUI | null>(null);
   const savedRetryReport = useRef<MissionOutcomeUI | null>(null);
   const verdict = VERDICTS[report.outcome];
   const contributions = roleContributions ?? report.role_contributions ?? [];
@@ -103,11 +111,18 @@ export function MissionReportDashboard({
   const attemptNumber = priorAttempts.length + 1;
   const scoreDelta = previousAttempt ? score - previousAttempt.score : null;
   const isMobileClient = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 767px)").matches;
-  const finishDecoding = useCallback(() => setRevealedReport(report), [report]);
+  const finishDecoding = useCallback(() => {
+    if (fanfaredReport.current !== report) {
+      fanfaredReport.current = report;
+      soundEngine.playVerdictFanfare(report.outcome);
+    }
+    setRevealedReport(report);
+  }, [report]);
 
   useEffect(() => setPriorAttempts(readStoredAttempts()), [report]);
 
   const handleRetry = useCallback(() => {
+    soundEngine.playClick();
     if (savedRetryReport.current !== report) {
       savedRetryReport.current = report;
       const attempt: StoredAttempt = { score, completionPct: completion, outcome: report.outcome, missionId };
@@ -343,12 +358,22 @@ export function MissionReportDashboard({
           {ROLES.map((role) => {
             const profile = ROLE_CHARACTER_PROFILE[role];
             const contribution = contributions.find((item) => item.role === role);
+            const failedRole = report.failed_or_degraded_gate
+              ? GATE_ROLE[report.failed_or_degraded_gate.trim().toUpperCase()]
+              : undefined;
+            const isFailure = report.outcome === "FAILED" || failedRole === role;
+            const isComplete = !isFailure &&
+              (report.outcome === "FULL_SUCCESS" || (report.outcome === "PARTIAL_SUCCESS" && role === myRole));
             return (
               <article key={role} className="flash-panel flex min-h-44 flex-col overflow-hidden">
                 <div className="h-2 border-b-2 border-ink-black" style={{ backgroundColor: profile.suit }} />
                 <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-center gap-3">
-                  <CrewmateAvatar role={role} state={report.outcome === "FULL_SUCCESS" ? "cheer" : "idle"} size={66} />
+                  <CrewmateAvatar role={role}
+                    state={isFailure ? "panic" : isComplete ? "cheer" : "work"}
+                    actionEffect={isFailure ? "error" : isComplete ? "complete" : "scan"}
+                    statusBadgeText={isFailure ? "FAIL" : isComplete ? "OK" : "CHECK"}
+                    size={66} />
                   <div className="min-w-0">
                     <span className="inline-block rounded-md border-2 border-ink-black bg-space-ink px-1.5 py-0.5 font-mono text-[10px] font-black uppercase" style={{ color: profile.suit }}>{profile.codename}</span>
                     <h3 className="mt-1 font-display text-sm font-black text-paper-cream">{profile.label}</h3>

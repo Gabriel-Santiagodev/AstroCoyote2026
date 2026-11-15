@@ -6,8 +6,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   CrewmateAvatar,
   ROLE_CHARACTER_PROFILE,
+  type ActionEffect,
   type AvatarState,
 } from "../components/paper/CrewmateAvatar";
+import { soundEngine } from "../components/paper/SoundEngine";
 import type { MissionIdType, RoleType } from "../types/game";
 
 export interface FlightQuestionOptionUI {
@@ -53,7 +55,6 @@ const FLIGHT_DURATION_SEC = 60;
 const FEEDBACK_DISPLAY_MS = 1750;
 const SCENE_JUMP_MS = 850;
 const HULL_ALARM_THRESHOLD_PCT = 75;
-const CREW_PANIC_THRESHOLD_PCT = 65;
 const VIEWPORT_QUERY = "(max-width: 767px)";
 
 const GATES: Array<{
@@ -215,18 +216,32 @@ function CabinScene({
   sceneJump: SceneJump | null;
   onSkipJump: () => void;
 }) {
-  const crewState = (role: RoleType): AvatarState => {
-    if (visibleResult && role === reactionRole) {
-      return visibleResult.gate_status === "PASS" ? "cheer" : "panic";
+  const crewPresentation = (role: RoleType): {
+    state: AvatarState;
+    actionEffect: ActionEffect;
+    statusBadgeText?: string;
+  } => {
+    if ((healthValue !== undefined && healthValue < HULL_ALARM_THRESHOLD_PCT) ||
+      visibleResult?.gate_status === "CRITICAL") {
+      return { state: "panic", actionEffect: "error", statusBadgeText: "ALERT" };
     }
-    if ((healthValue ?? 100) < CREW_PANIC_THRESHOLD_PCT ||
-      (visibleResult && visibleResult.gate_status === "CRITICAL")) return "panic";
-    return role === activeRole ? "work" : "idle";
+    if (visibleResult && role === reactionRole) {
+      return visibleResult.gate_status === "PASS"
+        ? { state: "cheer", actionEffect: "complete", statusBadgeText: "PASS" }
+        : { state: "panic", actionEffect: "error", statusBadgeText: "ALERT" };
+    }
+    return role === activeRole
+      ? { state: "work", actionEffect: "scan" }
+      : { state: "idle", actionEffect: "none" };
   };
 
   return (
     <section aria-label="Spacecraft cabin and station loadout" className="flash-panel min-w-0 overflow-hidden">
-      <div className={"relative overflow-hidden " + (isPhoneConsole ? "h-[84px]" : "h-[430px] 2xl:h-[490px]")}>
+      <motion.div className={"relative overflow-hidden " + (isPhoneConsole ? "h-[84px]" : "h-[430px] 2xl:h-[490px]")}
+        animate={visibleResult && visibleResult.gate_status !== "PASS"
+          ? { x: [0, -7, 6, -3, 0], y: [0, 2, -2, 1, 0] }
+          : { x: 0, y: 0 }}
+        transition={{ duration: 0.38, ease: "easeOut" }}>
         <CabinBackdrop />
         <div className={"absolute z-10 overflow-hidden rounded-[35%] border-[5px] border-ink-black bg-space-ink shadow-[inset_0_0_0_5px_#94A3B8] " +
           (isPhoneConsole ? "left-[26%] right-[5%] top-[10%] h-[55%]" : "left-[19%] right-[19%] top-[8%] h-[47%]")}>
@@ -264,13 +279,16 @@ function CabinScene({
           {CREW_ROLES.map((role) => {
             const profile = ROLE_CHARACTER_PROFILE[role];
             const isActive = role === activeRole;
+            const presentation = crewPresentation(role);
             return (
               <div key={role} className={"relative flex min-w-0 flex-col items-center rounded-lg border-2 border-ink-black bg-space-ink/85 text-center " +
                 (isPhoneConsole ? "px-0.5 pb-0.5 pt-0" : "pb-2 pt-1")}
                 style={{ boxShadow: isActive ? "inset 0 0 0 2px " + profile.glow : undefined }}
-                aria-label={profile.codename + " at cabin station, " + crewState(role)}>
+                aria-label={profile.codename + " at cabin station, " + presentation.state}>
                 <div className={"absolute inset-x-2 top-0 h-1 rounded-b " + (isActive ? "bg-status-ok" : "bg-slate-600")} />
-                <CrewmateAvatar role={role} state={crewState(role)} size={isPhoneConsole ? 28 : 88} />
+                <CrewmateAvatar role={role} state={presentation.state}
+                  actionEffect={presentation.actionEffect} statusBadgeText={presentation.statusBadgeText}
+                  size={isPhoneConsole ? 28 : 88} />
                 <span className={"block max-w-full truncate font-mono font-bold " +
                   (isPhoneConsole ? "text-[8px]" : "text-[10px]")}>
                   {isPhoneConsole ? profile.short : profile.codename}
@@ -337,7 +355,7 @@ function CabinScene({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
       <div className={"border-t-[3px] border-ink-black bg-[#111C34] " + (isPhoneConsole ? "p-1" : "p-3")}>
         <div className={"flex items-center justify-between gap-2 font-mono font-bold tracking-widest text-slate-300 " +
           (isPhoneConsole ? "mb-0.5 text-[7px]" : "mb-1.5 text-[9px]")}>
@@ -390,6 +408,7 @@ export function Flight60sView({
   const [sceneJump, setSceneJump] = useState<SceneJump | null>(null);
   const feedbackTimerRef = useRef<number | null>(null);
   const jumpTimerRef = useRef<number | null>(null);
+  const lastTickKeyRef = useRef<string | null>(null);
 
   // App may deliver the next question before the cabin transition finishes.
   // Only the cabin artwork is covered, so the new logbook page remains actionable.
@@ -400,11 +419,14 @@ export function Flight60sView({
     setVisibleResult(lastTurnResult);
     setReactionRole(question?.assigned_role ?? null);
     setSceneJump(null);
+    if (lastTurnResult.gate_status === "PASS") soundEngine.playComplete();
+    else soundEngine.playError();
     feedbackTimerRef.current = window.setTimeout(() => {
       feedbackTimerRef.current = null;
       setVisibleResult(null);
       if (lastTurnResult.round >= GATES.length) return;
       setSceneJump({ fromRound: lastTurnResult.round, toGateIndex: lastTurnResult.round });
+      soundEngine.playSceneJump();
       jumpTimerRef.current = window.setTimeout(() => {
         jumpTimerRef.current = null;
         setSceneJump(null);
@@ -431,6 +453,7 @@ export function Flight60sView({
   const playerLabel = activePlayerName?.trim() || activeProfile.codename;
   const isMyTurn = question?.assigned_role === myRole;
   const questionKey = question ? round + ":" + question.question_id : "";
+  const countdownSecond = Math.ceil(roundLeft);
   const hasSubmitted = submittedAnswer?.key === questionKey || submittedKeyRef.current === questionKey;
   const resultIsCurrent = visibleResult?.round === round;
   const canAnswer = Boolean(question && isMyTurn && roundLeft > 0 && !hasSubmitted && !resultIsCurrent);
@@ -438,16 +461,30 @@ export function Flight60sView({
   const healthValue = health === undefined ? undefined : clamp(health, 0, 100);
   const alarm = (healthValue !== undefined && healthValue < HULL_ALARM_THRESHOLD_PCT) ||
     Boolean(visibleResult && visibleResult.gate_status !== "PASS");
+  const logbookError = (healthValue !== undefined && healthValue < HULL_ALARM_THRESHOLD_PCT) ||
+    Boolean(resultIsCurrent && visibleResult?.gate_status !== "PASS");
+  const logbookPass = !logbookError && resultIsCurrent && visibleResult?.gate_status === "PASS";
+  const logbookActionEffect: ActionEffect = logbookError ? "error" : logbookPass ? "complete" : "scan";
+
+  useEffect(() => {
+    if (!question || countdownSecond < 1 || countdownSecond > 5) return;
+    const tickKey = questionKey + ":" + countdownSecond;
+    if (lastTickKeyRef.current === tickKey) return;
+    lastTickKeyRef.current = tickKey;
+    soundEngine.playCountdownTick(countdownSecond <= 2);
+  }, [countdownSecond, question, questionKey]);
 
   const answer = useCallback((optionId: string) => {
     if (!question || !canAnswer || submittedKeyRef.current === questionKey ||
       !question.options.some((option) => option.option_id === optionId)) return;
     submittedKeyRef.current = questionKey;
     setSubmittedAnswer({ key: questionKey, optionId });
+    soundEngine.playClick();
     onAnswerOption(question.question_id, optionId);
   }, [canAnswer, onAnswerOption, question, questionKey]);
 
   const skipJump = useCallback(() => {
+    soundEngine.playClick();
     if (jumpTimerRef.current !== null) window.clearTimeout(jumpTimerRef.current);
     jumpTimerRef.current = null;
     setSceneJump(null);
@@ -553,9 +590,9 @@ export function Flight60sView({
                 <div className="mt-3 flex min-w-0 items-center gap-2 rounded-lg border-2 border-ink-black bg-[#E2E8F0] p-1.5">
                   <div className="shrink-0 rounded-md border-2 border-ink-black bg-blueprint-navy">
                     <CrewmateAvatar role={activeRole}
-                      state={visibleResult && reactionRole === activeRole
-                        ? visibleResult.gate_status === "PASS" ? "cheer" : "panic"
-                        : "work"}
+                      state={logbookError ? "panic" : logbookPass ? "cheer" : "work"}
+                      actionEffect={logbookActionEffect}
+                      statusBadgeText={logbookError ? "ALERT" : logbookPass ? "PASS" : undefined}
                       size={isPhoneConsole ? 34 : 55} />
                   </div>
                   <div className="min-w-0 flex-1">
