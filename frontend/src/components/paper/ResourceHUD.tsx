@@ -1,8 +1,11 @@
 // Owner: Leonardo (Task LEO-05) — Shared live telemetry HUD connected to mutacion_en_vivo
+import { useState } from "react";
 import {
   AlertTriangle,
   BatteryCharging,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Coins,
   Radio,
   Scale,
@@ -12,13 +15,16 @@ import {
   XOctagon,
 } from "lucide-react";
 import nasaCatalog from "../../data/nasa_catalog.json";
-import type { LiveMetrics, MissionIdType } from "../../types/game";
+import { ROLE_CHARACTER_PROFILE } from "./CrewmateAvatar";
+import type { LiveMetrics, MissionIdType, RoleType } from "../../types/game";
 
 interface ResourceHUDProps {
   liveMetrics: LiveMetrics;
   maxMassKg?: number;
   missionBudgetUsd?: number;
   missionId?: MissionIdType;
+  compact?: boolean;
+  activeRole?: RoleType;
 }
 
 type StatusLevel = "OK" | "WARN" | "CRIT";
@@ -79,7 +85,11 @@ export function ResourceHUD({
   maxMassKg,
   missionBudgetUsd,
   missionId = "artemis_moon",
+  compact = false,
+  activeRole,
 }: ResourceHUDProps) {
+  const [expandedMobile, setExpandedMobile] = useState(!compact);
+
   const missionSpec = nasaCatalog.missions[missionId];
   const falcon9MarsCap =
     nasaCatalog.launchers.find((l) => l.id === "falcon9_block5")?.max_mass_mars_kg ??
@@ -139,124 +149,204 @@ export function ResourceHUD({
       ? "WARN"
       : "CRIT";
 
+  const ownerRoleHighlight = (owner: RoleType) =>
+    activeRole === owner
+      ? "ring-2 ring-paper-cream bg-blueprint-navy"
+      : "bg-space-ink/85";
+
   return (
     <section
       aria-label="Mission Resource HUD"
-      className="paper-card grid grid-cols-2 gap-3 px-4 py-3 font-mono text-xs tabular-nums sm:grid-cols-3 lg:grid-cols-6"
+      className="flash-panel px-3 py-2.5 font-mono text-xs tabular-nums sm:px-4 sm:py-3"
     >
-      {/* 1. Wet Mass vs Reference Cap */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="inline-flex items-center gap-1 font-bold">
-            <Weight className="h-3.5 w-3.5 text-role-spacecraft" />
-            MASS
+      {/* Compact Handheld Header Bar (Always shown in compact mode & small phones) */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 ${
+          compact ? "" : "sm:hidden"
+        } ${expandedMobile ? "mb-2.5 border-b-2 border-ink-black pb-2" : ""}`}
+      >
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-spacecraft">
+            {liveMetrics.estimated_wet_mass_kg.toFixed(0)}kg
           </span>
-          <StatusPill level={massLevel} />
-        </div>
-        <div className="text-sm font-bold text-paper-cream">
-          {liveMetrics.estimated_wet_mass_kg.toFixed(0)}
-          <span className="text-[11px] font-normal text-slate-400">
-            /{capMassKg}kg
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-finance">
+            ${budgetM}M
+          </span>
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-orbit">
+            {liveMetrics.available_power_w.toFixed(0)}W
+          </span>
+          <span className="rounded border border-ink-black bg-space-ink px-2 py-0.5 text-role-science">
+            {liveMetrics.fspl_loss_db.toFixed(1)}dB
           </span>
         </div>
-        <SegmentedBar pct={massPct} level={massLevel} />
+
+        <button
+          type="button"
+          onClick={() => setExpandedMobile((v) => !v)}
+          className="paper-btn inline-flex items-center gap-1 bg-paper-cream px-2.5 py-1 text-[10px] text-ink-black"
+        >
+          {expandedMobile ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" />
+              COMPACT HUD
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" />
+              6-GAUGE HUD
+            </>
+          )}
+        </button>
       </div>
 
-      {/* 2. Remaining Budget */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="inline-flex items-center gap-1 font-bold">
-            <Coins className="h-3.5 w-3.5 text-role-finance" />
-            BUDGET
-          </span>
-          <StatusPill level={budgetLevel} />
+      {/* Full 6-Gauge Telemetry Rack */}
+      <div
+        className={`grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 ${
+          expandedMobile ? "grid" : compact ? "hidden" : "hidden sm:grid"
+        }`}
+      >
+        {/* 1. Wet Mass vs Reference Cap */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "spacecraft_mass"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.spacecraft_mass.codename} & ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Weight className="h-3.5 w-3.5 text-role-spacecraft" />
+              MASS
+            </span>
+            <StatusPill level={massLevel} />
+          </div>
+          <div className="text-sm font-bold text-paper-cream">
+            {liveMetrics.estimated_wet_mass_kg.toFixed(0)}
+            <span className="text-[11px] font-normal text-slate-400">
+              /{capMassKg}kg
+            </span>
+          </div>
+          <SegmentedBar pct={massPct} level={massLevel} />
         </div>
-        <div className="text-sm font-bold text-role-finance">
-          ${budgetM}M
-          <span className="text-[11px] font-normal text-slate-400">
-            /{(budgetCapUsd / 1_000_000).toFixed(0)}M
-          </span>
-        </div>
-        <SegmentedBar pct={budgetPct} level={budgetLevel} />
-      </div>
 
-      {/* 3. UFE Reserve & R&D Factor F */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="font-bold">UFE VAULT</span>
-          <StatusPill level={ufeLevel} />
+        {/* 2. Remaining Budget */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "finance_launch"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.finance_launch.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Coins className="h-3.5 w-3.5 text-role-finance" />
+              BUDGET
+            </span>
+            <StatusPill level={budgetLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-finance">
+            ${budgetM}M
+            <span className="text-[11px] font-normal text-slate-400">
+              /{(budgetCapUsd / 1_000_000).toFixed(0)}M
+            </span>
+          </div>
+          <SegmentedBar pct={budgetPct} level={budgetLevel} />
         </div>
-        <div className="text-sm font-bold text-paper-cream">
-          {liveMetrics.ufe_reserve_pct.toFixed(0)}%
-          <span className="ml-1.5 text-[11px] font-normal text-role-orbit">
-            F={liveMetrics.funding_factor_F.toFixed(2)}
-          </span>
-        </div>
-        <SegmentedBar pct={liveMetrics.ufe_reserve_pct * 2} level={ufeLevel} />
-      </div>
 
-      {/* 4. CG Balance & Thermal Shield */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="inline-flex items-center gap-1 font-bold">
-            <Scale className="h-3.5 w-3.5 text-role-spacecraft" />
-            CG / TPS
-          </span>
-          <StatusPill level={cgLevel} />
+        {/* 3. UFE Reserve & R&D Factor F */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "finance_launch"
+          )}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="font-bold">UFE VAULT</span>
+            <StatusPill level={ufeLevel} />
+          </div>
+          <div className="text-sm font-bold text-paper-cream">
+            {liveMetrics.ufe_reserve_pct.toFixed(0)}%
+            <span className="ml-1.5 text-[11px] font-normal text-role-orbit">
+              F={liveMetrics.funding_factor_F.toFixed(2)}
+            </span>
+          </div>
+          <SegmentedBar pct={liveMetrics.ufe_reserve_pct * 2} level={ufeLevel} />
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
-          <span
-            className={
-              liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"
-            }
-          >
-            {liveMetrics.cg_balanced
-              ? `CG ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`
-              : `DRIFT ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`}
-          </span>
-          <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-200">
-            {liveMetrics.has_thermal_protection ? (
-              <ShieldCheck className="h-3.5 w-3.5 text-status-ok" />
-            ) : (
-              <ShieldAlert className="h-3.5 w-3.5 text-status-crit" />
-            )}
-            {liveMetrics.has_thermal_protection ? "TPS" : "NO TPS"}
-          </span>
-        </div>
-        <div className="text-[10px] text-slate-400">
-          Δv {liveMetrics.required_dv_ms.toFixed(0)} m/s · Payload{" "}
-          {liveMetrics.instruments_mass_kg.toFixed(0)} kg
-        </div>
-      </div>
 
-      {/* 5. Available Power Bus */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="inline-flex items-center gap-1 font-bold">
-            <BatteryCharging className="h-3.5 w-3.5 text-role-orbit" />
-            POWER
-          </span>
-          <StatusPill level={powerLevel} />
+        {/* 4. CG Balance & Thermal Shield */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "spacecraft_mass"
+          )}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Scale className="h-3.5 w-3.5 text-role-spacecraft" />
+              CG / TPS
+            </span>
+            <StatusPill level={cgLevel} />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            <span
+              className={
+                liveMetrics.cg_balanced ? "text-status-ok" : "text-status-crit"
+              }
+            >
+              {liveMetrics.cg_balanced
+                ? `CG ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`
+                : `DRIFT ${liveMetrics.fuel_burn_multiplier.toFixed(1)}x`}
+            </span>
+            <span className="inline-flex items-center gap-0.5 text-[11px] text-slate-200">
+              {liveMetrics.has_thermal_protection ? (
+                <ShieldCheck className="h-3.5 w-3.5 text-status-ok" />
+              ) : (
+                <ShieldAlert className="h-3.5 w-3.5 text-status-crit" />
+              )}
+              {liveMetrics.has_thermal_protection ? "TPS" : "NO TPS"}
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400">
+            Δv {liveMetrics.required_dv_ms.toFixed(0)} m/s · Payload{" "}
+            {liveMetrics.instruments_mass_kg.toFixed(0)} kg
+          </div>
         </div>
-        <div className="text-sm font-bold text-role-orbit">
-          {liveMetrics.available_power_w.toFixed(0)} W
-        </div>
-        <SegmentedBar pct={powerPct} level={powerLevel} />
-      </div>
 
-      {/* 6. DSN FSPL Path Loss */}
-      <div className="space-y-1.5 rounded-xl border-2 border-ink-black bg-space-ink/80 p-2.5">
-        <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
-          <span className="inline-flex items-center gap-1 font-bold">
-            <Radio className="h-3.5 w-3.5 text-role-science" />
-            DSN FSPL
-          </span>
-          <StatusPill level={fsplLevel} />
+        {/* 5. Available Power Bus */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "orbit_power"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.orbit_power.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <BatteryCharging className="h-3.5 w-3.5 text-role-orbit" />
+              POWER
+            </span>
+            <StatusPill level={powerLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-orbit">
+            {liveMetrics.available_power_w.toFixed(0)} W
+          </div>
+          <SegmentedBar pct={powerPct} level={powerLevel} />
         </div>
-        <div className="text-sm font-bold text-role-science">
-          {liveMetrics.fspl_loss_db.toFixed(1)} dB
+
+        {/* 6. DSN FSPL Path Loss */}
+        <div
+          className={`space-y-1.5 rounded-xl border-2 border-ink-black p-2.5 ${ownerRoleHighlight(
+            "science_comms"
+          )}`}
+          title={`Managed by ${ROLE_CHARACTER_PROFILE.science_comms.codename}`}
+        >
+          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-300">
+            <span className="inline-flex items-center gap-1 font-bold">
+              <Radio className="h-3.5 w-3.5 text-role-science" />
+              DSN FSPL
+            </span>
+            <StatusPill level={fsplLevel} />
+          </div>
+          <div className="text-sm font-bold text-role-science">
+            {liveMetrics.fspl_loss_db.toFixed(1)} dB
+          </div>
+          <SegmentedBar pct={fsplPct} level={fsplLevel} />
         </div>
-        <SegmentedBar pct={fsplPct} level={fsplLevel} />
       </div>
     </section>
   );

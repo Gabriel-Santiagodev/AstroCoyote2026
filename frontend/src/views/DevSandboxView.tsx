@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { LockKeyhole, Pause, Play, RotateCcw, UnlockKeyhole } from "lucide-react";
 import { MinigameShell } from "../components/MinigameShell";
+import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
 import { Rol1A_BudgetTable } from "../components/minigames/Rol1A_BudgetTable";
 import { Rol1B_LauncherAuction } from "../components/minigames/Rol1B_LauncherAuction";
@@ -22,12 +23,6 @@ type NumericMetricKey = {
 }[keyof LiveMetrics];
 
 const ROUND_SECONDS = 30; // docs/04-juego.md: one 30-second take per station.
-const ROLE_LABELS: Record<RoleType, string> = {
-  finance_launch: "Finance & Launch",
-  spacecraft_mass: "Spacecraft & Mass",
-  orbit_power: "Orbit & Power",
-  science_comms: "Science & Comms",
-};
 const REGISTRY: Record<
   MinigameKey,
   { roleId: RoleType; wave: 1 | 2; title: string; Component: ComponentType<MinigameProps> }
@@ -101,6 +96,9 @@ function JsonInspector({ title, value, accent }: { title: string; value: unknown
 }
 
 export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }) {
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
   const [selectedKey, setSelectedKey] = useState<MinigameKey>("Rol1A");
   const [missionId, setMissionId] = useState<MissionIdType>("artemis_moon");
   const [difficulty, setDifficulty] = useState<DifficultyType>("easy");
@@ -118,6 +116,13 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
   const [spectralJson, setSpectralJson] = useState("");
   const submittedRef = useRef(false);
 
+  useEffect(() => {
+    const viewport = window.matchMedia("(max-width: 767px)");
+    const updateViewport = () => setIsMobileViewport(viewport.matches);
+    updateViewport();
+    viewport.addEventListener("change", updateViewport);
+    return () => viewport.removeEventListener("change", updateViewport);
+  }, []);
   useEffect(() => {
     if (!isPlaying) return;
     const interval = window.setInterval(() => setTimeLeftSec((previous) => Math.max(0, previous - 1)), 1000);
@@ -145,7 +150,7 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
   const handleLiveMutation = useCallback((delta: Record<string, unknown>) => {
     setLastLiveDelta(delta);
     setMetrics((previous) => mergeRecognizedMetrics(previous, delta));
-    setToastAlert("Live mutation from " + ROLE_LABELS[REGISTRY[selectedKey].roleId]);
+    setToastAlert("Live mutation from " + ROLE_CHARACTER_PROFILE[REGISTRY[selectedKey].roleId].codename);
   }, [selectedKey]);
   const handleSubmitTake = useCallback((payload: Record<string, unknown>) => {
     if (submittedRef.current) return;
@@ -157,6 +162,7 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
 
   const entry = REGISTRY[selectedKey];
   const ActiveComponent = entry.Component;
+  const activeProfile = ROLE_CHARACTER_PROFILE[entry.roleId];
   const mission = nasaCatalog.missions[missionId];
   const orbitLosses = nasaCatalog.orbits.flatMap((orbit) => [orbit.fspl_s_band_db, orbit.fspl_x_band_db]);
   const controls: Array<{ key: NumericMetricKey; unit: string; min: number; max: number; step: number }> = [
@@ -181,42 +187,45 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
   }
 
   return (
-    <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 text-paper-cream">
-      <header className="paper-card flex flex-wrap items-center justify-between gap-4 p-5">
-        <div>
+    <main className="mx-auto max-w-7xl space-y-4 px-3 py-4 text-paper-cream sm:space-y-5 sm:px-4 sm:py-6">
+      <header className="flash-panel overflow-hidden p-4 sm:p-5">
+        <div className="hazard-stripe-bar -mx-4 -mt-4 mb-4 h-2 border-b-2 border-ink-black sm:-mx-5 sm:-mt-5" aria-hidden="true" />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
           <p className="font-mono text-xs font-bold tracking-widest text-role-finance">ENGINEERING TEST DECK</p>
-          <h1 className="font-display text-3xl font-black">Minigame Sandbox</h1>
+          <h1 className="font-display text-2xl font-black sm:text-3xl">Minigame Sandbox</h1>
           <p className="mt-1 text-sm text-slate-300">Isolated station preview · /dev-sandbox</p>
         </div>
         {onExitSandbox && <button type="button" onClick={onExitSandbox} className="paper-btn bg-paper-cream px-4 py-2 text-sm text-ink-black">Back to Menu</button>}
+        </div>
       </header>
 
-      <section className="paper-card-light grid gap-4 p-5 sm:grid-cols-3" aria-label="Sandbox selectors">
+      <section className="flash-panel grid min-w-0 gap-3 p-4 sm:grid-cols-3 sm:gap-4 sm:p-5" aria-label="Sandbox selectors">
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-game">
           <span>MINIGAME</span>
-          <select id="sandbox-game" value={selectedKey} onChange={(event) => { setSelectedKey(event.target.value as MinigameKey); resetRun(); }} className="w-full rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm">
+          <select id="sandbox-game" value={selectedKey} onChange={(event) => { setSelectedKey(event.target.value as MinigameKey); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             {(Object.keys(REGISTRY) as MinigameKey[]).map((key) => <option key={key} value={key}>{key} · {REGISTRY[key].title}</option>)}
           </select>
         </label>
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-mission">
           <span>MISSION ID</span>
-          <select id="sandbox-mission" value={missionId} onChange={(event) => { const next = event.target.value as MissionIdType; setMissionId(next); setMetrics(createMockMetrics(next)); resetRun(); }} className="w-full rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm">
+          <select id="sandbox-mission" value={missionId} onChange={(event) => { const next = event.target.value as MissionIdType; setMissionId(next); setMetrics(createMockMetrics(next)); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             {(Object.keys(nasaCatalog.missions) as MissionIdType[]).map((id) => <option key={id} value={id}>{nasaCatalog.missions[id].name}</option>)}
           </select>
         </label>
         <label className="space-y-1 font-mono text-xs font-bold" htmlFor="sandbox-difficulty">
           <span>DIFFICULTY</span>
-          <select id="sandbox-difficulty" value={difficulty} onChange={(event) => { setDifficulty(event.target.value as DifficultyType); resetRun(); }} className="w-full rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm">
+          <select id="sandbox-difficulty" value={difficulty} onChange={(event) => { setDifficulty(event.target.value as DifficultyType); resetRun(); }} className="w-full min-w-0 rounded-lg border-2 border-ink-black bg-white px-3 py-2 text-sm text-ink-black">
             <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
           </select>
         </label>
       </section>
 
-      <ResourceHUD liveMetrics={metrics} />
+      <ResourceHUD key={isMobileViewport ? "mobile" : "desktop"} liveMetrics={metrics} missionId={missionId} activeRole={entry.roleId} compact={isMobileViewport} />
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
-        <div className="space-y-5">
-          <section className="paper-card flex flex-wrap items-center justify-between gap-4 p-4" aria-label="Sandbox clock controls">
+        <div className="min-w-0 space-y-5">
+          <section className="flash-panel flex flex-wrap items-center justify-between gap-4 p-4" aria-label="Sandbox clock controls">
             <div><p className="font-mono text-xs text-slate-300">LOCAL STATION CLOCK</p><div className="font-mono text-4xl font-bold tabular-nums">{String(timeLeftSec).padStart(2, "0")}s</div></div>
             <div className="flex flex-wrap items-center gap-3">
               <button type="button" disabled={timeLeftSec === 0 || isPlaying} onClick={() => setIsPlaying(true)} className="paper-btn inline-flex items-center gap-2 bg-status-ok px-4 py-2 text-sm text-ink-black"><Play size={17} /> Play</button>
@@ -229,16 +238,25 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
             </label>
           </section>
 
-          <MinigameShell roleId={entry.roleId} wave={entry.wave} timeLeftSec={timeLeftSec} isLocked={isLocked} toastAlert={toastAlert}>
-            <ActiveComponent key={selectedKey + "-" + runId} missionId={missionId} difficulty={difficulty} roleId={entry.roleId} wave={entry.wave} timeLeftSec={timeLeftSec} liveMetrics={metrics} spectralChallenge={spectralChallenge} onLiveMutation={handleLiveMutation} onSubmitTake={handleSubmitTake} isLocked={isLocked} />
-          </MinigameShell>
+          <div className="handheld-console-frame min-w-0 space-y-3 p-2 sm:p-3">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border-2 border-ink-black bg-space-ink/80 px-2 py-1">
+              <CrewmateAvatar role={entry.roleId} state="work" size={isMobileViewport ? 46 : 56} />
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[11px] font-bold text-role-finance">{activeProfile.codename} · {activeProfile.squadClass}</p>
+                <p className="truncate font-mono text-[10px] text-slate-300">GEAR: {activeProfile.gearLabel}</p>
+              </div>
+            </div>
+            <MinigameShell roleId={entry.roleId} wave={entry.wave} timeLeftSec={timeLeftSec} isLocked={isLocked} toastAlert={toastAlert}>
+              <ActiveComponent key={selectedKey + "-" + runId} missionId={missionId} difficulty={difficulty} roleId={entry.roleId} wave={entry.wave} timeLeftSec={timeLeftSec} liveMetrics={metrics} spectralChallenge={spectralChallenge} onLiveMutation={handleLiveMutation} onSubmitTake={handleSubmitTake} isLocked={isLocked} />
+            </MinigameShell>
+          </div>
 
-          <section className="paper-card space-y-3 p-4">
+          <section className="flash-panel space-y-3 p-4">
             <h2 className="font-display text-lg font-bold">Simulate mutacion_en_vivo</h2>
             <div className="grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
               <label className="font-mono text-xs" htmlFor="toast-source">SOURCE ROLE
                 <select id="toast-source" value={toastSource} onChange={(event) => setToastSource(event.target.value as RoleType)} className="mt-1 w-full rounded-lg border-2 border-ink-black bg-paper-cream px-2 py-2 text-ink-black">
-                  {(Object.keys(ROLE_LABELS) as RoleType[]).map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+                  {(Object.keys(ROLE_CHARACTER_PROFILE) as RoleType[]).map((role) => <option key={role} value={role}>{ROLE_CHARACTER_PROFILE[role].codename}</option>)}
                 </select>
               </label>
               <label className="font-mono text-xs" htmlFor="toast-message">TOAST ALERT
@@ -249,7 +267,7 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
           </section>
         </div>
 
-        <aside className="space-y-5">
+        <aside className="min-w-0 space-y-5">
           <section className="paper-card-light space-y-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="font-display text-lg font-bold">Mock LiveMetrics</h2><p className="text-xs text-slate-600">Local test values only. Numeric fields accept values beyond slider limits.</p></div>
@@ -284,13 +302,13 @@ export function DevSandboxView({ onExitSandbox }: { onExitSandbox?: () => void }
             </fieldset>
           </section>
 
-          <section className="paper-card space-y-3 p-5">
+          <section className="flash-panel space-y-3 p-4 sm:p-5">
             <h2 className="font-display text-lg font-bold">Callback Inspector</h2>
             <JsonInspector title="onLiveMutation(partialDelta)" value={lastLiveDelta} accent="text-role-spacecraft" />
             <JsonInspector title="onSubmitTake(finalPayload)" value={lastSubmitPayload} accent="text-status-ok" />
             <JsonInspector title="Simulated mutacion_en_vivo" value={simulatedEvent} accent="text-status-warn" />
           </section>
-          <details className="paper-card p-5">
+          <details className="flash-panel p-4 sm:p-5">
             <summary className="cursor-pointer font-display text-sm font-bold">Optional spectralChallenge JSON</summary>
             <label className="mt-3 block space-y-2 font-mono text-xs" htmlFor="spectral-json">
               <span>Passed directly to spectral minigames when valid.</span>
