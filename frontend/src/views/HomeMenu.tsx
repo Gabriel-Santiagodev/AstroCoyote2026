@@ -111,7 +111,7 @@ export function HomeMenu({
   const showBootLoader = Boolean(pendingAction) || isConnecting;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-5 px-3 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-5 px-3 pb-6 pt-12 sm:px-6 sm:pb-8 sm:pt-14">
       {/* 2D Flash-Game Loading Overlay on Boot / Room Link */}
       {showBootLoader && (
         <MissionLoadingScreen

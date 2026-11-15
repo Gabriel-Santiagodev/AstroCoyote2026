@@ -553,25 +553,89 @@ export function CrewmateAvatar({
         {/* Role gear behind arms/torso */}
         <RoleBackpackAndGear role={role} state={effectiveState} actionEffect={actionEffect} />
 
-        {/* Left & Right Legs */}
-        <rect x="41" y="88" width="15" height="27" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="3" />
-        <rect x="64" y="88" width="15" height="27" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="3" />
+        {/* Left Leg + Kneepad + Boot (Articulated) */}
+        <motion.g
+          animate={
+            effectiveState === "walk"
+              ? { y: [0, -5, 0], rotate: [-8, 8, -8] }
+              : effectiveState === "cheer"
+              ? { y: [0, -3, 0] }
+              : undefined
+          }
+          transition={{ duration: effectiveState === "walk" ? 0.58 : 0.72, repeat: Infinity, ease: "easeInOut" }}
+          style={{ originX: "48px", originY: "88px" }}
+        >
+          <rect x="41" y="88" width="15" height="27" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="3" />
+          <rect x="40" y="95" width="17" height="10" rx="4" fill="#475569" stroke="#0F172A" strokeWidth="2.6" />
+          <path d="M36 112 H57 V120 C57 122 55 123 52 123 H39 C37 123 36 121 36 119 Z" fill="#334155" stroke="#0F172A" strokeWidth="3" />
+          <rect x="38" y="109" width="18" height="5" rx="2" fill={bootTrim} stroke="#0F172A" strokeWidth="2" />
+        </motion.g>
 
-        {/* Kneepads */}
-        <rect x="40" y="95" width="17" height="10" rx="4" fill="#475569" stroke="#0F172A" strokeWidth="2.6" />
-        <rect x="63" y="95" width="17" height="10" rx="4" fill="#475569" stroke="#0F172A" strokeWidth="2.6" />
+        {/* Right Leg + Kneepad + Boot (Articulated) */}
+        <motion.g
+          animate={
+            effectiveState === "walk"
+              ? { y: [-5, 0, -5], rotate: [8, -8, 8] }
+              : effectiveState === "cheer"
+              ? { y: [-3, 0, -3] }
+              : undefined
+          }
+          transition={{ duration: effectiveState === "walk" ? 0.58 : 0.72, repeat: Infinity, ease: "easeInOut" }}
+          style={{ originX: "72px", originY: "88px" }}
+        >
+          <rect x="64" y="88" width="15" height="27" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="3" />
+          <rect x="63" y="95" width="17" height="10" rx="4" fill="#475569" stroke="#0F172A" strokeWidth="2.6" />
+          <path d="M63 112 H84 V119 C84 121 83 123 81 123 H68 C65 123 63 122 63 120 Z" fill="#334155" stroke="#0F172A" strokeWidth="3" />
+          <rect x="64" y="109" width="18" height="5" rx="2" fill={bootTrim} stroke="#0F172A" strokeWidth="2" />
+        </motion.g>
 
-        {/* Heavy Space Boots */}
-        <path d="M36 112 H57 V120 C57 122 55 123 52 123 H39 C37 123 36 121 36 119 Z" fill="#334155" stroke="#0F172A" strokeWidth="3" />
-        <rect x="38" y="109" width="18" height="5" rx="2" fill={bootTrim} stroke="#0F172A" strokeWidth="2" />
-        <path d="M63 112 H84 V119 C84 121 83 123 81 123 H68 C65 123 63 122 63 120 Z" fill="#334155" stroke="#0F172A" strokeWidth="3" />
-        <rect x="64" y="109" width="18" height="5" rx="2" fill={bootTrim} stroke="#0F172A" strokeWidth="2" />
+        {/* Articulated Left Arm + Glove */}
+        <motion.g
+          animate={
+            effectiveState === "walk"
+              ? { rotate: [12, -12, 12] }
+              : effectiveState === "work"
+              ? { rotate: [-10, 12, -10] }
+              : effectiveState === "cheer"
+              ? { y: [-6, -12, -6], rotate: [18, 32, 18] }
+              : effectiveState === "panic"
+              ? { rotate: [-22, 22, -22] }
+              : undefined
+          }
+          transition={{
+            duration: effectiveState === "panic" ? 0.28 : effectiveState === "walk" ? 0.58 : 0.72,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          style={{ originX: "34px", originY: "63px" }}
+        >
+          <rect x="26" y="61" width="13" height="24" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="2.8" />
+          <circle cx="32" cy="84" r="6" fill={suitSecondary} stroke="#0F172A" strokeWidth="2.6" />
+        </motion.g>
 
-        {/* Articulated Arms + Gloves */}
-        <rect x="26" y="61" width="13" height="24" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="2.8" />
-        <circle cx="32" cy="84" r="6" fill={suitSecondary} stroke="#0F172A" strokeWidth="2.6" />
-        <rect x="81" y="61" width="13" height="24" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="2.8" />
-        <circle cx="88" cy="84" r="6" fill={suitSecondary} stroke="#0F172A" strokeWidth="2.6" />
+        {/* Articulated Right Arm + Glove */}
+        <motion.g
+          animate={
+            effectiveState === "walk"
+              ? { rotate: [-12, 12, -12] }
+              : effectiveState === "work"
+              ? { rotate: [12, -10, 12] }
+              : effectiveState === "cheer"
+              ? { y: [-6, -12, -6], rotate: [-18, -32, -18] }
+              : effectiveState === "panic"
+              ? { rotate: [22, -22, 22] }
+              : undefined
+          }
+          transition={{
+            duration: effectiveState === "panic" ? 0.28 : effectiveState === "walk" ? 0.58 : 0.72,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          style={{ originX: "86px", originY: "63px" }}
+        >
+          <rect x="81" y="61" width="13" height="24" rx="6" fill={suitPrimary} stroke="#0F172A" strokeWidth="2.8" />
+          <circle cx="88" cy="84" r="6" fill={suitSecondary} stroke="#0F172A" strokeWidth="2.6" />
+        </motion.g>
 
         {/* Torso Suit */}
         <rect x="38" y="57" width="44" height="37" rx="11" fill={suitPrimary} stroke="#0F172A" strokeWidth="3.2" />

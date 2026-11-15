@@ -139,7 +139,7 @@ export function LobbyView({
   };
 
   return (
-    <main className="mx-auto max-w-6xl space-y-4 px-3 py-5 sm:px-5 sm:py-7">
+    <main className="mx-auto max-w-6xl space-y-4 px-3 pb-5 pt-12 sm:px-5 sm:pb-7 sm:pt-14">
       {isLaunchingWave1 && (
         <MissionLoadingScreen
           variant="lobby_to_wave1"
