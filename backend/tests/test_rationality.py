@@ -182,3 +182,36 @@ def test_flight_answers_cannot_break_a_launch_that_already_happened() -> None:
     assert after["failed_or_degraded_gate"] != "NODE_1_LAUNCH" or after["outcome"] != "FAILED"
     legacy = decision_tree.evaluate_mission_deployment("artemis_moon", flight)
     assert legacy["outcome"] == "FAILED" and legacy["failed_or_degraded_gate"] == "NODE_1_LAUNCH"
+
+
+def test_leaderboard_ranks_crew_by_contribution() -> None:
+    room = {
+        "players": {"s1": {"role": "finance_launch", "name": "Ana"}, "s2": {"role": "science_comms", "name": "Leo"}},
+        "human_fallbacks": [{"role": "science_comms", "wave": 2}],
+        "decision_history": [
+            {"answered_by_role": "finance_launch", "timed_out": False},
+            {"answered_by_role": "science_comms", "timed_out": True},
+            {"answered_by_role": "finance_launch", "timed_out": False},
+        ],
+        "launch_gates": {"NODE_1_LAUNCH": "PASS", "NODE_2_PROPULSION": "DEGRADED", "NODE_3_EVENT": "PASS", "NODE_4_DOWNLINK": "PASS"},
+    }
+    board = GameManager._crew_leaderboard(room)
+    assert [r["rank"] for r in board] == [1, 2, 3, 4]
+    top = board[0]
+    assert top["player_name"] == "Ana" and top["points"] == 50 + 20 + 10
+    leo = next(r for r in board if r["role"] == "science_comms")
+    assert leo["stations_locked"] == 1 and leo["flight_calls"] == 0 and leo["points"] == 60
+    ai = next(r for r in board if r["role"] == "orbit_power")
+    assert ai["is_ai"] and ai["points"] == 25 and ai["rank"] == 4
+
+
+def test_failed_checkpoint_cannot_top_the_leaderboard() -> None:
+    room = {
+        "players": {"s1": {"role": "finance_launch", "name": "Solo"}},
+        "human_fallbacks": [],
+        "decision_history": [{"answered_by_role": "finance_launch", "timed_out": False}] * 4,
+        "launch_gates": {"NODE_1_LAUNCH": "CRITICAL", "NODE_2_PROPULSION": "PASS", "NODE_3_EVENT": "PASS", "NODE_4_DOWNLINK": "PASS"},
+    }
+    board = GameManager._crew_leaderboard(room)
+    solo = next(r for r in board if r["role"] == "finance_launch")
+    assert solo["points"] == 40 and solo["rank"] == 4

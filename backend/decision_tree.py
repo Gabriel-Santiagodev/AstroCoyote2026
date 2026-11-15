@@ -352,10 +352,17 @@ def evaluate_mission_deployment(
 
     if effective_completion < 0.85:
         if comms_factor < 1.0:
-            notes.append(
-                f"Weak radio link: the signal margin was {s.link_margin_db:.1f} dB (3 dB needed), so only "
-                f"{comms_factor * 100:.0f}% of the science made it home; the rest stayed on the recorder."
-            )
+            if s.link_margin_db < 3.0:
+                notes.append(
+                    f"Weak radio link: the signal margin was {s.link_margin_db:.1f} dB (3 dB needed), so only "
+                    f"{comms_factor * 100:.0f}% of the science made it home; the rest stayed on the recorder."
+                )
+            else:
+                notes.append(
+                    f"Only {comms_factor * 100:.0f}% of the science made it home: the signal was strong enough "
+                    f"({s.link_margin_db:.1f} dB) but the link ran below full efficiency (signal code or "
+                    f"data limits), so the rest stayed on the recorder."
+                )
         if spectral_quality < 0.75:
             notes.append(
                 f"The instruments were roughly calibrated (quality {s.science_calibration_f1:.2f} of 1.00 in "

@@ -995,6 +995,7 @@ Inspirado en **Among Us + Kahoot**, ofrece dos tipos de vista sincronizadas por 
 | `reporte_final_mision` | `random_event` | El mismo resumen, para el análisis causal del reporte. |
 | `iniciar_vuelo_60s` y `reporte_final_mision` | `random_events` | Lista de todos los eventos de la partida (*hard* recibe dos); `random_event` sigue siendo el primero por compatibilidad. |
 | `reporte_final_mision` | `score_breakdown` | `{ objective_points, science_f1_points, efficiency_points, success_floor_points, tips[] }`: puntos por parte (500 / 300 / 200), el piso de éxito (mín. 400 parcial, 800 total) y hasta 4 consejos en lenguaje simple de qué faltó para 1 000. Solo en `PARTIAL_SUCCESS` y `FULL_SUCCESS`. |
+| `reporte_final_mision` | `leaderboard` | Lista de los 4 asientos ordenada por `rank`: `{ rank, role, player_name, is_ai, gate, gate_status, stations_locked, flight_calls, points }`. Puntos: compuerta propia al despegar (`PASS` 50 · `DEGRADED` 25 · `CRITICAL` 0) + 10 por estación bloqueada por el humano (máx. 20) + 5 por llamada de vuelo respondida a tiempo. Los asientos de IA solo suman la compuerta. Empates: humanos primero y luego orden de estaciones. Cada entrada de `decision_history` incluye `answered_by_role`. |
 | `reporte_final_mision` | `collaboration` | `{ score 0–100, humans, own_locks_pct, answered_pct, gates_ready_at_liftoff }`: 40 % estaciones bloqueadas por humanos (sin respaldo de IA), 30 % llamadas de vuelo respondidas, 30 % compuertas `PASS` al despegar. |
 | `mutacion_en_vivo` | `quiet` | `true` en el refresco que el servidor manda tras un bloqueo: la UI actualiza métricas y pronóstico sin toast. |
 
@@ -2539,6 +2540,12 @@ Ritmo medido con script (bloqueando rápido): ~90 s hasta el vuelo; con humanos 
 14. Datos por validar con fuente: costo de MSR ($2.5B vs estimaciones de NASA), pérdida de señal real Tierra–Luna/Marte, potencia real de un MMRTG (~110 W).
 15. ✅ **Resuelto (2026-11-15): `score_breakdown` con puntos por parte y consejos “How to reach 1,000”.** El puntaje (811/1000 con éxito total) necesitaba una explicación visible de qué faltó para 1000.
 16. ✅ **Verificado (2026-11-15): no se usa en ninguna vista.** El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
+
+### Iteración leaderboard (2026-11-15)
+
+- ✅ El podio final ya no es fijo por rol (antes *Finance* siempre era #1): el servidor calcula `leaderboard` y la vista `CrewLeaderboard` muestra podio (top 3, corona al #1), lista con el aporte de cada asiento (compuerta, estaciones, llamadas de vuelo, resumen) y el puntaje de trabajo en equipo.
+- ✅ Reporte reordenado: veredicto → puntaje → leaderboard → eventos → causas → puntos de control → historial → reintentar. Se eliminó la sección duplicada *Crew Contributions*.
+- ✅ Correcciones de las 3 iteraciones: un asiento con su compuerta fallando ya no puede quedar #1 (pesos 50/10/5); asientos de IA con nombre propio (*Medic · AI*); etiqueta *Revisit* cuando el veredicto marca esa compuerta; texto de radio correcto cuando el margen sí supera 3 dB; sin desbordes a 375 px; sin errores de React en consola.
 
 ## 5. Siguiente paso recomendado
 

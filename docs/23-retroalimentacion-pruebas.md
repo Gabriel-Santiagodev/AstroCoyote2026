@@ -62,6 +62,12 @@ Ritmo medido con script (bloqueando rápido): ~90 s hasta el vuelo; con humanos 
 15. ✅ **Resuelto (2026-11-15): `score_breakdown` con puntos por parte y consejos “How to reach 1,000”.** El puntaje (811/1000 con éxito total) necesitaba una explicación visible de qué faltó para 1000.
 16. ✅ **Verificado (2026-11-15): no se usa en ninguna vista.** El sprite `sign-radiation` tiene texto en español con errata (*RADIACION ADVERTION*): no usarlo en la UI en inglés.
 
+### Iteración leaderboard (2026-11-15)
+
+- ✅ El podio final ya no es fijo por rol (antes *Finance* siempre era #1): el servidor calcula `leaderboard` y la vista `CrewLeaderboard` muestra podio (top 3, corona al #1), lista con el aporte de cada asiento (compuerta, estaciones, llamadas de vuelo, resumen) y el puntaje de trabajo en equipo.
+- ✅ Reporte reordenado: veredicto → puntaje → leaderboard → eventos → causas → puntos de control → historial → reintentar. Se eliminó la sección duplicada *Crew Contributions*.
+- ✅ Correcciones de las 3 iteraciones: un asiento con su compuerta fallando ya no puede quedar #1 (pesos 50/10/5); asientos de IA con nombre propio (*Medic · AI*); etiqueta *Revisit* cuando el veredicto marca esa compuerta; texto de radio correcto cuando el margen sí supera 3 dB; sin desbordes a 375 px; sin errores de React en consola.
+
 ## 5. Siguiente paso recomendado
 
 1. Resolver **P0-1 (dificultad)** y **P0-2 (pronóstico “no decidido”)**: son los que más cambian la experiencia del jurado.

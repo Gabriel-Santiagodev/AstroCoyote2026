@@ -28,6 +28,14 @@ VALID_MISSIONS = {"artemis_moon", "asteroid_hunter", "mars_sample_return"}
 VALID_DIFFICULTIES = {"easy", "medium", "hard"}
 
 
+# Checkpoint (decision-tree gate) each role owns; same mapping as the station forecast UI.
+_ROLE_GATE = {
+    "finance_launch": "NODE_1_LAUNCH",
+    "orbit_power": "NODE_2_PROPULSION",
+    "spacecraft_mass": "NODE_3_EVENT",
+    "science_comms": "NODE_4_DOWNLINK",
+}
+
 # Player-facing names for the power_source values (naming only, no game numbers).
 _POWER_NAMES = {
     "rtg_nuclear": "nuclear battery (RTG)",
@@ -545,6 +553,52 @@ class GameManager:
             return
 
     @staticmethod
+    def _crew_leaderboard(room: dict[str, Any]) -> list[dict[str, Any]]:
+        """Rank the 4 crew seats by what each one delivered (end-of-mission leaderboard).
+
+        Points (game scoring weights, documented in docs/08): the checkpoint the role owns at
+        liftoff (Ready 50 / Risky 25 / Failing 0), 10 per station the human locked themselves
+        (max 20) and 5 per flight call they answered (not auto-answered). Delivering your
+        checkpoint weighs most, so a seat whose checkpoint fails cannot top a seat that delivered
+        (max 40 vs 50). AI seats only earn checkpoint points. Ties: humans first, station order.
+        """
+        gate_points = {"PASS": 50, "DEGRADED": 25, "CRITICAL": 0}
+        humans = {p.get("role"): str(p.get("name") or "Crewmate") for p in room["players"].values() if p.get("role")}
+        fallbacks = room.get("human_fallbacks", [])
+        gates = room.get("launch_gates") or {}
+        history = room.get("decision_history", [])
+        rows: list[dict[str, Any]] = []
+        for order, role in enumerate(ALL_ROLES):
+            gate = _ROLE_GATE[role]
+            status = str(gates.get(gate) or "PASS")
+            is_ai = role not in humans
+            own_locks = 0 if is_ai else max(0, 2 - sum(1 for f in fallbacks if f.get("role") == role))
+            calls = sum(
+                1 for h in history if h.get("answered_by_role") == role and not h.get("timed_out")
+            )
+            if is_ai:
+                calls = 0
+            points = gate_points.get(status, 0) + 10 * own_locks + 5 * calls
+            rows.append(
+                {
+                    "role": role,
+                    "player_name": humans.get(role, "AI autopilot"),
+                    "is_ai": is_ai,
+                    "gate": gate,
+                    "gate_status": status,
+                    "stations_locked": own_locks,
+                    "flight_calls": calls,
+                    "points": int(points),
+                    "_order": order,
+                }
+            )
+        rows.sort(key=lambda r: (-r["points"], r["is_ai"], r["_order"]))
+        for rank, row in enumerate(rows, start=1):
+            row["rank"] = rank
+            row.pop("_order", None)
+        return rows
+
+    @staticmethod
     def _collaboration_score(room: dict[str, Any]) -> dict[str, Any]:
         """Crew coordination score 0-100 (challenge: reward successful collaboration).
 
@@ -786,6 +840,7 @@ class GameManager:
                     "label": chosen_label,
                     "gate_status": gate_status,
                     "timed_out": bool(timed_out),
+                    "answered_by_role": str(current_q.get("assigned_role") or ""),
                 }
             )
 
@@ -917,6 +972,7 @@ class GameManager:
                 "random_event": room.get("random_event"),
                 "random_events": room.get("random_events", []),
                 "collaboration": self._collaboration_score(room),
+                "leaderboard": self._crew_leaderboard(room),
                 "role_contributions": role_contributions,
                 "decision_history": list(room.get("decision_history", [])),
             }
