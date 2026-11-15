@@ -2,7 +2,7 @@
 
 **Qué contiene:** lista maestra de tareas por responsable (`RUB`, `ISM`, `ABR`, `SCH`, `LEO`, `ENT`, `QA`), dependencias, hora meta (`H0` = Sáb 15:00 h) y criterio exacto de "Terminado cuando".  
 **Dueño:** Rubén (cada integrante marca las suyas con `[x]` y corre `node herramientas/combinar.mjs`)  
-**Última actualización:** 2026-11-14 (18:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 ## Cómo leer esta tabla
 

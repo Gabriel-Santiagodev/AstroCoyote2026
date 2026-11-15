@@ -2,7 +2,7 @@
 
 **Qué contiene:** todas las constantes físicas verificadas, ecuaciones orbitales y termodinámicas, catálogo de misiones, cohetes, instrumentos y espectros, con sus fuentes reales y su estado de verificación.  
 **Dueño:** Abraham *(en coordinación con Schoenstadt para el árbol causal)*  
-**Última actualización:** 2026-11-14 (15:00 h)
+**Última actualización:** 2026-11-14 (23:50 h · `ABR-01` a `ABR-06` completados)
 
 **Regla sagrada:** Prohibido inventar números dentro del código. Todos los valores parametrizables viven en `frontend/src/data/nasa_catalog.json` y `backend/models/subsystems.py`, y cada registro incluye su campo `"fuente"`.
 
@@ -142,10 +142,12 @@ Con radio orbital $r = R_E + h$ (en $\text{km}$):
 
 ## 6. Datos espectrales de referencia (`juegos_espectrales/`)
 
-- **Líneas estelares de Balmer / Dobletes:** $\text{H}\alpha = 656.3\text{ nm}$, $\text{H}\beta = 486.1\text{ nm}$, $\text{Na} = 589.0\text{ nm}$, $\text{Ca II} = 393.4\text{ nm}$; Ley de Wien $T = \frac{2.898 \times 10^6\text{ nm}\cdot\text{K}}{\lambda_{\max}}$. *(Fuente verificada: NIST Atomic Spectra Database).*
-- **Bandas FTIR de minerales/biofirmas:** $\text{Si–O–Si} \approx 1,050\text{ cm}^{-1}$, $\text{O–H} = 3,200\text{–}3,550\text{ cm}^{-1}$, $\text{C=O} \approx 1,700\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,610\text{–}1,640\text{ cm}^{-1}$, Hélice $\alpha$ $1,650\text{–}1,658\text{ cm}^{-1}$).
+- **Líneas estelares de Balmer / Dobletes / Emisión (NIST ASD):** $\text{H}\alpha = 656.28\text{ nm}$, $\text{H}\beta = 486.13\text{ nm}$, $\text{H}\gamma = 434.05\text{ nm}$, $\text{Na D1/D2} = 589.59 / 588.99\text{ nm}$, $\text{Ca II K} = 393.37\text{ nm}$, $\text{He I} = 587.56\text{ nm}$, $\text{O III} = 500.68\text{ nm}$; Ley de desplazamiento de Wien $\lambda_{\max} \cdot T = 2,897,771.955\text{ nm}\cdot\text{K}$. *(Fuente verificada: NIST Atomic Spectra Database / CODATA 2018).*
+- **Bandas FTIR de minerales/biofirmas (`cm-1`):** Silicatos $\text{Si–O–Si} \approx 1,045\text{ cm}^{-1}$, Carbonatos $\text{CO}_3 \approx 1,435\text{ cm}^{-1}$, Agua ligada $\text{H}_2\text{O} \approx 1,630\text{ cm}^{-1}$, Carbonilo $\text{C=O} \approx 1,720\text{ cm}^{-1}$, Arcillas hidratadas $\text{O–H} \approx 3,620\text{ cm}^{-1}$, Amida I ($1,600\text{–}1,700\text{ cm}^{-1}$: Hoja $\beta$ $1,632\text{ cm}^{-1}$, Hélice $\alpha$ $1,654\text{ cm}^{-1}$, Giro $\beta$ $1,676\text{ cm}^{-1}$).
 - **Índices multiespectrales:** $\text{NDVI} = \frac{\text{NIR}-\text{Rojo}}{\text{NIR}+\text{Rojo}}$, $\text{NDWI} = \frac{\text{Verde}-\text{NIR}}{\text{Verde}+\text{NIR}}$, $\text{NBR} = \frac{\text{NIR}-\text{SWIR}}{\text{NIR}+\text{SWIR}}$.
+- **Dispersión óptica de Cauchy (*Misión Fotón*):** $n(\lambda) = A + B/\lambda^2$ con $\lambda$ en $\mu\text{m}$ (*Fused Silica* $A=1.458, B=0.00354$; *BK7* $A=1.5046, B=0.00420$; *Sapphire* $A=1.754, B=0.00610$).
 - **Matriz DTMF (*Espectro Hacker*):** Filas $\{697, 770, 852, 941\}\text{ Hz}$ $\times$ Columnas $\{1209, 1336, 1477, 1633\}\text{ Hz}$. *(Estándar ITU-T Q.23).*
+- **Arquetipos implementados y espectros reales:** Los 8 modos (`cazadores_estrellas`, `detectives_luz`, `ecoespectro`, `laboratorio_musical`, `mision_foton`, `bioespectro`, `ladron_colores`, `espectro_hacker`) funcionan con generadores sintéticos calibrados o cargando CSVs reales vía `cargar_espectro_csv` / `backend/juegos_espectrales/datos_reales/<mission_id>.csv`, incluyendo guías educativas paso a paso en `educational_guide`.
 
 ---
 
