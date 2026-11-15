@@ -23,9 +23,10 @@ space-apps-juego/
         ├── types/game.ts                # CONTRATO SAGRADO: RoleType, LiveMetrics, MinigameProps
         └── components/
             ├── MinigameShell.tsx        # Reloj 30s, 1-toma, toast mutacion_en_vivo, fallback (LEO-03)
-            └── paper/                   # Sistema visual 2D Flash ASTRO SPRITES (LEO-02)
-                ├── CrewmateAvatar.tsx   # 4 Astro Sprites + ROLE_CHARACTER_PROFILE
+            └── paper/                   # Sistema visual 2D Flash ASTRO SPRITES y Audio (LEO-02, EXT-01)
+                ├── CrewmateAvatar.tsx   # 4 Astro Sprites articulados + ROLE_CHARACTER_PROFILE + actionEffect
                 ├── LoadingScreen.tsx    # Pantallas de carga por transición (boot, wave1→2, launch, report)
+                ├── SoundEngine.tsx      # Web Audio API SFX + Ambient Synth + <SoundControlPill /> (EXT-01)
                 ├── PaperCard.tsx
                 ├── Starfield.tsx
                 └── ResourceHUD.tsx      # Barras en vivo (Host completo / móvil compacto) (LEO-05)
@@ -114,10 +115,11 @@ space-apps-juego/
 
 ---
 
-## Paso 7 · Conexión Final de los 8 Minijuegos (`LEO-08`, `LEO-09` | H10 y H15)
+## Paso 7 · Conexión Final de los 8 Minijuegos, Audio y Pulido Final (`LEO-08`, `LEO-09`, `EXT-01`–`EXT-03` | H10 – H15)
 
 - **Para H10:** Mapea en un registro limpio los primeros 4 (`Rol1A`, `Rol2A` de Ismael; `Rol3A`, `Rol4A` de Abraham) dentro de `LinearStationTrack` y verifica el flujo completo con Rubén y Schoenstadt.
 - **Para H15:** Mapea los 4 restantes (`Rol1B`, `Rol2B` de Ismael; `Rol3B`, `Rol4B` de Abraham) y pule transiciones de cartulina y responsividad móvil.
+- **Estado implementado en `leo-branch` (2026-11-15):** Completadas las 8 fases del frontend de Leonardo (`LEO-01`–`LEO-09`, `EXT-01`–`EXT-03`): extremidades articuladas y efectos `complete`/`error`/`scan`/`thruster` en `CrewmateAvatar.tsx`, sintetizador `SoundEngine.tsx`, sello `STATION LOCKED`, cortinillas 2D Flash, chispas de propulsor, trazabilidad `stationLoadout` (`CREW PACKED` vs `AI AUTOPILOT`), *page flip* de Bitácora en `Flight60sView.tsx` y tarjetas causales expandibles en `MissionReportDashboard.tsx`. Listo para Pull Request / Merge Request e integración final con `backend/`.
 
 ---
 
