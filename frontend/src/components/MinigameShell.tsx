@@ -1,6 +1,7 @@
-// Owner: Leonardo (Task LEO-03) — Common 30s minigame wrapper: giant IBM Plex Mono timer,
-// role & station badges, 1-shot LOCKED state, animated `mutacion_en_vivo` toast and a safe
-// ErrorBoundary fallback so a broken minigame never breaks the 5-minute mission flow.
+// Owner: Leonardo (Task LEO-03) — Common 30s minigame wrapper (2D Flash arcade + NASA blueprint HUD):
+// giant IBM Plex Mono timer, ASTRO SPRITES identity (ROLE_CHARACTER_PROFILE), 1-shot LOCKED state,
+// animated `mutacion_en_vivo` toast and a safe ErrorBoundary fallback so a broken minigame never
+// breaks the 5-minute mission flow. Two layouts: "stage" (Host / desktop) and "handheld" (phone pad).
 import {
   Component,
   useEffect,
@@ -10,7 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, CheckCircle2, Lock, Radio, TimerReset } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lock, Radio, TimerReset, Wrench } from "lucide-react";
+import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "./paper/CrewmateAvatar";
 import type { MissionIdType, RoleType } from "../types/game";
 
 // ---------------------------------------------------------------------------
@@ -27,31 +29,39 @@ const TOAST_LIFETIME_MS = 3500;
 /** Maximum stacked toasts before the oldest is dropped (UI-only). */
 const TOAST_MAX_STACK = 3;
 
+/**
+ * Role labels used across the station UI. Identity (codename, label, suit colour) comes from
+ * ROLE_CHARACTER_PROFILE so every screen shows the same ASTRO SPRITES squad.
+ */
 export const ROLE_META: Record<
   RoleType,
-  { shortLabel: string; label: string; bgClass: string; textClass: string }
+  { shortLabel: string; label: string; codename: string; bgClass: string; textClass: string }
 > = {
   finance_launch: {
     shortLabel: "ROLE 1",
-    label: "Finance & Launch",
+    label: ROLE_CHARACTER_PROFILE.finance_launch.label,
+    codename: ROLE_CHARACTER_PROFILE.finance_launch.codename,
     bgClass: "bg-role-finance",
     textClass: "text-role-finance",
   },
   spacecraft_mass: {
     shortLabel: "ROLE 2",
-    label: "Spacecraft & Mass",
+    label: ROLE_CHARACTER_PROFILE.spacecraft_mass.label,
+    codename: ROLE_CHARACTER_PROFILE.spacecraft_mass.codename,
     bgClass: "bg-role-spacecraft",
     textClass: "text-role-spacecraft",
   },
   orbit_power: {
     shortLabel: "ROLE 3",
-    label: "Orbit & Power",
+    label: ROLE_CHARACTER_PROFILE.orbit_power.label,
+    codename: ROLE_CHARACTER_PROFILE.orbit_power.codename,
     bgClass: "bg-role-orbit",
     textClass: "text-role-orbit",
   },
   science_comms: {
     shortLabel: "ROLE 4",
-    label: "Science & Comms",
+    label: ROLE_CHARACTER_PROFILE.science_comms.label,
+    codename: ROLE_CHARACTER_PROFILE.science_comms.codename,
     bgClass: "bg-role-science",
     textClass: "text-role-science",
   },
@@ -67,6 +77,8 @@ export const MISSION_LABELS: Record<MissionIdType, string> = {
   asteroid_hunter: "Asteroid Hunter",
   mars_sample_return: "Mars Sample Return",
 };
+
+export type MinigameShellLayout = "stage" | "handheld";
 
 // ---------------------------------------------------------------------------
 // ErrorBoundary — keeps the station flow alive if a teammate's minigame throws
@@ -116,7 +128,7 @@ interface ToastItem {
 
 function LiveMutationToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-[min(92vw,22rem)] flex-col gap-2">
+    <div className="pointer-events-none fixed right-3 top-3 z-50 flex w-[min(92vw,22rem)] flex-col gap-2">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <motion.div
@@ -162,6 +174,8 @@ export interface MinigameShellProps {
    * keep the mission moving when a minigame crashes.
    */
   onFallbackSubmit?: () => void;
+  /** "stage" = Host / desktop flash panel (default); "handheld" = compact phone console frame. */
+  layout?: MinigameShellLayout;
   children: ReactNode;
 }
 
@@ -175,10 +189,13 @@ export function MinigameShell({
   missionId,
   playerLabel,
   onFallbackSubmit,
+  layout = "stage",
   children,
 }: MinigameShellProps) {
-  const role = ROLE_META[roleId];
+  const profile = ROLE_CHARACTER_PROFILE[roleId];
   const station = STATION_META[wave];
+  const stationTask = wave === 1 ? profile.wave1Task : profile.wave2Task;
+  const isHandheld = layout === "handheld";
   const secondsLeft = Math.max(0, Math.ceil(timeLeftSec));
   const progress = durationSec > 0 ? Math.min(1, Math.max(0, timeLeftSec / durationSec)) : 0;
   const isTimeUp = secondsLeft <= 0;
@@ -213,63 +230,117 @@ export function MinigameShell({
     ? "bg-status-warn text-ink-black"
     : "bg-space-ink text-paper-cream";
 
+  const timer = (
+    <motion.div
+      key={isCrit ? "crit" : "calm"}
+      animate={isCrit ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+      transition={isCrit ? { duration: 0.6, repeat: Infinity } : { duration: 0.2 }}
+      className={`flex shrink-0 items-baseline gap-1 rounded-2xl border-[3px] border-ink-black shadow-paper ${
+        isHandheld ? "px-3 py-1" : "px-4 py-1.5"
+      } ${timerColorClass}`}
+      aria-label={`${secondsLeft} seconds left`}
+    >
+      <span
+        className={`font-mono font-bold leading-none tabular-nums ${
+          isHandheld ? "text-4xl" : "text-5xl sm:text-6xl"
+        }`}
+      >
+        {String(secondsLeft).padStart(2, "0")}
+      </span>
+      <span className="font-mono text-base font-bold">s</span>
+    </motion.div>
+  );
+
+  const lockedBadge = (
+    <AnimatePresence>
+      {isLocked && (
+        <motion.span
+          initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
+          animate={{ scale: 1, rotate: -3, opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 18 }}
+          className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink-black bg-status-ok px-2 py-0.5 font-mono text-xs font-bold text-ink-black shadow-paper"
+        >
+          <Lock className="h-3.5 w-3.5" aria-hidden="true" /> LOCKED
+        </motion.span>
+      )}
+    </AnimatePresence>
+  );
+
   return (
-    <section className="paper-card relative space-y-4 p-4 sm:p-5" aria-live="polite">
+    <section
+      className={`relative min-w-0 overflow-hidden ${
+        isHandheld ? "handheld-console-frame space-y-3 p-3" : "flash-panel space-y-4 p-4 sm:p-5"
+      }`}
+      aria-live="polite"
+    >
       <LiveMutationToasts toasts={toasts} />
 
-      {/* Header: role + station badges and the giant timer */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b-[3px] border-ink-black pb-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span
-            className={`rounded-lg border-[3px] border-ink-black ${role.bgClass} px-2.5 py-1 font-mono text-xs font-bold uppercase text-ink-black shadow-paper`}
-          >
-            {role.shortLabel} · {role.label}
-          </span>
-          <span className="rounded-lg border-[3px] border-ink-black bg-paper-cream px-2.5 py-1 font-mono text-xs font-bold uppercase text-ink-black shadow-paper">
-            {station.title} · {station.subtitle}
-          </span>
-          {missionId && (
-            <span className="rounded-lg border-2 border-ink-black bg-blueprint-navy px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-200">
-              {MISSION_LABELS[missionId]}
-            </span>
-          )}
-          {playerLabel && (
-            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              {playerLabel}
-            </span>
-          )}
-          <AnimatePresence>
-            {isLocked && (
-              <motion.span
-                initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
-                animate={{ scale: 1, rotate: -3, opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                className="inline-flex items-center gap-1 rounded-lg border-[3px] border-ink-black bg-status-ok px-2.5 py-1 font-mono text-xs font-bold text-ink-black shadow-paper"
-              >
-                <Lock className="h-3.5 w-3.5" aria-hidden="true" /> LOCKED
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
+      {!isHandheld && (
+        <div
+          className="hazard-stripe-bar -mx-4 -mt-4 h-2.5 border-b-[3px] border-ink-black sm:-mx-5 sm:-mt-5"
+          aria-hidden="true"
+        />
+      )}
 
-        <motion.div
-          key={isCrit ? "crit" : "calm"}
-          animate={isCrit ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-          transition={isCrit ? { duration: 0.6, repeat: Infinity } : { duration: 0.2 }}
-          className={`flex items-baseline gap-1 rounded-2xl border-[3px] border-ink-black px-4 py-1.5 shadow-paper ${timerColorClass}`}
-          aria-label={`${secondsLeft} seconds left`}
-        >
-          <span className="font-mono text-5xl font-bold leading-none tabular-nums sm:text-6xl">
-            {String(secondsLeft).padStart(2, "0")}
-          </span>
-          <span className="font-mono text-base font-bold">s</span>
-        </motion.div>
+      {/* Header: ASTRO SPRITE identity + station task + giant timer */}
+      <header
+        className={`flex items-center justify-between gap-3 border-b-[3px] border-ink-black ${
+          isHandheld ? "pb-2" : "flex-wrap pb-3"
+        }`}
+      >
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <div
+            className="visor-glow shrink-0 rounded-xl border-[3px] border-ink-black bg-space-ink p-1"
+            style={{ borderColor: "#0F172A" }}
+          >
+            <CrewmateAvatar
+              role={roleId}
+              state={isLocked ? "cheer" : isCrit ? "panic" : "work"}
+              size={isHandheld ? 36 : 52}
+            />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span
+                className="truncate rounded-md border-2 border-ink-black px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-ink-black shadow-paper"
+                style={{ backgroundColor: profile.suit }}
+              >
+                {profile.codename}
+              </span>
+              {!isHandheld && (
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                  {profile.squadClass}
+                </span>
+              )}
+              {lockedBadge}
+            </div>
+            <div
+              className={`truncate font-display font-bold text-paper-cream ${
+                isHandheld ? "text-sm" : "text-base sm:text-lg"
+              }`}
+            >
+              {station.title} · {stationTask}
+            </div>
+            {!isHandheld && (
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                <span className="inline-flex items-center gap-1">
+                  <Wrench className="h-3 w-3" aria-hidden="true" /> {profile.gearLabel}
+                </span>
+                {missionId && <span>· {MISSION_LABELS[missionId]}</span>}
+                {playerLabel && <span>· {playerLabel}</span>}
+              </div>
+            )}
+          </div>
+        </div>
+        {timer}
       </header>
 
       {/* Time progress bar */}
       <div
-        className="h-3 w-full overflow-hidden rounded-full border-2 border-ink-black bg-space-ink"
+        className={`w-full overflow-hidden rounded-full border-2 border-ink-black bg-space-ink ${
+          isHandheld ? "h-2.5" : "h-3"
+        }`}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={durationSec}
@@ -291,9 +362,11 @@ export function MinigameShell({
       </div>
 
       {/* Minigame body — pointer-events disabled once the single take is locked */}
-      <div className="relative">
+      <div className="relative min-w-0">
         <div
-          className={isLocked ? "pointer-events-none select-none opacity-60 transition-opacity" : ""}
+          className={`min-w-0 overflow-x-hidden ${
+            isLocked ? "pointer-events-none select-none opacity-60 transition-opacity" : ""
+          }`}
           aria-disabled={isLocked}
         >
           <MinigameErrorBoundary
@@ -322,7 +395,11 @@ export function MinigameShell({
               transition={{ type: "spring", stiffness: 380, damping: 16 }}
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
             >
-              <div className="flex items-center gap-2 rounded-2xl border-4 border-ink-black bg-status-ok px-5 py-3 font-display text-2xl font-bold text-ink-black shadow-paper-lg sm:text-3xl">
+              <div
+                className={`flex items-center gap-2 rounded-2xl border-4 border-ink-black bg-status-ok font-display font-bold text-ink-black shadow-paper-lg ${
+                  isHandheld ? "px-4 py-2 text-xl" : "px-5 py-3 text-2xl sm:text-3xl"
+                }`}
+              >
                 <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
                 TAKE LOCKED
               </div>
@@ -331,7 +408,7 @@ export function MinigameShell({
         </AnimatePresence>
 
         {!isLocked && isTimeUp && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center px-2">
             <div className="flex items-center gap-2 rounded-xl border-[3px] border-ink-black bg-status-crit px-3 py-1.5 font-mono text-xs font-bold text-ink-black shadow-paper">
               <TimerReset className="h-4 w-4" aria-hidden="true" />
               TIME&apos;S UP — auto-submitting your take
@@ -339,6 +416,15 @@ export function MinigameShell({
           </div>
         )}
       </div>
+
+      {isHandheld && (
+        <footer className="flex items-center justify-between gap-2 border-t-2 border-ink-black pt-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+          <span className="inline-flex min-w-0 items-center gap-1 truncate">
+            <Wrench className="h-3 w-3 shrink-0" aria-hidden="true" /> {profile.gearLabel}
+          </span>
+          {missionId && <span className="shrink-0">{MISSION_LABELS[missionId]}</span>}
+        </footer>
+      )}
     </section>
   );
 }
@@ -361,16 +447,16 @@ function MinigameFallback({
   onRetry: () => void;
   onFallbackSubmit?: () => void;
 }) {
-  const role = ROLE_META[roleId];
+  const profile = ROLE_CHARACTER_PROFILE[roleId];
   return (
     <div className="paper-card-light space-y-3 p-4" role="alert">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-status-crit" aria-hidden="true" />
-        <h3 className="font-display text-lg font-bold">Minigame offline — safe fallback</h3>
+        <h3 className="font-display text-lg font-bold">Console offline — safe fallback</h3>
       </div>
       <p className="text-sm text-slate-700">
-        The {role.label} minigame for Station {wave} hit an error and was isolated so your mission
-        can continue. Lock a fallback take to keep the crew on schedule.
+        {profile.codename}&apos;s Station {wave} console ({profile.label}) hit an error and was
+        isolated so your mission can continue. Lock a fallback take to keep the squad on schedule.
       </p>
       <pre className="max-h-24 overflow-auto rounded-lg border-2 border-ink-black bg-space-ink p-2 font-mono text-[11px] text-status-warn">
         {error.message || String(error)}

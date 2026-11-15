@@ -7,7 +7,16 @@ import { ROLE_META } from "./components/MinigameShell";
 import { DevSandboxView } from "./views/DevSandboxView";
 import { Flight60sView, type FlightQuestionUI } from "./views/Flight60sView";
 import { HomeMenu } from "./views/HomeMenu";
-import { ALL_ROLES, LinearStationTrack, SYNC_DELAY_SEC, WALK_DURATION_SEC } from "./views/LinearStationTrack";
+import {
+  ALL_ROLES,
+  LAUNCH_LOADING_MS,
+  LinearStationTrack,
+  resolvePhoneConsole,
+  SYNC_DELAY_SEC,
+  useIsSmallViewport,
+  WALK_DURATION_SEC,
+  type StageViewOverride,
+} from "./views/LinearStationTrack";
 import { LobbyView } from "./views/LobbyView";
 import { MissionReportDashboard } from "./views/MissionReportDashboard";
 import {
@@ -21,6 +30,7 @@ import {
   type ConnectionStatus,
   type EstadoSalaActualizadoPayload,
   type JugadorBloqueoTomaPayload,
+  type PreguntaVuelo60sPayload,
   type ReporteFinalMisionPayload,
   type ResultadoTurnoVueloPayload,
   type RoomPlayer,
@@ -56,6 +66,17 @@ const PREVIEW_AI_LOCK_STAGGER_MS = 450;
 const ROOM_CREATE_TIMEOUT_MS = 3000;
 /** Grace period after t=0 before App force-locks a take the minigame failed to auto-submit. */
 const AUTO_LOCK_GRACE_MS = 1500;
+/** Launchpad walk + wave2_to_flight loading screen before Flight60sView mounts (UI-only). */
+const LAUNCH_TRANSITION_MS = WALK_DURATION_SEC * 1000 + LAUNCH_LOADING_MS;
+
+/** QA switch: `?view=stage` forces the Host Main Stage, `?view=phone` the Phone Crew Console. */
+function readStageViewOverride(): StageViewOverride {
+  if (typeof window === "undefined") return "auto";
+  const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "stage" || view === "host") return "host";
+  if (view === "phone" || view === "mobile") return "mobile";
+  return "auto";
+}
 
 // Preview-only defaults (same mock values used by /dev-sandbox; the server overrides them
 // with `iniciar_oleada_1.initial_constraints` when online).
@@ -229,6 +250,16 @@ export function App() {
   const globalFlightTimer = useRef<number | null>(null);
   const previewTimers = useRef<number[]>([]);
   const roomCreateTimer = useRef<number | null>(null);
+  // Online launch transition: hold the first flight question until the loading screen ends.
+  const launchTimer = useRef<number | null>(null);
+  const launchPending = useRef(false);
+  const pendingFlightQuestion = useRef<PreguntaVuelo60sPayload | null>(null);
+  const pendingFlightTotalSec = useRef<number>(FLIGHT_TOTAL_SEC);
+
+  // --- Host Main Stage vs Phone Crew Console --------------------------------
+  const [stageViewOverride] = useState<StageViewOverride>(readStageViewOverride);
+  const isSmallViewport = useIsSmallViewport();
+  const isPhoneConsole = resolvePhoneConsole({ isSmallViewport, mode, isHost, override: stageViewOverride });
   const latest = useRef({ role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen });
   latest.current = { role, mode, pin, playerId, playerName, wave, isLocked, mission, difficulty, isOnline, players, screen };
 
@@ -301,6 +332,9 @@ export function App() {
     clearTimer(stationTimer);
     clearTimer(flightTimer);
     clearTimer(globalFlightTimer);
+    clearTimer(launchTimer);
+    launchPending.current = false;
+    pendingFlightQuestion.current = null;
     clearPreviewTimers();
     setWave(1);
     setStationDuration(STATION_SEC);
@@ -413,13 +447,43 @@ export function App() {
       },
       iniciar_vuelo_60s: (payload) => {
         clearTimer(stationTimer);
-        setAwaitingLaunch(false);
         setFlightQuestion(null);
         setFlightRound(1);
-        startGlobalFlightTimer(payload.total_duration_sec || FLIGHT_TOTAL_SEC);
-        setScreen("flight");
+        const totalSec = payload.total_duration_sec || FLIGHT_TOTAL_SEC;
+        if (latest.current.screen !== "stations") {
+          setAwaitingLaunch(false);
+          startGlobalFlightTimer(totalSec);
+          setScreen("flight");
+          return;
+        }
+        // From the station track: walk to the launchpad + wave2_to_flight loading screen first.
+        // The first `pregunta_vuelo_60s` is buffered so its 15 s timer starts on the flight screen.
+        launchPending.current = true;
+        pendingFlightTotalSec.current = totalSec;
+        setAwaitingLaunch(true);
+        clearTimer(launchTimer);
+        launchTimer.current = window.setTimeout(() => {
+          launchTimer.current = null;
+          launchPending.current = false;
+          setAwaitingLaunch(false);
+          startGlobalFlightTimer(pendingFlightTotalSec.current);
+          const queued = pendingFlightQuestion.current;
+          pendingFlightQuestion.current = null;
+          if (queued) {
+            setFlightRound(queued.round);
+            setFlightQuestion(queued.question);
+            setActivePlayerName(queued.active_player_name);
+            setLastTurnResult(null);
+            startFlightRoundTimer(queued.duration_sec || FLIGHT_ROUND_SEC);
+          }
+          setScreen("flight");
+        }, LAUNCH_TRANSITION_MS);
       },
       pregunta_vuelo_60s: (payload) => {
+        if (launchPending.current) {
+          pendingFlightQuestion.current = payload;
+          return;
+        }
         setFlightRound(payload.round);
         setFlightQuestion(payload.question);
         setActivePlayerName(payload.active_player_name);
@@ -458,6 +522,7 @@ export function App() {
       clearTimer(flightTimer);
       clearTimer(globalFlightTimer);
       clearTimer(roomCreateTimer);
+      clearTimer(launchTimer);
       clearPreviewTimers();
     },
     []
@@ -633,7 +698,7 @@ export function App() {
         }, afterAi);
       } else {
         schedulePreview(() => setAwaitingLaunch(true), afterAi);
-        schedulePreview(() => startPreviewFlight(), afterAi + (WALK_DURATION_SEC + 1.5) * 1000);
+        schedulePreview(() => startPreviewFlight(), afterAi + LAUNCH_TRANSITION_MS);
       }
     },
     [pushToast, startPreviewFlight]
@@ -690,6 +755,10 @@ export function App() {
     flightQuestion && (mode === "single" || humanCount <= 1)
       ? { ...flightQuestion, assigned_role: role }
       : flightQuestion;
+
+  // Host Main Stage flag for Flight60sView (Codex adds `isHostStage?` per STATE.md contract).
+  // Passed as a spread so this compiles both before and after that optional prop lands.
+  const flightStageProps: { isHostStage?: boolean } = { isHostStage: !isPhoneConsole };
 
   // ---------------------------------------------------------------------------
   // Render
@@ -753,11 +822,15 @@ export function App() {
           onStationOpened={handleStationOpened}
           connectionStatus={connectionStatus}
           playerName={playerName}
+          isHost={isHost}
+          mode={mode}
+          stageViewOverride={stageViewOverride}
         />
       )}
 
       {screen === "flight" && (
         <Flight60sView
+          {...flightStageProps}
           round={flightRound}
           timeLeftSec={flightTimeLeft}
           myRole={role}

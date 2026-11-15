@@ -1,17 +1,22 @@
-// Owner: Leonardo (Tasks LEO-05, LEO-08, LEO-09) — Linear station track.
+// Owner: Leonardo (Tasks LEO-05, LEO-08, LEO-09) — Linear station track (2D Flash arcade hangar).
 // [BASE] ──► [STATION 1: DESIGN] ──► [SYNC 5s] ──► [STATION 2: INTEGRATION] ──► [LAUNCHPAD]
-// The crewmate walks automatically (no WASD, docs/08-controles.md §1); teammates show a green
-// LOCKED check when `jugador_bloqueo_toma` arrives; the 8 minigames mount through MinigameShell.
+// The ASTRO SPRITES squad walks automatically (no WASD, docs/08-controles.md §1); teammates show a
+// green LOCKED check when `jugador_bloqueo_toma` arrives; the 8 minigames mount through MinigameShell.
+// Two presentations:
+//   • Host Main Stage (desktop / projector): panoramic hangar track with the 4 sprites marching,
+//     live LOCKED checks and the full 6-gauge ResourceHUD.
+//   • Phone Crew Console (< 768px or a PIN guest): compact track + compact HUD so the minigame
+//     controls own the screen inside a `.handheld-console-frame`.
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Cpu, Flag, Home, RefreshCw, Rocket, Wrench } from "lucide-react";
+import { CheckCircle2, Cpu, Flag, Home, RefreshCw, Rocket, Smartphone, Tv, Wrench } from "lucide-react";
 import {
   MinigameShell,
   MISSION_LABELS,
-  ROLE_META,
   STATION_DURATION_SEC,
 } from "../components/MinigameShell";
-import { CrewmateAvatar } from "../components/paper/CrewmateAvatar";
+import { CrewmateAvatar, ROLE_CHARACTER_PROFILE } from "../components/paper/CrewmateAvatar";
+import { MissionLoadingScreen } from "../components/paper/LoadingScreen";
 import { ResourceHUD } from "../components/paper/ResourceHUD";
 import { Rol1A_BudgetTable } from "../components/minigames/Rol1A_BudgetTable";
 import { Rol1B_LauncherAuction } from "../components/minigames/Rol1B_LauncherAuction";
@@ -21,7 +26,7 @@ import { Rol3A_OrbitalSniper } from "../components/minigames/Rol3A_OrbitalSniper
 import { Rol3B_AstroLogistics3D } from "../components/minigames/Rol3B_AstroLogistics3D";
 import { Rol4A_SpectralLabTask } from "../components/minigames/Rol4A_SpectralLabTask";
 import { Rol4B_CommsSpectralHacker } from "../components/minigames/Rol4B_CommsSpectralHacker";
-import type { ConnectionStatus, JugadorBloqueoTomaPayload, RoomPlayer } from "../socket";
+import type { ConnectionStatus, GameMode, JugadorBloqueoTomaPayload, RoomPlayer } from "../socket";
 import type {
   DifficultyType,
   LiveMetrics,
@@ -37,6 +42,12 @@ import type {
 export const WALK_DURATION_SEC = 1.5;
 /** Default synchronized transition between Station 1 and Station 2 (`iniciar_oleada_2.sync_delay_sec`). */
 export const SYNC_DELAY_SEC = 5;
+/** UI-only: how long the Launchpad -> 60s Flight loading screen stays up after the walk. */
+export const LAUNCH_LOADING_MS = 2500;
+/** Phone console breakpoint (STATE.md Fase 5: phones are `< 768px`). */
+export const PHONE_BREAKPOINT_PX = 768;
+/** UI-only refresh rate for loading-screen progress bars. */
+const LOADING_TICK_MS = 100;
 
 export const ALL_ROLES: RoleType[] = [
   "finance_launch",
@@ -44,6 +55,42 @@ export const ALL_ROLES: RoleType[] = [
   "orbit_power",
   "science_comms",
 ];
+
+/** Manual presentation override: "auto" decides from viewport + PIN role. */
+export type StageViewOverride = "auto" | "host" | "mobile";
+
+// ---------------------------------------------------------------------------
+// Host vs phone helpers (exported so App.tsx can reuse them for Flight60sView)
+// ---------------------------------------------------------------------------
+export function useIsSmallViewport(breakpointPx: number = PHONE_BREAKPOINT_PX): boolean {
+  const query = `(max-width: ${breakpointPx - 1}px)`;
+  const read = () =>
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(query).matches;
+  const [isSmall, setIsSmall] = useState<boolean>(read);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    const mql = window.matchMedia(query);
+    const onChange = () => setIsSmall(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return isSmall;
+}
+
+/** Phone console when the viewport is small or the player joined by PIN (multi, not host). */
+export function resolvePhoneConsole(opts: {
+  isSmallViewport: boolean;
+  mode?: GameMode;
+  isHost?: boolean;
+  override?: StageViewOverride;
+}): boolean {
+  if (opts.override === "host") return false;
+  if (opts.override === "mobile") return true;
+  return opts.isSmallViewport || (opts.mode === "multi" && opts.isHost === false);
+}
 
 // ---------------------------------------------------------------------------
 // Minigame registry (Wave 1 = Rol?A, Wave 2 = Rol?B)
@@ -67,15 +114,20 @@ const WAVE2_MAP: Record<RoleType, ComponentType<MinigameProps>> = {
 // ---------------------------------------------------------------------------
 type TrackNodeId = "base" | "station_1" | "sync" | "station_2" | "launchpad";
 
-const TRACK_NODES: Array<{ id: TrackNodeId; label: string; sub: string; Icon: ComponentType<{ className?: string }> }> = [
-  { id: "base", label: "BASE", sub: "Crew ready", Icon: Home },
+const TRACK_NODES: Array<{
+  id: TrackNodeId;
+  label: string;
+  sub: string;
+  Icon: ComponentType<{ className?: string }>;
+}> = [
+  { id: "base", label: "BASE", sub: "Squad ready", Icon: Home },
   { id: "station_1", label: "STATION 1", sub: "DESIGN", Icon: Wrench },
   { id: "sync", label: "SYNC", sub: `${SYNC_DELAY_SEC}s`, Icon: RefreshCw },
   { id: "station_2", label: "STATION 2", sub: "INTEGRATION", Icon: Cpu },
   { id: "launchpad", label: "LAUNCHPAD", sub: "60s flight", Icon: Rocket },
 ];
 
-/** Horizontal avatar position (% of the track width) for each node. */
+/** Horizontal avatar position (% of the rail) for each node. */
 const NODE_POSITION_PCT: Record<TrackNodeId, number> = {
   base: 0,
   station_1: 25,
@@ -83,6 +135,9 @@ const NODE_POSITION_PCT: Record<TrackNodeId, number> = {
   station_2: 75,
   launchpad: 100,
 };
+
+/** Host stage: horizontal spread (px) of the 4-sprite squad cluster around a node. */
+const SQUAD_SPREAD_PX = 34;
 
 type TrackPhase =
   | "walk_to_station_1"
@@ -126,12 +181,19 @@ export interface LinearStationTrackProps {
   syncDelaySec?: number;
   /** `iniciar_oleada_*.duration_sec` (defaults to 30 s). */
   stationDurationSec?: number;
-  /** True once Wave 2 is locked and we wait for `iniciar_vuelo_60s`. */
+  /** True once Wave 2 is locked and the squad heads to the launchpad / 60s flight. */
   awaitingLaunch?: boolean;
+  /** Launchpad loading screen duration after the walk (defaults to LAUNCH_LOADING_MS). */
+  launchLoadingMs?: number;
   /** Fires when the crewmate reaches a station and its minigame becomes playable. */
   onStationOpened?: (wave: 1 | 2) => void;
   connectionStatus?: ConnectionStatus;
   playerName?: string;
+  /** Room host (big screen). PIN guests are `false` and get the phone console. */
+  isHost?: boolean;
+  mode?: GameMode;
+  /** Force the Host Main Stage or Phone Console presentation (default "auto"). */
+  stageViewOverride?: StageViewOverride;
 }
 
 export function LinearStationTrack(props: LinearStationTrackProps) {
@@ -152,14 +214,27 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     syncDelaySec = SYNC_DELAY_SEC,
     stationDurationSec = STATION_DURATION_SEC,
     awaitingLaunch = false,
+    launchLoadingMs = LAUNCH_LOADING_MS,
     onStationOpened,
     connectionStatus,
     playerName,
+    isHost,
+    mode,
+    stageViewOverride = "auto",
   } = props;
+
+  const isSmallViewport = useIsSmallViewport();
+  const isPhoneConsole = resolvePhoneConsole({
+    isSmallViewport,
+    mode,
+    isHost,
+    override: stageViewOverride,
+  });
 
   // --- Phase machine --------------------------------------------------------
   const [phase, setPhase] = useState<TrackPhase>("walk_to_station_1");
-  const [syncLeft, setSyncLeft] = useState<number>(syncDelaySec);
+  const [syncElapsedMs, setSyncElapsedMs] = useState(0);
+  const [launchElapsedMs, setLaunchElapsedMs] = useState(0);
   const prevWave = useRef<1 | 2>(wave);
   const openedRef = useRef(onStationOpened);
   openedRef.current = onStationOpened;
@@ -181,15 +256,16 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Wave 1 -> 2: synchronized 5 s transition while the crewmate walks to STATION 2.
+  // Wave 1 -> 2: synchronized transition (wave1_to_wave2 loading screen) while the squad walks.
   useEffect(() => {
     if (wave === 2 && prevWave.current === 1) {
       prevWave.current = 2;
       setPhase("sync");
-      setSyncLeft(syncDelaySec);
+      setSyncElapsedMs(0);
+      const start = performance.now();
       const tick = window.setInterval(() => {
-        setSyncLeft((s) => Math.max(0, s - 1));
-      }, 1000);
+        setSyncElapsedMs(performance.now() - start);
+      }, LOADING_TICK_MS);
       const done = window.setTimeout(() => {
         window.clearInterval(tick);
         setPhase("station_2");
@@ -204,12 +280,23 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
     return undefined;
   }, [wave, syncDelaySec]);
 
-  // Both waves locked: walk to the LAUNCHPAD and wait for Mission Control.
+  // Both waves locked: walk to the LAUNCHPAD, then show the wave2_to_flight loading screen.
   useEffect(() => {
-    if (!awaitingLaunch) return;
+    if (!awaitingLaunch) return undefined;
     setPhase("walk_to_launchpad");
-    const t = window.setTimeout(() => setPhase("launchpad"), WALK_DURATION_SEC * 1000);
-    return () => window.clearTimeout(t);
+    let tick: number | undefined;
+    const t = window.setTimeout(() => {
+      setPhase("launchpad");
+      setLaunchElapsedMs(0);
+      const start = performance.now();
+      tick = window.setInterval(() => {
+        setLaunchElapsedMs(performance.now() - start);
+      }, LOADING_TICK_MS);
+    }, WALK_DURATION_SEC * 1000);
+    return () => {
+      window.clearTimeout(t);
+      if (tick !== undefined) window.clearInterval(tick);
+    };
   }, [awaitingLaunch]);
 
   const isWalking = phase === "walk_to_station_1" || phase === "sync" || phase === "walk_to_launchpad";
@@ -217,6 +304,7 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
   const showMinigame = phase === "station_1" || phase === "station_2";
   const activeWave: 1 | 2 = phase === "station_2" || phase === "sync" ? 2 : wave;
   const ActiveMinigame = activeWave === 1 ? WAVE1_MAP[roleId] : WAVE2_MAP[roleId];
+  const myProfile = ROLE_CHARACTER_PROFILE[roleId];
 
   const activeNode: TrackNodeId =
     phase === "sync"
@@ -227,227 +315,371 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
       ? "base"
       : avatarNode;
 
-  const avatarState = isWalking ? "walk" : isLocked ? "cheer" : "work";
+  const syncProgressPct = Math.min(100, (syncElapsedMs / Math.max(1, syncDelaySec * 1000)) * 100);
+  const launchProgressPct = Math.min(100, (launchElapsedMs / Math.max(1, launchLoadingMs)) * 100);
+
+  const isRoleLocked = (role: RoleType) =>
+    lockedTakes.some((t) => t.role_id === role && t.wave === activeWave) || (role === roleId && isLocked);
+
+  const spriteState = (role: RoleType) =>
+    isWalking ? "walk" : isRoleLocked(role) ? "cheer" : "work";
+
+  const headline =
+    phase === "sync"
+      ? "SYNCHRONIZING SUBSYSTEMS"
+      : phase === "launchpad" || phase === "walk_to_launchpad"
+      ? "LAUNCHPAD · AWAITING CLEARANCE"
+      : `STATION ${activeWave} · ${activeWave === 1 ? "DESIGN" : "INTEGRATION"}`;
+
+  const connectionBadge = connectionStatus && (
+    <span
+      className={`shrink-0 rounded-lg border-2 border-ink-black px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider ${
+        connectionStatus === "online"
+          ? "bg-status-ok text-ink-black"
+          : connectionStatus === "offline"
+          ? "bg-status-warn text-ink-black"
+          : "bg-blueprint-navy text-slate-200"
+      }`}
+    >
+      {connectionStatus === "online"
+        ? isPhoneConsole
+          ? "ONLINE"
+          : "Mission Control: ONLINE"
+        : connectionStatus === "offline"
+        ? isPhoneConsole
+          ? "PREVIEW"
+          : "Preview mode (offline)"
+        : "Connecting…"}
+    </span>
+  );
 
   return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 py-6">
-      <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} />
+    <main
+      className={`mx-auto overflow-x-hidden ${
+        isPhoneConsole ? "max-w-xl space-y-3 px-2 py-3" : "max-w-6xl space-y-5 px-4 py-6"
+      }`}
+    >
+      {isPhoneConsole ? (
+        <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} compact activeRole={roleId} />
+      ) : (
+        <ResourceHUD liveMetrics={liveMetrics} missionId={missionId} activeRole={roleId} />
+      )}
 
-      {/* Track header */}
-      <section className="paper-card space-y-4 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-role-spacecraft">
-              Linear station track · {MISSION_LABELS[missionId]} · {difficulty.toUpperCase()}
-            </p>
-            <h2 className="font-display text-xl font-bold sm:text-2xl">
-              {phase === "sync"
-                ? "SYNCHRONIZING SUBSYSTEMS"
-                : phase === "launchpad" || phase === "walk_to_launchpad"
-                ? "LAUNCHPAD · AWAITING CLEARANCE"
-                : `STATION ${activeWave} · ${activeWave === 1 ? "DESIGN" : "INTEGRATION"}`}
-            </h2>
-          </div>
-          {connectionStatus && (
-            <span
-              className={`rounded-lg border-2 border-ink-black px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wider ${
-                connectionStatus === "online"
-                  ? "bg-status-ok text-ink-black"
-                  : connectionStatus === "offline"
-                  ? "bg-status-warn text-ink-black"
-                  : "bg-blueprint-navy text-slate-200"
-              }`}
-            >
-              {connectionStatus === "online"
-                ? "Mission Control: ONLINE"
-                : connectionStatus === "offline"
-                ? "Preview mode (offline)"
-                : "Connecting…"}
-            </span>
-          )}
-        </div>
-
-        {/* Nodes + animated crewmate */}
-        <div className="relative px-6 pb-2 pt-14 sm:px-8">
-          {/* rail */}
-          <div className="absolute left-6 right-6 top-[4.6rem] h-2 rounded-full border-2 border-ink-black bg-space-ink sm:left-8 sm:right-8">
-            <motion.div
-              className="h-full rounded-full bg-status-ok"
-              animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
-              transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
-            />
+      {isPhoneConsole ? (
+        // -------------------------------------------------------------------
+        // PHONE CREW CONSOLE — compact track, the minigame owns the screen
+        // -------------------------------------------------------------------
+        <section className="handheld-console-frame space-y-2 p-3" aria-label="Station track">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <CrewmateAvatar role={roleId} state={spriteState(roleId)} size={30} />
+              <div className="min-w-0">
+                <div
+                  className="truncate font-mono text-[10px] font-bold uppercase"
+                  style={{ color: myProfile.suit }}
+                >
+                  {myProfile.codename} · {playerName || "You"}
+                </div>
+                <div className="truncate font-display text-sm font-bold">{headline}</div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Smartphone className="h-3.5 w-3.5 text-role-spacecraft" aria-hidden="true" />
+              {connectionBadge}
+            </div>
           </div>
 
-          {/* walking crewmate — wrapper shares the rail insets so `left: %` maps onto the nodes */}
-          <div className="pointer-events-none absolute left-6 right-6 top-0 h-16 sm:left-8 sm:right-8">
-            <motion.div
-              className="absolute top-0 z-10"
-              initial={false}
-              animate={{
-                left: `${NODE_POSITION_PCT[avatarNode]}%`,
-                x: "-50%",
-                y: isWalking ? [0, -6, 0, -6, 0] : 0,
-                rotate: isWalking ? [-4, 4, -4] : 0,
-              }}
-              transition={{
-                left: { duration: WALK_DURATION_SEC, ease: "easeInOut" },
-                y: { duration: 0.5, repeat: isWalking ? Infinity : 0 },
-                rotate: { duration: 0.5, repeat: isWalking ? Infinity : 0 },
-              }}
-              aria-label={isWalking ? "Crewmate walking to the next station" : "Crewmate at station"}
-            >
-              <CrewmateAvatar role={roleId} state={avatarState} size={56} />
-            </motion.div>
-          </div>
-
-          {/* node labels */}
-          <ol className="relative flex items-start justify-between" aria-label="Station track">
-            {TRACK_NODES.map((node) => {
-              const reached = NODE_POSITION_PCT[node.id] <= NODE_POSITION_PCT[avatarNode];
-              const isActive = node.id === activeNode;
-              return (
-                <li key={node.id} className="flex w-16 flex-col items-center gap-1 text-center sm:w-24">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-ink-black shadow-paper ${
+          {/* slim 5-dot progress rail */}
+          <div className="relative px-3">
+            <div className="absolute left-3 right-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full border border-ink-black bg-space-ink">
+              <motion.div
+                className="h-full rounded-full bg-status-ok"
+                animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
+                transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
+              />
+            </div>
+            <ol className="relative flex items-center justify-between">
+              {TRACK_NODES.map((node) => {
+                const reached = NODE_POSITION_PCT[node.id] <= NODE_POSITION_PCT[avatarNode];
+                const isActive = node.id === activeNode;
+                return (
+                  <li
+                    key={node.id}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-ink-black ${
                       isActive
                         ? "bg-status-ok text-ink-black"
                         : reached
                         ? "bg-paper-cream text-ink-black"
                         : "bg-blueprint-navy text-slate-400"
                     }`}
+                    aria-label={`${node.label}${isActive ? " (current)" : ""}`}
                   >
-                    <node.Icon className={`h-4 w-4 ${node.id === "sync" && phase === "sync" ? "animate-spin" : ""}`} />
-                  </div>
-                  <div
-                    className={`font-mono text-[10px] font-bold leading-tight sm:text-xs ${
-                      isActive ? "text-status-ok" : reached ? "text-paper-cream" : "text-slate-500"
-                    }`}
-                  >
-                    {node.label}
-                  </div>
-                  <div className="hidden font-mono text-[10px] text-slate-400 sm:block">{node.sub}</div>
+                    <node.Icon className="h-3 w-3" />
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {/* squad lock status (4 mini chips) */}
+          <ul className="grid grid-cols-4 gap-1.5" aria-label="Squad status">
+            {ALL_ROLES.map((role) => {
+              const profile = ROLE_CHARACTER_PROFILE[role];
+              const locked = isRoleLocked(role);
+              return (
+                <li
+                  key={role}
+                  className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border-2 border-ink-black px-1 py-0.5 ${
+                    role === roleId ? "bg-blueprint-navy" : "bg-space-ink"
+                  }`}
+                  title={`${profile.codename}${locked ? " · LOCKED" : ""}`}
+                >
+                  <CrewmateAvatar role={role} state={locked ? "cheer" : "work"} size={20} />
+                  {locked ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-status-ok" aria-label="locked" />
+                  ) : (
+                    <span className="truncate font-mono text-[9px] font-bold" style={{ color: profile.suit }}>
+                      {profile.short}
+                    </span>
+                  )}
                 </li>
               );
             })}
-          </ol>
-        </div>
-
-        {/* Crew indicators with LOCKED checks */}
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Crew status">
-          {ALL_ROLES.map((role) => {
-            const human = players.find((p) => p.role_id === role);
-            const isMe = role === roleId;
-            const lockedHere = lockedTakes.some((t) => t.role_id === role && t.wave === activeWave) || (isMe && isLocked);
-            const meta = ROLE_META[role];
-            return (
-              <li
-                key={role}
-                className={`flex items-center gap-2 rounded-xl border-[3px] border-ink-black px-2 py-1.5 shadow-paper ${
-                  isMe ? "bg-paper-cream text-ink-black" : "bg-space-ink text-paper-cream"
-                }`}
-              >
-                <CrewmateAvatar role={role} state={lockedHere ? "cheer" : "work"} size={30} />
-                <div className="min-w-0 flex-1">
-                  <div className={`truncate font-mono text-[10px] font-bold uppercase ${isMe ? "text-ink-black" : meta.textClass}`}>
-                    {meta.shortLabel} {isMe ? "· YOU" : ""}
-                  </div>
-                  <div className="truncate text-xs font-semibold">
-                    {isMe ? playerName || "You" : human ? human.player_name : "AI Autopilot"}
-                  </div>
-                </div>
-                <AnimatePresence mode="wait" initial={false}>
-                  {lockedHere ? (
-                    <motion.span
-                      key="locked"
-                      initial={{ scale: 0.4, rotate: -30, opacity: 0 }}
-                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                      className="flex items-center gap-1 rounded-md border-2 border-ink-black bg-status-ok px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink-black"
-                      aria-label={`${meta.label} locked`}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" /> LOCKED
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="working"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className={`font-mono text-[10px] font-bold ${isMe ? "text-slate-500" : "text-slate-400"}`}
-                    >
-                      {!human && !isMe ? "AUTO" : "…"}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {/* Station content: minigame / sync overlay / launchpad */}
-      <AnimatePresence mode="wait">
-        {phase === "sync" && (
-          <motion.section
-            key="sync"
-            initial={{ opacity: 0, y: 24, rotate: -1 }}
-            animate={{ opacity: 1, y: 0, rotate: 0 }}
-            exit={{ opacity: 0, y: -24 }}
-            className="paper-card-light flex flex-col items-center gap-3 p-8 text-center"
-            role="status"
-            aria-live="assertive"
-          >
-            <RefreshCw className="h-10 w-10 animate-spin text-blueprint-navy" aria-hidden="true" />
-            <h3 className="font-display text-2xl font-bold sm:text-3xl">
-              Synchronizing Subsystem Constraints...
-            </h3>
-            <p className="max-w-md text-sm text-slate-700">
-              Consolidating Station 1 decisions from all 4 roles. Station 2 will open with the exact
-              mass, budget, power and link constraints your crew just produced.
-            </p>
-            <div className="font-mono text-5xl font-bold tabular-nums text-ink-black">
-              {String(syncLeft).padStart(2, "0")}s
+          </ul>
+        </section>
+      ) : (
+        // -------------------------------------------------------------------
+        // HOST MAIN STAGE — panoramic hangar track with the 4-sprite squad
+        // -------------------------------------------------------------------
+        <section className="flash-panel relative space-y-4 overflow-hidden p-4 sm:p-5" aria-label="Station track">
+          <div
+            className="hazard-stripe-bar -mx-4 -mt-4 h-3 border-b-[3px] border-ink-black sm:-mx-5 sm:-mt-5"
+            aria-hidden="true"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-role-spacecraft">
+                <Tv className="h-3.5 w-3.5" aria-hidden="true" />
+                Host main stage · Astro squad hangar · {MISSION_LABELS[missionId]} · {difficulty.toUpperCase()}
+              </p>
+              <h2 className="font-display text-xl font-bold sm:text-2xl">{headline}</h2>
             </div>
-          </motion.section>
-        )}
+            {connectionBadge}
+          </div>
 
-        {(phase === "walk_to_station_1") && (
+          {/* Hangar rail: node columns are w-28, so the rail is inset by half (3.5rem) to line up */}
+          <div className="relative rounded-xl border-[3px] border-ink-black bg-space-ink/80 pb-3 pt-[5.5rem]">
+            <div className="blueprint-grid pointer-events-none absolute inset-0 rounded-xl opacity-40" aria-hidden="true" />
+
+            <div className="absolute left-14 right-14 top-[6.6rem] h-2.5 rounded-full border-2 border-ink-black bg-blueprint-navy">
+              <motion.div
+                className="h-full rounded-full bg-status-ok"
+                animate={{ width: `${NODE_POSITION_PCT[avatarNode]}%` }}
+                transition={{ duration: WALK_DURATION_SEC, ease: "easeInOut" }}
+              />
+            </div>
+
+            {/* marching squad: all 4 ASTRO SPRITES advance node to node together */}
+            <div className="pointer-events-none absolute left-14 right-14 top-3 h-20">
+              {ALL_ROLES.map((role, i) => {
+                const profile = ROLE_CHARACTER_PROFILE[role];
+                const locked = isRoleLocked(role);
+                const isMe = role === roleId;
+                const offsetPx = (i - (ALL_ROLES.length - 1) / 2) * SQUAD_SPREAD_PX;
+                return (
+                  <motion.div
+                    key={role}
+                    className="absolute top-0 flex flex-col items-center"
+                    style={{ zIndex: isMe ? 20 : 10 }}
+                    initial={false}
+                    animate={{
+                      left: `${NODE_POSITION_PCT[avatarNode]}%`,
+                      x: `calc(-50% + ${offsetPx}px)`,
+                      y: isWalking ? [0, -5, 0, -5, 0] : 0,
+                    }}
+                    transition={{
+                      left: { duration: WALK_DURATION_SEC, ease: "easeInOut", delay: i * 0.08 },
+                      x: { duration: 0.3 },
+                      y: { duration: 0.5, repeat: isWalking ? Infinity : 0, delay: i * 0.1 },
+                    }}
+                    aria-label={`${profile.codename} ${isWalking ? "walking" : locked ? "locked" : "working"}`}
+                  >
+                    <div className="h-5">
+                      <AnimatePresence>
+                        {locked && (
+                          <motion.span
+                            initial={{ scale: 0.3, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="flex items-center rounded-full border-2 border-ink-black bg-status-ok p-0.5 text-ink-black"
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <CrewmateAvatar role={role} state={spriteState(role)} size={isMe ? 50 : 42} />
+                    {isMe && (
+                      <span className="-mt-1 rounded border border-ink-black bg-paper-cream px-1 font-mono text-[8px] font-bold text-ink-black">
+                        YOU
+                      </span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            <ol className="relative flex items-start justify-between" aria-label="Station nodes">
+              {TRACK_NODES.map((node) => {
+                const reached = NODE_POSITION_PCT[node.id] <= NODE_POSITION_PCT[avatarNode];
+                const isActive = node.id === activeNode;
+                return (
+                  <li key={node.id} className="flex w-28 flex-col items-center gap-1 text-center">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-ink-black shadow-paper ${
+                        isActive
+                          ? "bg-status-ok text-ink-black"
+                          : reached
+                          ? "bg-paper-cream text-ink-black"
+                          : "bg-blueprint-navy text-slate-400"
+                      }`}
+                    >
+                      <node.Icon
+                        className={`h-4 w-4 ${node.id === "sync" && phase === "sync" ? "animate-spin" : ""}`}
+                      />
+                    </div>
+                    <div
+                      className={`font-mono text-xs font-bold leading-tight ${
+                        isActive ? "text-status-ok" : reached ? "text-paper-cream" : "text-slate-500"
+                      }`}
+                    >
+                      {node.label}
+                    </div>
+                    <div className="font-mono text-[10px] text-slate-400">{node.sub}</div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {/* Squad roster cards with live LOCKED checks */}
+          <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Squad status">
+            {ALL_ROLES.map((role) => {
+              const profile = ROLE_CHARACTER_PROFILE[role];
+              const human = players.find((p) => p.role_id === role);
+              const isMe = role === roleId;
+              const locked = isRoleLocked(role);
+              return (
+                <li
+                  key={role}
+                  className={`flex items-center gap-2 rounded-xl border-[3px] border-ink-black px-2 py-1.5 shadow-paper ${
+                    isMe ? "bg-blueprint-navy" : "bg-space-ink"
+                  }`}
+                >
+                  <CrewmateAvatar role={role} state={locked ? "cheer" : "work"} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-[10px] font-bold uppercase" style={{ color: profile.suit }}>
+                      {profile.codename}
+                      {isMe ? " · YOU" : ""}
+                    </div>
+                    <div className="truncate text-xs font-semibold text-paper-cream">
+                      {isMe ? playerName || "You" : human ? human.player_name : "AI Autopilot"}
+                    </div>
+                    <div className="truncate font-mono text-[9px] uppercase text-slate-400">
+                      {activeWave === 1 ? profile.wave1Task : profile.wave2Task}
+                    </div>
+                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {locked ? (
+                      <motion.span
+                        key="locked"
+                        initial={{ scale: 0.4, rotate: -30, opacity: 0 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                        className="flex items-center gap-1 rounded-md border-2 border-ink-black bg-status-ok px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink-black"
+                        aria-label={`${profile.codename} locked`}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> LOCKED
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="working"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="font-mono text-[10px] font-bold text-slate-400"
+                      >
+                        {!human && !isMe ? "AUTO" : "…"}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Split loading screens owned by Claude Code (STATE.md Fase 5) */}
+      {phase === "sync" && (
+        <MissionLoadingScreen
+          variant="wave1_to_wave2"
+          missionId={missionId}
+          roleId={roleId}
+          title="Synchronizing Subsystem Constraints..."
+          progressPct={Math.round(syncProgressPct)}
+          isMobileClient={isPhoneConsole}
+        />
+      )}
+      {phase === "launchpad" && (
+        <MissionLoadingScreen
+          variant="wave2_to_flight"
+          missionId={missionId}
+          roleId={roleId}
+          progressPct={Math.round(launchProgressPct)}
+          isMobileClient={isPhoneConsole}
+        />
+      )}
+
+      {/* Station content */}
+      <AnimatePresence mode="wait">
+        {phase === "walk_to_station_1" && (
           <motion.section
             key="walk1"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="paper-card flex items-center justify-center gap-3 p-6 font-mono text-sm text-slate-300"
+            className={`flex items-center justify-center gap-3 font-mono text-sm text-slate-300 ${
+              isPhoneConsole ? "handheld-console-frame p-4" : "flash-panel p-6"
+            }`}
             role="status"
           >
             <Flag className="h-5 w-5 text-status-ok" aria-hidden="true" />
-            Walking to Station 1 · Design…
+            {myProfile.codename} walking to Station 1 · {myProfile.wave1Task}…
           </motion.section>
         )}
 
-        {(phase === "walk_to_launchpad" || phase === "launchpad") && (
+        {phase === "walk_to_launchpad" && (
           <motion.section
-            key="launchpad"
-            initial={{ opacity: 0, scale: 0.95 }}
+            key="walk-launchpad"
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="paper-card-light flex flex-col items-center gap-3 p-8 text-center"
+            className={`flex items-center justify-center gap-3 font-mono text-sm text-slate-300 ${
+              isPhoneConsole ? "handheld-console-frame p-4" : "flash-panel p-6"
+            }`}
             role="status"
           >
-            <Rocket className="h-10 w-10 text-status-crit" aria-hidden="true" />
-            <h3 className="font-display text-2xl font-bold sm:text-3xl">All subsystems locked</h3>
-            <p className="max-w-md text-sm text-slate-700">
-              {phase === "launchpad"
-                ? "Mission Control is evaluating your design against the 4 decision gates. Stand by for liftoff."
-                : "Walking to the launchpad…"}
-            </p>
+            <Rocket className="h-5 w-5 text-status-crit" aria-hidden="true" />
+            All subsystems locked · squad rolling out to the launchpad…
           </motion.section>
         )}
 
         {showMinigame && (
           <motion.div
             key={`station-${activeWave}`}
+            className="min-w-0"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
@@ -461,8 +693,9 @@ export function LinearStationTrack(props: LinearStationTrackProps) {
               toastAlert={toastAlert}
               durationSec={stationDurationSec}
               missionId={missionId}
-              playerLabel={playerName ? `Crewmate: ${playerName}` : undefined}
+              playerLabel={playerName ? `Crew: ${playerName}` : undefined}
               onFallbackSubmit={() => onSubmitTake({})}
+              layout={isPhoneConsole ? "handheld" : "stage"}
             >
               <ActiveMinigame
                 key={`${roleId}-${activeWave}`}
